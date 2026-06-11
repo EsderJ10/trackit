@@ -12,6 +12,11 @@ export const DB_NAME = 'trackit.db';
  */
 const expoDb = openDatabaseSync(DB_NAME, { enableChangeListener: true });
 
+// expo-sqlite opens connections with foreign keys OFF — enable enforcement so
+// our onDelete cascade / set-null rules actually fire (e.g. deleting a session
+// removes its set logs instead of orphaning them).
+expoDb.execSync('PRAGMA foreign_keys = ON;');
+
 export const db = drizzle(expoDb, { schema });
 
 /** The fully-typed Drizzle database, including every module's tables. */
