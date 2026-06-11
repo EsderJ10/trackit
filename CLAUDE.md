@@ -50,6 +50,24 @@ src/modules/    # self-contained tracking modules (gym, …)
 - Prefer composition and small, typed components over large files.
 - Units (kg/lb), theme, and other cross-cutting preferences live in **core settings**, not per-row in module tables.
 
+## Styling
+
+- **Dark purple framework** (Liftosaur-inspired) — deliberately not pitch black; lifted surfaces + soft glowing accents. Clean, high-contrast, spacious tap targets (readable mid-workout).
+- **Palette single source of truth**: `src/ui/tokens.js` (plain CJS so `tailwind.config.js` can `require` it). Consumed by both Tailwind (className colors) and `src/ui/theme.ts` (typed colors for raw-color APIs).
+- **Semantic color names** (use these, not raw hex): `bg`, `surface[/alt/hi]`, `border[/soft]`, `primary[/bright/soft/glow]`, `fg[/muted/faint]`, `success`, `danger`, `warning`.
+- **Per-module accents**: the core stays purple; each module sets its own accent via `ModuleMeta.color` (Gym = purple, Finance = green, Habits = teal) and applies it via inline `style`/props, not className.
+- **Shared primitives** live in `src/ui/` — `Screen`, `Text` (variants), `Card`, `Button`, `Stat`, `EmptyState`, `Icon`. Compose screens from these; import from `@/ui`.
+- **Icons**: `lucide-react-native` via the `Icon` wrapper (`<Icon icon={Dumbbell} />`). `ModuleMeta.icon` is a `LucideIcon` component.
+- **Typography**: system fonts only for now (custom fonts deferred).
+- `glow(color?, opacity?)` from `@/ui` returns the soft-glow shadow style for interactive/primary elements.
+
+## Expo SDK 56 gotchas (learned)
+
+- **Expo Router 56 moved off `@react-navigation/native`** to `standard-navigation`. Import `ThemeProvider`, `DarkTheme`, `useTheme` from `expo-router`, NOT `@react-navigation/native` (not installed).
+- **Reanimated/worklets babel plugin** is added automatically by `babel-preset-expo` — do not add it manually.
+- **Drizzle `.sql` migrations** require `babel-plugin-inline-import` (`['inline-import', { extensions: ['.sql'] }]`) plus `sql` in Metro `resolver.sourceExts`.
+- **DB schema files use RELATIVE imports** (not `@/` aliases) because drizzle-kit bundles them with esbuild, which ignores tsconfig paths.
+
 ## Git
 
 - Make **atomic commits** — one logical, related change per commit.

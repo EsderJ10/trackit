@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react-native';
 import type { ComponentType } from 'react';
 
 import type { AppDatabase } from '@/core/db/client';
@@ -13,8 +14,8 @@ export interface ModuleMeta {
   name: string;
   /** Short one-line description. */
   description: string;
-  /** Ionicons glyph name used for the module's icon. */
-  icon: string;
+  /** Lucide icon component used for the module's icon. */
+  icon: LucideIcon;
   /** Accent color (hex) for the module's widget/header. */
   color: string;
   /** Semver string for the module; bump when its schema/behavior changes. */
