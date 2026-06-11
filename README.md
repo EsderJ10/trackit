@@ -7,7 +7,7 @@ core app (auth, settings, dynamic dashboard) untouched.
 
 ## Stack
 
-- **Expo SDK 56** + **Expo Router** (file-based routing)
+- **Expo SDK 54** + **Expo Router** (file-based routing) — pinned to match Expo Go SDK 54
 - **TypeScript** (strict, no `any`)
 - **NativeWind v4** (Tailwind) — dark purple theme
 - **Expo SQLite + Drizzle ORM** (local, reactive `useLiveQuery`)
@@ -28,8 +28,8 @@ pnpm typecheck      # tsc --noEmit (must be clean)
 pnpm db:generate    # regenerate Drizzle migrations after a schema change
 ```
 
-> Requires the **New Architecture** (Reanimated 4 + NativeWind). It is enabled
-> via `app.json` (`newArchEnabled: true`); use a recent Expo Go / dev build.
+> Requires **Expo Go SDK 54** (the project is pinned to SDK 54). The New
+> Architecture (Reanimated 4 + NativeWind) is enabled via `app.json`.
 
 ## Status
 

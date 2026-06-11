@@ -6,17 +6,23 @@
     "allowJs": true,
     "resolveJsonModule": true,
     "paths": {
-      "@/core/*": ["./src/core/*"],
-      "@/modules/*": ["./src/modules/*"],
-      "@/ui/*": ["./src/ui/*"],
-      "@/*": ["./src/*"]
+      "@/core/*": [
+        "./src/core/*"
+      ],
+      "@/modules/*": [
+        "./src/modules/*"
+      ],
+      "@/ui/*": [
+        "./src/ui/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
     "nativewind-env.d.ts"
   ]
 }

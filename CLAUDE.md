@@ -2,7 +2,7 @@
 
 Guidance for AI agents and developers working in this repository.
 
-> **Expo SDK 56** (React 19.2, React Native 0.85). Expo APIs change between SDKs — see `@AGENTS.md` and the versioned docs at https://docs.expo.dev/versions/v56.0.0/ before writing Expo-specific code.
+> **Expo SDK 54** (React 19.1, React Native 0.81), pinned to match Expo Go SDK 54. Expo APIs change between SDKs — see `@AGENTS.md` and the versioned docs at https://docs.expo.dev/versions/v54.0.0/ before writing Expo-specific code.
 
 ## Project
 
@@ -61,10 +61,11 @@ src/modules/    # self-contained tracking modules (gym, …)
 - **Typography**: system fonts only for now (custom fonts deferred).
 - `glow(color?, opacity?)` from `@/ui` returns the soft-glow shadow style for interactive/primary elements.
 
-## Expo SDK 56 gotchas (learned)
+## Expo SDK 54 gotchas (learned)
 
-- **Expo Router 56 moved off `@react-navigation/native`** to `standard-navigation`. Import `ThemeProvider`, `DarkTheme`, `useTheme` from `expo-router`, NOT `@react-navigation/native` (not installed).
-- **Reanimated/worklets babel plugin** is added automatically by `babel-preset-expo` — do not add it manually.
+- **Pinned to SDK 54** to match Expo Go (SDK 54). Do not bump to 56 unless a matching Expo Go / dev build is available — Expo Go refuses to load a newer SDK.
+- **Navigation theming** comes from `@react-navigation/native` (Expo Router 6 still uses it): import `ThemeProvider` from `@react-navigation/native` and `DarkTheme`/`Theme` for the theme value. (SDK 56's Expo Router moved this to `expo-router` — not our version.)
+- **Reanimated 4 + `react-native-worklets`**: SDK 54 uses Reanimated 4, which needs `react-native-worklets` as a direct dependency. The worklets babel plugin is added automatically by `babel-preset-expo` — do not add it manually.
 - **Drizzle `.sql` migrations** require `babel-plugin-inline-import` (`['inline-import', { extensions: ['.sql'] }]`) plus `sql` in Metro `resolver.sourceExts`.
 - **DB schema files use RELATIVE imports** (not `@/` aliases) because drizzle-kit bundles them with esbuild, which ignores tsconfig paths.
 

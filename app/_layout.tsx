@@ -1,6 +1,7 @@
 import '../global.css';
 
-import { Stack, ThemeProvider } from 'expo-router';
+import { ThemeProvider } from '@react-navigation/native';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';

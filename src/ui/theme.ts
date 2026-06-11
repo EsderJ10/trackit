@@ -1,5 +1,4 @@
-// Expo Router 56 vendors the navigation theme (it moved off @react-navigation).
-import { DarkTheme } from 'expo-router';
+import { DarkTheme, type Theme } from '@react-navigation/native';
 import type { ViewStyle } from 'react-native';
 
 import { palette } from './tokens';
@@ -12,7 +11,7 @@ export type AppColors = typeof colors;
  * Navigation theme so native containers and gesture backgrounds match the dark
  * purple ground (avoids white flashes between screens).
  */
-export const navigationTheme: typeof DarkTheme = {
+export const navigationTheme: Theme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
