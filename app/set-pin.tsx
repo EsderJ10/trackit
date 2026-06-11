@@ -29,14 +29,19 @@ export default function SetPinScreen() {
     }
     await authBackend.setPin(pin);
     await refreshLockEnabled();
-    router.back();
+    close();
+  }
+
+  function close() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/settings');
   }
 
   return (
     <Screen className="justify-between py-10">
       <Stack.Screen options={{ headerShown: false }} />
       <View className="items-end px-6">
-        <Pressable onPress={() => router.back()} className="active:opacity-70">
+        <Pressable onPress={close} className="active:opacity-70">
           <Text variant="label" className="text-primary-bright">
             Cancel
           </Text>

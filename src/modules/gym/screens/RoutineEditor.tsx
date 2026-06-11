@@ -32,7 +32,8 @@ export function RoutineEditor() {
 
   function remove() {
     deleteRoutine(routineId);
-    router.back();
+    if (router.canGoBack()) router.back();
+    else router.replace('/modules/gym');
   }
 
   function start() {
