@@ -3,6 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
     "paths": {
       "@/core/*": ["./src/core/*"],
       "@/modules/*": ["./src/modules/*"],

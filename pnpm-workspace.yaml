@@ -1,3 +1,8 @@
 # Expo/React Native require a flat node_modules layout. pnpm v11 reads
 # nodeLinker from here (the legacy .npmrc node-linker setting is ignored).
 nodeLinker: hoisted
+
+# esbuild is drizzle-kit's Node-side bundler (dev tooling only, never shipped
+# in the app bundle); allow its install script so the CLI works.
+allowBuilds:
+  esbuild: true
