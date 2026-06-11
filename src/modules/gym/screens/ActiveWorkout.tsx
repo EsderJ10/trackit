@@ -12,9 +12,13 @@ import {
 } from '../components/ExerciseSessionCard';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
 import {
+  addSet,
+  deleteExerciseSets,
   deleteSetLog,
   finishWorkout,
-  logSet,
+  seedExerciseSets,
+  setSetCompleted,
+  updateSet,
   useExercises,
   useRoutineExercises,
   useSession,
@@ -43,6 +47,7 @@ export function ActiveWorkout() {
   const { weightUnit } = useSettings();
 
   const [extraIds, setExtraIds] = useState<number[]>([]);
+  const [removedIds, setRemovedIds] = useState<number[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const catalogById = useMemo(
@@ -60,28 +65,70 @@ export function ActiveWorkout() {
     return map;
   }, [sets]);
 
+  const targetByExercise = useMemo(() => {
+    const map = new Map<number, ExerciseTarget>();
+    for (const row of plan) {
+      map.set(row.exerciseId, {
+        sets: row.targetSets,
+        reps: row.targetReps,
+        weight: row.targetWeight,
+      });
+    }
+    return map;
+  }, [plan]);
+
   const displayExercises = useMemo<DisplayExercise[]>(() => {
+    const removed = new Set(removedIds);
     const list: DisplayExercise[] = [];
     const seen = new Set<number>();
     for (const row of plan) {
+      if (removed.has(row.exerciseId)) continue;
       list.push({
         exerciseId: row.exerciseId,
         name: row.exerciseName,
-        target: {
-          sets: row.targetSets,
-          reps: row.targetReps,
-          weight: row.targetWeight,
-        },
+        target: targetByExercise.get(row.exerciseId),
       });
       seen.add(row.exerciseId);
     }
     for (const id of [...setsByExercise.keys(), ...extraIds]) {
-      if (seen.has(id)) continue;
+      if (seen.has(id) || removed.has(id)) continue;
       seen.add(id);
       list.push({ exerciseId: id, name: catalogById.get(id)?.name ?? 'Exercise' });
     }
     return list;
-  }, [plan, setsByExercise, extraIds, catalogById]);
+  }, [plan, setsByExercise, extraIds, removedIds, targetByExercise, catalogById]);
+
+  function addSetTo(exerciseId: number) {
+    const current = setsByExercise.get(exerciseId) ?? [];
+    const last = current.at(-1);
+    const target = targetByExercise.get(exerciseId);
+    addSet({
+      sessionId,
+      exerciseId,
+      setNumber: current.length + 1,
+      reps: last?.reps ?? target?.reps ?? 0,
+      weight: last?.weight ?? target?.weight ?? 0,
+    });
+  }
+
+  function removeExercise(exerciseId: number) {
+    deleteExerciseSets(sessionId, exerciseId);
+    setExtraIds((prev) => prev.filter((id) => id !== exerciseId));
+    setRemovedIds((prev) =>
+      prev.includes(exerciseId) ? prev : [...prev, exerciseId],
+    );
+  }
+
+  function addExercise(exerciseId: number) {
+    // Re-adding a previously removed exercise must un-hide it.
+    setRemovedIds((prev) => prev.filter((id) => id !== exerciseId));
+    setExtraIds((prev) =>
+      prev.includes(exerciseId) ? prev : [...prev, exerciseId],
+    );
+    if ((setsByExercise.get(exerciseId) ?? []).length === 0) {
+      seedExerciseSets(sessionId, exerciseId);
+    }
+  }
 
   function finish() {
     finishWorkout(sessionId);
@@ -91,29 +138,24 @@ export function ActiveWorkout() {
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Workout' }} />
-      <ScrollView contentContainerClassName="gap-4 p-5">
-        {displayExercises.map((exercise) => {
-          const exerciseSets = setsByExercise.get(exercise.exerciseId) ?? [];
-          return (
-            <ExerciseSessionCard
-              key={exercise.exerciseId}
-              name={exercise.name}
-              target={exercise.target}
-              sets={exerciseSets}
-              unit={weightUnit}
-              onLog={(reps, weight) =>
-                logSet({
-                  sessionId,
-                  exerciseId: exercise.exerciseId,
-                  setNumber: exerciseSets.length + 1,
-                  reps,
-                  weight,
-                })
-              }
-              onDeleteSet={deleteSetLog}
-            />
-          );
-        })}
+      <ScrollView
+        contentContainerClassName="gap-4 p-5"
+        keyboardShouldPersistTaps="handled"
+      >
+        {displayExercises.map((exercise) => (
+          <ExerciseSessionCard
+            key={exercise.exerciseId}
+            name={exercise.name}
+            target={exercise.target}
+            sets={setsByExercise.get(exercise.exerciseId) ?? []}
+            unit={weightUnit}
+            onAddSet={() => addSetTo(exercise.exerciseId)}
+            onUpdateSet={updateSet}
+            onToggleSet={setSetCompleted}
+            onDeleteSet={deleteSetLog}
+            onRemove={() => removeExercise(exercise.exerciseId)}
+          />
+        ))}
 
         <Button
           label="Add exercise"
@@ -128,11 +170,7 @@ export function ActiveWorkout() {
       <ExercisePickerModal
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        onSelect={(exercise) =>
-          setExtraIds((prev) =>
-            prev.includes(exercise.id) ? prev : [...prev, exercise.id],
-          )
-        }
+        onSelect={(exercise) => addExercise(exercise.id)}
       />
     </Screen>
   );

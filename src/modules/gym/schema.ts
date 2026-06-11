@@ -63,7 +63,8 @@ export const setLogs = sqliteTable('set_logs', {
   reps: integer('reps').notNull(),
   weight: real('weight').notNull().default(0),
   rpe: real('rpe'),
-  completedAt: integer('completed_at', { mode: 'timestamp_ms' }).notNull().default(now),
+  // Null = planned/incomplete set; a timestamp is written when it's checked off.
+  completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
 });
 
 export type Exercise = typeof exercises.$inferSelect;

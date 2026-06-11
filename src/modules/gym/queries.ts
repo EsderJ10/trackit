@@ -1,4 +1,4 @@
-import { desc, eq, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
@@ -136,7 +136,106 @@ export function startWorkout(routineId?: number): number {
     .insert(workoutSessions)
     .values({ routineId: routineId ?? null })
     .run();
-  return result.lastInsertRowId;
+  const sessionId = result.lastInsertRowId;
+
+  // Pre-fill each routine exercise with its planned sets, seeded from the last
+  // time it was performed (falling back to the routine target). New rows are
+  // incomplete (completedAt null) until the user checks them off.
+  if (routineId != null) {
+    const plan = db
+      .select()
+      .from(routineExercises)
+      .where(eq(routineExercises.routineId, routineId))
+      .orderBy(routineExercises.position)
+      .all();
+
+    for (const exercise of plan) {
+      seedExerciseSets(sessionId, exercise.exerciseId, {
+        sets: exercise.targetSets,
+        reps: exercise.targetReps,
+        weight: exercise.targetWeight,
+      });
+    }
+  }
+
+  return sessionId;
+}
+
+/**
+ * Insert planned (incomplete) set rows for an exercise in a session, seeded
+ * from the last time it was performed, falling back to the given target.
+ * Returns the number of rows seeded.
+ */
+export function seedExerciseSets(
+  sessionId: number,
+  exerciseId: number,
+  fallback?: { sets: number; reps: number; weight: number | null },
+): number {
+  const previous = getLastPerformance(exerciseId, sessionId);
+  const rows =
+    previous.length > 0
+      ? previous
+      : fallback
+        ? Array.from({ length: Math.max(1, fallback.sets) }, () => ({
+            reps: fallback.reps,
+            weight: fallback.weight ?? 0,
+          }))
+        : [{ reps: 0, weight: 0 }];
+
+  rows.forEach((row, index) => {
+    addSet({
+      sessionId,
+      exerciseId,
+      setNumber: index + 1,
+      reps: row.reps,
+      weight: row.weight,
+    });
+  });
+
+  return rows.length;
+}
+
+/**
+ * The completed sets (reps + weight, in set order) from the most recent prior
+ * session that included this exercise. Empty when there is no history. Used to
+ * seed a new session and, later, to drive progression calculations.
+ */
+export function getLastPerformance(
+  exerciseId: number,
+  excludeSessionId: number,
+): { reps: number; weight: number }[] {
+  const last = db
+    .select({ sessionId: setLogs.sessionId })
+    .from(setLogs)
+    .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(setLogs.exerciseId, exerciseId),
+        isNotNull(setLogs.completedAt),
+        // Only seed from a workout the user actually finished, not an
+        // abandoned in-progress session.
+        isNotNull(workoutSessions.finishedAt),
+      ),
+    )
+    .orderBy(desc(setLogs.completedAt))
+    .limit(1)
+    .all();
+
+  const lastSessionId = last[0]?.sessionId;
+  if (lastSessionId == null || lastSessionId === excludeSessionId) return [];
+
+  return db
+    .select({ reps: setLogs.reps, weight: setLogs.weight })
+    .from(setLogs)
+    .where(
+      and(
+        eq(setLogs.sessionId, lastSessionId),
+        eq(setLogs.exerciseId, exerciseId),
+        isNotNull(setLogs.completedAt),
+      ),
+    )
+    .orderBy(setLogs.setNumber)
+    .all();
 }
 
 export function useSession(sessionId: number) {
@@ -155,7 +254,7 @@ export interface SetLogRow {
   reps: number;
   weight: number;
   rpe: number | null;
-  completedAt: Date;
+  completedAt: Date | null;
 }
 
 export function useSessionSets(sessionId: number) {
@@ -174,12 +273,13 @@ export function useSessionSets(sessionId: number) {
       .from(setLogs)
       .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id))
       .where(eq(setLogs.sessionId, sessionId))
-      .orderBy(setLogs.completedAt),
+      // Order by id (insertion order) — completedAt is null for planned sets.
+      .orderBy(setLogs.id),
     [sessionId],
   );
 }
 
-export interface LogSetInput {
+export interface AddSetInput {
   sessionId: number;
   exerciseId: number;
   setNumber: number;
@@ -188,8 +288,10 @@ export interface LogSetInput {
   rpe?: number;
 }
 
-export function logSet(input: LogSetInput): void {
-  db.insert(setLogs)
+/** Insert a planned (incomplete) set; returns its id. */
+export function addSet(input: AddSetInput): number {
+  const result = db
+    .insert(setLogs)
     .values({
       sessionId: input.sessionId,
       exerciseId: input.exerciseId,
@@ -197,12 +299,41 @@ export function logSet(input: LogSetInput): void {
       reps: input.reps,
       weight: input.weight,
       rpe: input.rpe ?? null,
+      completedAt: null,
     })
+    .run();
+  return result.lastInsertRowId;
+}
+
+export function updateSet(
+  id: number,
+  patch: Partial<{ reps: number; weight: number }>,
+): void {
+  db.update(setLogs).set(patch).where(eq(setLogs.id, id)).run();
+}
+
+/** Mark a set complete (stamps completedAt) or revert it to planned (null). */
+export function setSetCompleted(id: number, completed: boolean): void {
+  db.update(setLogs)
+    .set({ completedAt: completed ? new Date() : null })
+    .where(eq(setLogs.id, id))
     .run();
 }
 
 export function deleteSetLog(id: number): void {
   db.delete(setLogs).where(eq(setLogs.id, id)).run();
+}
+
+/** Remove every set for one exercise in a session (used to drop the exercise). */
+export function deleteExerciseSets(sessionId: number, exerciseId: number): void {
+  db.delete(setLogs)
+    .where(
+      and(
+        eq(setLogs.sessionId, sessionId),
+        eq(setLogs.exerciseId, exerciseId),
+      ),
+    )
+    .run();
 }
 
 export function finishWorkout(sessionId: number): void {
@@ -270,7 +401,10 @@ export function useGymStats(): GymStats {
 
   return useMemo<GymStats>(() => {
     const cutoff = Date.now() - WEEK_MS;
-    const weekly = sets.filter((s) => s.completedAt.getTime() >= cutoff);
+    // Only completed sets count toward volume; planned sets have null completedAt.
+    const weekly = sets.filter(
+      (s) => s.completedAt != null && s.completedAt.getTime() >= cutoff,
+    );
     const weeklyVolume = weekly.reduce((sum, s) => sum + s.weight * s.reps, 0);
     const last = lastSessions[0];
     return {
