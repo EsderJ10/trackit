@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { appSettings } from '../settings/schema';
 import { db } from './client';
 import migrations from './migrations/migrations';
+import { runModuleSeeds } from './seed';
 
 export interface DatabaseReadyState {
   ready: boolean;
@@ -20,6 +21,7 @@ export function useDatabaseReady(): DatabaseReadyState {
   useEffect(() => {
     if (!success) return;
     db.insert(appSettings).values({ id: 1 }).onConflictDoNothing().run();
+    void runModuleSeeds();
   }, [success]);
 
   return { ready: success, error };
