@@ -55,9 +55,11 @@ export interface TrackerModule {
   /** Optional settings section slotted into the core Settings screen. */
   SettingsPanel?: ComponentType;
   /**
-   * Optional one-time data seed (e.g. a default exercise catalog), run once
-   * after migrations. The runner guarantees idempotency via `module_seed_state`,
-   * so implementations may assume they run at most once.
+   * Optional data seed (e.g. a default exercise catalog), run after migrations
+   * on EVERY launch. Implementations MUST be idempotent — reconcile against
+   * existing rows (insert-missing, rename-once) rather than blind-insert — so
+   * the catalog can grow over time and reach already-seeded devices. The runner
+   * does not guard re-runs.
    */
   seed?: (db: AppDatabase) => Promise<void> | void;
 }
