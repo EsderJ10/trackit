@@ -44,8 +44,14 @@ export interface TrackerModule {
   meta: ModuleMeta;
   /** Compact, read-only summary rendered on the dynamic dashboard. */
   DashboardWidget: ComponentType<DashboardWidgetProps>;
-  /** The module's root screen, mounted by the core under /modules/[moduleId]. */
-  ModuleScreen: ComponentType;
+  /**
+   * Optional single root screen, mounted by the core's generic
+   * `app/modules/[moduleId]` route. Simple modules provide this; modules that
+   * need internal navigation instead ship their own thin route files under
+   * `app/modules/<id>/` (which override the generic route). Either way the
+   * module is reached at `/modules/<id>`.
+   */
+  ModuleScreen?: ComponentType;
   /** Optional settings section slotted into the core Settings screen. */
   SettingsPanel?: ComponentType;
   /**
