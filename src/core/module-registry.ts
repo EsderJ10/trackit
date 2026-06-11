@@ -1,3 +1,5 @@
+import { gymModule } from '@/modules/gym';
+
 import type { TrackerModule } from '@/core/types/module';
 
 /**
@@ -7,9 +9,7 @@ import type { TrackerModule } from '@/core/types/module';
  *   2. uncomment its schema in `src/core/db/schema.ts` + run `pnpm db:generate`.
  * The dashboard, module routes, and settings are all driven by this list.
  */
-export const MODULES: readonly TrackerModule[] = [
-  // gymModule — registered when the gym module lands.
-];
+export const MODULES: readonly TrackerModule[] = [gymModule];
 
 /** Look up a registered module by its id. */
 export function getModule(id: string): TrackerModule | undefined {

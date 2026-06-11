@@ -9,4 +9,4 @@
  * this file with esbuild, which does not resolve tsconfig path aliases.
  */
 export * from '../settings/schema';
-// export * from '../../modules/gym/schema'; // added when the gym module lands
+export * from '../../modules/gym/schema';
