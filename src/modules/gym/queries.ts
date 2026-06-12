@@ -579,6 +579,9 @@ export interface ProgramExerciseRow {
   position: number;
   schemeType: 'lp' | 'dp' | 'percent' | 'rpe';
   targetSets: number;
+  incrementKg: number;
+  minReps: number | null;
+  maxReps: number | null;
   /** Current working weight (canonical kg) — convert at render. */
   currentWeightKg: number;
   currentReps: number;
@@ -600,6 +603,9 @@ export function useProgramExercises(programId: number) {
         position: programExercises.position,
         schemeType: programExercises.schemeType,
         targetSets: programExercises.targetSets,
+        incrementKg: programExercises.incrementKg,
+        minReps: programExercises.minReps,
+        maxReps: programExercises.maxReps,
         currentWeightKg: exerciseTrainingState.currentWeightKg,
         currentReps: exerciseTrainingState.currentReps,
         lastReason: exerciseTrainingState.lastReason,
@@ -622,6 +628,10 @@ export function useProgramExercises(programId: number) {
 export function createProgram(name: string, description?: string): number {
   const result = db.insert(programs).values({ name, description }).run();
   return result.lastInsertRowId;
+}
+
+export function renameProgram(programId: number, name: string): void {
+  db.update(programs).set({ name }).where(eq(programs.id, programId)).run();
 }
 
 export function deleteProgram(programId: number): void {
@@ -698,6 +708,49 @@ export function addProgramExercise(input: AddProgramExerciseInput): void {
         scheme.type === 'dp' ? scheme.minReps : (input.startingReps ?? 5),
       lastReason: 'Starting weight',
     })
+    .run();
+}
+
+/**
+ * Set an exercise's working weight (canonical kg) — used to seed the starting
+ * weight before the first session sets progression in motion.
+ */
+export function setProgramExerciseWeight(
+  programId: number,
+  exerciseId: number,
+  weightKg: number,
+): void {
+  db.update(exerciseTrainingState)
+    .set({ currentWeightKg: weightKg })
+    .where(
+      and(
+        eq(exerciseTrainingState.programId, programId),
+        eq(exerciseTrainingState.exerciseId, exerciseId),
+      ),
+    )
+    .run();
+}
+
+/** Remove an exercise slot from a program, along with its progression state. */
+export function removeProgramExercise(
+  programId: number,
+  exerciseId: number,
+): void {
+  db.delete(programExercises)
+    .where(
+      and(
+        eq(programExercises.programId, programId),
+        eq(programExercises.exerciseId, exerciseId),
+      ),
+    )
+    .run();
+  db.delete(exerciseTrainingState)
+    .where(
+      and(
+        eq(exerciseTrainingState.programId, programId),
+        eq(exerciseTrainingState.exerciseId, exerciseId),
+      ),
+    )
     .run();
 }
 

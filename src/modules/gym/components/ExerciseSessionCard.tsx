@@ -17,6 +17,8 @@ export interface ExerciseTarget {
 export interface ExerciseSessionCardProps {
   name: string;
   target?: ExerciseTarget;
+  /** Program suggestion rationale ("+2.5 kg — hit all reps"), if any. */
+  reason?: string | null;
   sets: SetLogRow[];
   unit: WeightUnit;
   onAddSet: () => void;
@@ -32,6 +34,7 @@ export interface ExerciseSessionCardProps {
 export function ExerciseSessionCard({
   name,
   target,
+  reason,
   sets,
   unit,
   onAddSet,
@@ -65,6 +68,11 @@ export function ExerciseSessionCard({
               {target.weight != null
                 ? ` @ ${formatWeight(target.weight, unit)}`
                 : ''}
+            </Text>
+          ) : null}
+          {reason ? (
+            <Text className="mt-0.5" style={{ color: colors.primaryBright }}>
+              {reason}
             </Text>
           ) : null}
         </View>
