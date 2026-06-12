@@ -10,21 +10,35 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/core/auth/auth-store';
 import { LockScreen } from '@/core/auth/LockScreen';
+import { useSessionStore } from '@/core/auth/session-store';
 import { useDatabaseReady } from '@/core/db/ready';
 import { colors, navigationTheme, Text } from '@/ui';
 
 export default function RootLayout() {
   const { ready, error } = useDatabaseReady();
+
+  // Device lock (PIN/biometric) — orthogonal to identity below.
   const initAuth = useAuthStore((state) => state.init);
   const authInitialized = useAuthStore((state) => state.initialized);
   const lockEnabled = useAuthStore((state) => state.lockEnabled);
   const locked = useAuthStore((state) => state.locked);
 
+  // Identity/session — decides login vs app.
+  const initSession = useSessionStore((state) => state.init);
+  const sessionInitialized = useSessionStore((state) => state.initialized);
+  const isAuthed = useSessionStore((state) => state.user !== null);
+
+  // The lock reads SecureStore only, so it can init immediately. The session
+  // reads the `users` table, so it must wait until migrations have applied.
   useEffect(() => {
     void initAuth();
   }, [initAuth]);
 
-  // Re-lock when the app goes to the background.
+  useEffect(() => {
+    if (ready) void initSession();
+  }, [ready, initSession]);
+
+  // Re-lock when the app goes to the background (logged-in users only).
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'background') useAuthStore.getState().lock();
@@ -32,7 +46,9 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
 
-  const showLock = authInitialized && lockEnabled && locked;
+  const bootstrapped = ready && authInitialized && sessionInitialized;
+  // The PIN lock overlays the app only once the user is signed in.
+  const showLock = isAuthed && lockEnabled && locked;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -48,14 +64,27 @@ export default function RootLayout() {
                 {error.message}
               </Text>
             </View>
-          ) : !ready ? (
+          ) : !bootstrapped ? (
             <View className="flex-1 items-center justify-center bg-bg">
               <ActivityIndicator color={colors.primaryGlow} />
             </View>
           ) : (
             <>
               <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="set-pin" options={{ presentation: 'modal' }} />
+                <Stack.Protected guard={isAuthed}>
+                  <Stack.Screen name="(tabs)" />
+                  {/* No app/modules/_layout — these nested stacks are root
+                      screens, so gate them by their full segment names. */}
+                  <Stack.Screen name="modules/gym" />
+                  <Stack.Screen name="modules/[moduleId]" />
+                  <Stack.Screen
+                    name="set-pin"
+                    options={{ presentation: 'modal' }}
+                  />
+                </Stack.Protected>
+                <Stack.Protected guard={!isAuthed}>
+                  <Stack.Screen name="(auth)" />
+                </Stack.Protected>
               </Stack>
               {showLock ? <LockScreen /> : null}
             </>

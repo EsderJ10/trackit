@@ -6,4 +6,5 @@ export { Icon, type IconProps } from './Icon';
 export { Screen, type ScreenProps } from './Screen';
 export { Stat, type StatProps } from './Stat';
 export { Text, type TextProps, type TextVariant } from './Text';
+export { TextField, type TextFieldProps } from './TextField';
 export { colors, glow, navigationTheme, type AppColors } from './theme';

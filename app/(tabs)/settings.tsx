@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, View } from 'react-native';
 
+import { AccountSettings } from '@/core/auth/AccountSettings';
 import { SecuritySettings } from '@/core/auth/SecuritySettings';
 import { MODULES } from '@/core/module-registry';
 import type { WeightUnit } from '@/core/settings/schema';
@@ -26,6 +27,11 @@ export default function SettingsRoute() {
         showsVerticalScrollIndicator={false}
       >
         <Text variant="display">Settings</Text>
+
+        <View className="gap-2">
+          <SectionLabel>Account</SectionLabel>
+          <AccountSettings />
+        </View>
 
         <View className="gap-2">
           <SectionLabel>Weight unit</SectionLabel>

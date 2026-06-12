@@ -8,5 +8,6 @@
  * NOTE: use RELATIVE imports here (not the `@/` alias) — drizzle-kit bundles
  * this file with esbuild, which does not resolve tsconfig path aliases.
  */
+export * from '../auth/schema';
 export * from '../settings/schema';
 export * from '../../modules/gym/schema';
