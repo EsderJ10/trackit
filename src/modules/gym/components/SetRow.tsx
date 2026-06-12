@@ -7,14 +7,14 @@ import type { WeightUnit } from '@/core/settings/schema';
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { Icon, Text, cn, colors, glow } from '@/ui';
 
-import type { SetLogRow } from '../queries';
+import type { SetLogRow, SetPatch } from '../queries';
 import { NumberField } from './NumberField';
 
 export interface SetRowProps {
   set: SetLogRow;
   index: number;
   unit: WeightUnit;
-  onUpdate: (id: number, patch: { reps?: number; weight?: number }) => void;
+  onUpdate: (id: number, patch: SetPatch) => void;
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
 }
@@ -27,6 +27,14 @@ function toInt(value: string, fallback: number): number {
 function toFloat(value: string, fallback: number): number {
   const parsed = Number.parseFloat(value);
   return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+/** Empty input clears RPE; otherwise parse and clamp to the 1–10 scale. */
+function toRpe(value: string): number | null {
+  if (value.trim() === '') return null;
+  const parsed = Number.parseFloat(value);
+  if (Number.isNaN(parsed)) return null;
+  return Math.min(10, Math.max(1, parsed));
 }
 
 /**
@@ -48,6 +56,7 @@ export function SetRow({
   const [weight, setWeight] = useState(
     String(toDisplayWeight(set.weight, unit)),
   );
+  const [rpe, setRpe] = useState(set.rpe != null ? String(set.rpe) : '');
   const completed = set.completedAt != null;
 
   function renderRightActions() {
@@ -103,6 +112,14 @@ export function SetRow({
         <Text variant="caption" className="w-6">
           {unit}
         </Text>
+
+        <NumberField
+          value={rpe}
+          placeholder="RPE"
+          onChangeText={setRpe}
+          onEndEditing={() => onUpdate(set.id, { rpe: toRpe(rpe) })}
+          className="w-14"
+        />
 
         <Pressable
           onPress={() => onToggle(set.id, !completed)}

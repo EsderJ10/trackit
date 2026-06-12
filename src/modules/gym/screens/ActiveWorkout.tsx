@@ -11,6 +11,7 @@ import {
   type ExerciseTarget,
 } from '../components/ExerciseSessionCard';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
+import { SessionNotesField } from '../components/SessionNotesField';
 import {
   addSet,
   deleteExerciseSets,
@@ -18,6 +19,7 @@ import {
   finishWorkout,
   seedExerciseSets,
   setSetCompleted,
+  updateSessionNotes,
   updateSet,
   useExercises,
   useRoutineExercises,
@@ -173,6 +175,13 @@ export function ActiveWorkout() {
           leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
           onPress={() => setPickerOpen(true)}
         />
+
+        {session ? (
+          <SessionNotesField
+            initialNotes={session.notes}
+            onCommit={(notes) => updateSessionNotes(sessionId, notes)}
+          />
+        ) : null}
 
         <Button label="Finish workout" onPress={finish} />
       </ScrollView>

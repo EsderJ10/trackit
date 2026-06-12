@@ -5,7 +5,7 @@ import type { WeightUnit } from '@/core/settings/schema';
 import { Button, Card, Icon, Text, colors } from '@/ui';
 
 import { formatWeight } from '../format';
-import type { SetLogRow } from '../queries';
+import type { SetLogRow, SetPatch } from '../queries';
 import { SetRow } from './SetRow';
 
 export interface ExerciseTarget {
@@ -20,7 +20,7 @@ export interface ExerciseSessionCardProps {
   sets: SetLogRow[];
   unit: WeightUnit;
   onAddSet: () => void;
-  onUpdateSet: (id: number, patch: { reps?: number; weight?: number }) => void;
+  onUpdateSet: (id: number, patch: SetPatch) => void;
   onToggleSet: (id: number, completed: boolean) => void;
   onDeleteSet: (id: number) => void;
   onRemove: () => void;
