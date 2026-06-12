@@ -140,6 +140,117 @@ user id.
 
 ---
 
+## M5 — Programs & progression · `feat/m5-programs-progression`
+
+**Goal:** help the lifter decide _what to do next_, not just record what they
+did. Today the app is a passive log (like Hevy/Strong): it seeds the next
+session from last performance and leaves every load decision to the user. M5
+adds an **opt-in, advisory progression engine** driven by the **program** the
+user follows — the first piece of genuine training intelligence.
+
+This is **gym-module depth**, not a core feature: progression is gym-domain, and
+core never imports from a module. It lives entirely in `src/modules/gym/`.
+"Core" in the original ask means _first-class_, not `src/core/`.
+
+### Research that shaped this (the "how it's calculated" landscape)
+
+Tracking apps split two ways: **passive/visualization** (Hevy, Strong — show
+"previous," user decides) vs **active/algorithmic** (Liftosaur, Fitbod — compute
+the next prescription from a rule). We are taking the active path, advisory-only.
+The real calculation is one of ~5 schemes, increasing in sophistication:
+
+- **Linear (LP)** — hit all target reps → add a fixed increment; miss N sessions
+  in a row → deload (−10%). Novices (Starting Strength / StrongLifts).
+- **Double progression (DP)** — work a rep range `[min,max]`; hit `max` on all
+  sets → add weight, reset to `min`. Self-autoregulating. Intermediates.
+- **Reps-sum** — total reps across sets over a threshold → add weight.
+- **% / training-max (5/3/1, Texas Method)** — loads are a % of a **training
+  max** (≈90 % of 1RM); multi-week waves; AMRAP last set; bump TM per cycle
+  (+2.5 kg upper / +5 kg lower).
+- **RPE / RIR autoregulation** — prescribe reps **@ RPE**; pick load from an
+  RPE→%1RM table relative to e1RM (RPE 10≈100, 9≈96, 8≈92, 7≈86 %;
+  `RIR = 10 − RPE`). Adjusts to daily readiness.
+
+Decision (confirmed with product): support **all four schemes** (LP, DP,
+percent, RPE), model a **multi-week periodized program** (not just per-lift
+rules), and keep suggestions **suggest-and-confirm** (pre-fill + reason, user
+accepts/overrides — never silent auto-apply).
+
+### What the module already gives us
+
+- `routine_exercises` carries per-lift targets (`targetSets/Reps/Weight`).
+- `set_logs` stores **reps, weight, and RPE per set** — RPE autoregulation is in
+  reach with no new capture.
+- `progression.ts` already computes **e1RM (Epley)** + PRs, unit-tested on
+  canonical kg.
+- `workout_sessions.routineId` proves history can be scoped to a template; the
+  engine scopes to **`programId`** for the same reason.
+
+### Target data model (one migration + rebuild, done once)
+
+Programs are a **new path parallel to routines** — routines stay untouched, so
+not opting into a program leaves today's behavior byte-for-byte identical.
+
+- **`programs`** — periodized container + cursor: `name`, `description`,
+  `lengthWeeks`, `currentWeek`, `currentCycle`, `active`, `createdAt`.
+- **`program_exercises`** — a lift's slot + how it progresses: `programId`,
+  `dayIndex`, `exerciseId`, `position`, `schemeType`
+  (`'lp' | 'dp' | 'percent' | 'rpe'`), `increment`, per-cycle TM bumps,
+  `deloadPct`, `failThreshold`.
+- **`program_sets`** — the **keystone**: per-week × per-set prescription
+  (`programExerciseId`, `weekIndex`, `setNumber`, `reps`, `intensitySpec`).
+  `intensitySpec` is polymorphic — absolute kg | %TM | @RPE | AMRAP — so one
+  table expresses **every** scheme and arbitrary waves (LP/DP store a bare rep
+  target; 5/3/1 stores `{reps, %TM, AMRAP}` per week; RPE stores `{reps, @RPE}`).
+- **`exercise_training_state`** — the state that carries across cycles and lives
+  in no set log: `trainingMaxKg` (percent schemes), `currentWeightKg` (lp/dp),
+  `successStreak`, `failStreak`. Deciding this **now** avoids a second migration
+  when percent/RPE land.
+- **`workout_sessions` (+cols)** — `programId`, `programWeekIndex`,
+  `programDayIndex`, all **nullable** (null = freestyle/routine, i.e. today).
+
+### The engine (pure, dependency-free, unit-tested like `progression.ts`)
+
+```
+suggestNext(prescription, state, scopedHistory, unit)
+   -> { sets: [{ reps, weightKg, reason, amrap? }] }
+advance(prescription, state, loggedSets)
+   -> nextState   // bump weight/TM, streaks, week/cycle cursor
+```
+
+Invariants baked in from the research (not afterthoughts):
+
+- **Program-scoped history** (`programId`), never all-time — else a freestyle set
+  or the same lift in another program corrupts the streak.
+- **Loadable rounding** — every suggested kg rounds to an achievable increment
+  for the user's unit/equipment (kg vs lb plates, fixed dumbbells); never a raw
+  `62.5237`. (Liftosaur rounds for exactly this reason.)
+- **Reasoned** — every suggestion carries a human reason ("+2.5 kg — hit all
+  reps", "−10 % — missed 3 sessions", "Week 3: 1+ @ 95 % TM").
+- **Suggest + confirm** — engine output pre-fills `SetRow`; the user accepts or
+  overrides. Never silent.
+
+### Build order (each phase ships something usable)
+
+1. **Engine + LP/DP, derived from history** — `programs` /
+   `program_exercises` / `exercise_training_state` schema, the two simplest
+   schemes, suggest+confirm wired into Start Workout. Validates the UX with the
+   least machinery.
+2. **`program_sets` + percentage / 5-3-1** — the wave template, training-max
+   input, the week/cycle cursor + deload week.
+3. **RPE autoregulation** — RPE→%1RM table on top of e1RM (the per-set RPE data
+   already exists).
+4. **Polish** — program editor UI, deload reasons, plate/dumbbell rounding
+   config.
+
+**Done when:** a user can opt into a program, see reasoned next-session
+suggestions they can accept or override, and have the program advance (weights,
+training maxes, week/cycle cursor) automatically after each workout — across all
+four schemes; routines and freestyle workouts are unchanged; the engine math is
+unit-tested on canonical kg; `tsc`/lint/tests clean.
+
+---
+
 ## Out of scope (deferred, by design)
 
 At-rest DB encryption (SQLCipher), cloud accounts/sync, and stronger password
