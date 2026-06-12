@@ -53,6 +53,23 @@ total data loss, and a contract many modules depend on needs regression cover.
 **Done when:** a user can export and restore their data; core seams have tests
 that run in CI-able form; `lint` passes.
 
+**As built:**
+
+- Backup excludes the `users` table on purpose: the credential lives in
+  SecureStore, so restoring a stale profile onto a fresh install would block
+  re-login. Tracking/preference data is not user-scoped, so it restores under
+  whatever account exists on the device.
+- Tests are **logic-only** (Vitest): unit conversion, formatters, and the backup
+  serialize/parse+validate. Contract and DB-bound seams (seed idempotency, query
+  helpers) need a native harness and are deferred — revisit if we adopt jest-expo.
+- **Known limitation — restore is same-schema only.** A backup records its
+  migration tag and restore rejects a mismatch (refuse, don't corrupt). This
+  means a backup taken now won't restore on a future build that adds a migration
+  — i.e. the device-loss-then-reinstall-latest path. Forward-migrating old
+  backups is deferred; for now the safe failure is intentional.
+- The restore IO and M1's `DROP COLUMN` migration are **unverified at runtime**
+  (logic-only tests don't touch the DB write path) — confirm on a device.
+
 ---
 
 ## M3 — Gym depth (polish) · `feat/m3-gym-depth`
