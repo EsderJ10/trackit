@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { WeightUnit } from '@/core/settings/schema';
+import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { Card, Icon, Text, colors } from '@/ui';
 
 import type { RoutineExerciseRow as RoutineExerciseRowData } from '../queries';
@@ -33,8 +34,11 @@ export function RoutineExerciseRow({
 }: RoutineExerciseRowProps) {
   const [sets, setSets] = useState(String(row.targetSets));
   const [reps, setReps] = useState(String(row.targetReps));
+  // Edits in the display unit; targetWeight is stored canonical kg.
   const [weight, setWeight] = useState(
-    row.targetWeight != null ? String(row.targetWeight) : '',
+    row.targetWeight != null
+      ? String(toDisplayWeight(row.targetWeight, unit))
+      : '',
   );
 
   return (
@@ -72,7 +76,11 @@ export function RoutineExerciseRow({
           onChangeText={setWeight}
           onEndEditing={() => {
             const parsed = Number.parseFloat(weight);
-            onUpdate({ targetWeight: Number.isNaN(parsed) ? null : parsed });
+            onUpdate({
+              targetWeight: Number.isNaN(parsed)
+                ? null
+                : fromDisplayWeight(parsed, unit),
+            });
           }}
           className="flex-1"
         />

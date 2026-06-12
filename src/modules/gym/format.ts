@@ -1,8 +1,10 @@
 import type { WeightUnit } from '@/core/settings/schema';
+import { toDisplayWeight } from '@/core/settings/units';
 
-/** Format a weight value with the user's unit, trimming trailing `.0`. */
-export function formatWeight(weight: number, unit: WeightUnit): string {
-  const value = Number.isInteger(weight) ? `${weight}` : weight.toFixed(1);
+/** Format a canonical-kg weight in the user's unit, trimming trailing `.0`. */
+export function formatWeight(weightKg: number, unit: WeightUnit): string {
+  const display = toDisplayWeight(weightKg, unit);
+  const value = Number.isInteger(display) ? `${display}` : display.toFixed(1);
   return `${value} ${unit}`;
 }
 

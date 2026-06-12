@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import type { WeightUnit } from '@/core/settings/schema';
+import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { Icon, Text, cn, colors, glow } from '@/ui';
 
 import type { SetLogRow } from '../queries';
@@ -43,7 +44,10 @@ export function SetRow({
   onDelete,
 }: SetRowProps) {
   const [reps, setReps] = useState(String(set.reps));
-  const [weight, setWeight] = useState(String(set.weight));
+  // The field edits in the display unit; storage stays canonical kg.
+  const [weight, setWeight] = useState(
+    String(toDisplayWeight(set.weight, unit)),
+  );
   const completed = set.completedAt != null;
 
   function renderRightActions() {
@@ -87,7 +91,12 @@ export function SetRow({
           value={weight}
           onChangeText={setWeight}
           onEndEditing={() =>
-            onUpdate(set.id, { weight: toFloat(weight, set.weight) })
+            onUpdate(set.id, {
+              weight: fromDisplayWeight(
+                toFloat(weight, toDisplayWeight(set.weight, unit)),
+                unit,
+              ),
+            })
           }
           className="flex-1"
         />

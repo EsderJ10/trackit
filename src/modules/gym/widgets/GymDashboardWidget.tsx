@@ -6,7 +6,7 @@ import { useSettings } from '@/core/settings/use-settings';
 import type { DashboardWidgetProps } from '@/core/types/module';
 import { Stat, Text, colors } from '@/ui';
 
-import { formatRelativeDate } from '../format';
+import { formatRelativeDate, formatWeight } from '../format';
 import { useGymStats } from '../queries';
 
 export function GymDashboardWidget(_props: DashboardWidgetProps) {
@@ -31,7 +31,7 @@ export function GymDashboardWidget(_props: DashboardWidgetProps) {
         />
         <Stat
           label="Volume / wk"
-          value={`${stats.weeklyVolume} ${weightUnit}`}
+          value={formatWeight(stats.weeklyVolume, weightUnit)}
           accent={colors.gym}
         />
       </View>
