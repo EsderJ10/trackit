@@ -147,6 +147,13 @@ export function ActiveWorkout() {
     router.replace('/modules/gym/history');
   }
 
+  function openProgression(exerciseId: number) {
+    router.push({
+      pathname: '/modules/gym/exercise',
+      params: { exerciseId: String(exerciseId) },
+    });
+  }
+
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Workout' }} />
@@ -166,6 +173,7 @@ export function ActiveWorkout() {
             onToggleSet={setSetCompleted}
             onDeleteSet={deleteSetLog}
             onRemove={() => removeExercise(exercise.exerciseId)}
+            onOpenProgression={() => openProgression(exercise.exerciseId)}
           />
         ))}
 

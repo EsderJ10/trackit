@@ -119,6 +119,14 @@ export function useExercises() {
   );
 }
 
+export function useExercise(exerciseId: number) {
+  const { data } = useLiveQuery(
+    db.select().from(exercises).where(eq(exercises.id, exerciseId)),
+    [exerciseId],
+  );
+  return data[0];
+}
+
 export function createExercise(
   name: string,
   muscleGroup: string,
@@ -240,6 +248,49 @@ export function getLastPerformance(
     )
     .orderBy(setLogs.setNumber)
     .all();
+}
+
+export interface ExerciseHistoryRow {
+  setId: number;
+  sessionId: number;
+  // Non-null in practice (the query filters finished sessions) but Drizzle's
+  // inferred type keeps the column's nullability.
+  finishedAt: Date | null;
+  setNumber: number;
+  reps: number;
+  weight: number;
+  rpe: number | null;
+}
+
+/**
+ * Every completed set for one exercise across finished sessions, newest first.
+ * Weights stay canonical kg; the progression view converts at render. Grouped
+ * into per-session blocks by the screen, and fed to `computePRs`.
+ */
+export function useExerciseSetHistory(exerciseId: number) {
+  return useLiveQuery(
+    db
+      .select({
+        setId: setLogs.id,
+        sessionId: setLogs.sessionId,
+        finishedAt: workoutSessions.finishedAt,
+        setNumber: setLogs.setNumber,
+        reps: setLogs.reps,
+        weight: setLogs.weight,
+        rpe: setLogs.rpe,
+      })
+      .from(setLogs)
+      .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+      .where(
+        and(
+          eq(setLogs.exerciseId, exerciseId),
+          isNotNull(setLogs.completedAt),
+          isNotNull(workoutSessions.finishedAt),
+        ),
+      )
+      .orderBy(desc(workoutSessions.finishedAt), setLogs.setNumber),
+    [exerciseId],
+  );
 }
 
 export function useSession(sessionId: number) {

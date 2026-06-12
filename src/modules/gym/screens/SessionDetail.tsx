@@ -1,7 +1,7 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { CalendarClock } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { useSettings } from '@/core/settings/use-settings';
 import { Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
@@ -20,6 +20,7 @@ export function SessionDetail() {
     sessionId: string;
   }>();
   const sessionId = Number(sessionParam);
+  const router = useRouter();
 
   const session = useSessionSummary(sessionId);
   const { data: sets } = useSessionSets(sessionId);
@@ -45,6 +46,13 @@ export function SessionDetail() {
     }
     return order.map((id) => byId.get(id)!);
   }, [sets]);
+
+  function openProgression(exerciseId: number) {
+    router.push({
+      pathname: '/modules/gym/exercise',
+      params: { exerciseId: String(exerciseId) },
+    });
+  }
 
   const title = session?.routineName ?? 'Freestyle';
 
@@ -79,7 +87,12 @@ export function SessionDetail() {
         ) : (
           groups.map((group) => (
             <Card key={group.exerciseId} className="gap-2">
-              <Text variant="heading">{group.name}</Text>
+              <Pressable
+                onPress={() => openProgression(group.exerciseId)}
+                className="active:opacity-70"
+              >
+                <Text variant="heading">{group.name}</Text>
+              </Pressable>
               <View className="gap-1">
                 {group.sets.map((set, index) => (
                   <View

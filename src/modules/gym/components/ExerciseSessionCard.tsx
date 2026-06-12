@@ -24,6 +24,8 @@ export interface ExerciseSessionCardProps {
   onToggleSet: (id: number, completed: boolean) => void;
   onDeleteSet: (id: number) => void;
   onRemove: () => void;
+  /** Tap the exercise name to open its progression view. */
+  onOpenProgression?: () => void;
 }
 
 /** One exercise inside an active workout: target, editable set rows, controls. */
@@ -37,6 +39,7 @@ export function ExerciseSessionCard({
   onToggleSet,
   onDeleteSet,
   onRemove,
+  onOpenProgression,
 }: ExerciseSessionCardProps) {
   function confirmRemove() {
     Alert.alert('Remove exercise', `Remove ${name} from this workout?`, [
@@ -49,7 +52,13 @@ export function ExerciseSessionCard({
     <Card className="gap-3">
       <View className="flex-row items-start justify-between">
         <View className="flex-1">
-          <Text variant="heading">{name}</Text>
+          <Pressable
+            onPress={onOpenProgression}
+            disabled={!onOpenProgression}
+            className="active:opacity-70"
+          >
+            <Text variant="heading">{name}</Text>
+          </Pressable>
           {target ? (
             <Text variant="muted" className="mt-1">
               Target: {target.sets} × {target.reps}
