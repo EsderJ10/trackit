@@ -1,5 +1,10 @@
 import { useRouter } from 'expo-router';
-import { Dumbbell, History as HistoryIcon, Plus } from 'lucide-react-native';
+import {
+  Dumbbell,
+  History as HistoryIcon,
+  Plus,
+  TrendingUp,
+} from 'lucide-react-native';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
@@ -43,6 +48,13 @@ export function RoutineList() {
             onPress={() => router.push('/modules/gym/history')}
           />
         </View>
+
+        <Button
+          label="Exercises"
+          variant="secondary"
+          leftIcon={<Icon icon={TrendingUp} size={18} color={colors.fg} />}
+          onPress={() => router.push('/modules/gym/exercises')}
+        />
 
         {routines.length === 0 ? (
           <EmptyState

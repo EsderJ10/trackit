@@ -11,6 +11,8 @@ import {
   type ExerciseTarget,
 } from '../components/ExerciseSessionCard';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
+import { RestTimerBar } from '../components/RestTimerBar';
+import { SessionNotesField } from '../components/SessionNotesField';
 import {
   addSet,
   deleteExerciseSets,
@@ -18,6 +20,7 @@ import {
   finishWorkout,
   seedExerciseSets,
   setSetCompleted,
+  updateSessionNotes,
   updateSet,
   useExercises,
   useRoutineExercises,
@@ -25,6 +28,7 @@ import {
   useSessionSets,
   type SetLogRow,
 } from '../queries';
+import { useRestTimer } from '../rest-timer-store';
 
 interface DisplayExercise {
   exerciseId: number;
@@ -45,6 +49,7 @@ export function ActiveWorkout() {
   const { data: sets } = useSessionSets(sessionId);
   const { data: catalog } = useExercises();
   const { weightUnit } = useSettings();
+  const startRest = useRestTimer((state) => state.start);
 
   const [extraIds, setExtraIds] = useState<number[]>([]);
   const [removedIds, setRemovedIds] = useState<number[]>([]);
@@ -145,6 +150,19 @@ export function ActiveWorkout() {
     router.replace('/modules/gym/history');
   }
 
+  function openProgression(exerciseId: number) {
+    router.push({
+      pathname: '/modules/gym/exercise',
+      params: { exerciseId: String(exerciseId) },
+    });
+  }
+
+  function toggleSet(id: number, completed: boolean) {
+    setSetCompleted(id, completed);
+    // Checking off a set kicks off the between-sets rest countdown.
+    if (completed) startRest();
+  }
+
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Workout' }} />
@@ -161,9 +179,10 @@ export function ActiveWorkout() {
             unit={weightUnit}
             onAddSet={() => addSetTo(exercise.exerciseId)}
             onUpdateSet={updateSet}
-            onToggleSet={setSetCompleted}
+            onToggleSet={toggleSet}
             onDeleteSet={deleteSetLog}
             onRemove={() => removeExercise(exercise.exerciseId)}
+            onOpenProgression={() => openProgression(exercise.exerciseId)}
           />
         ))}
 
@@ -174,8 +193,17 @@ export function ActiveWorkout() {
           onPress={() => setPickerOpen(true)}
         />
 
+        {session ? (
+          <SessionNotesField
+            initialNotes={session.notes}
+            onCommit={(notes) => updateSessionNotes(sessionId, notes)}
+          />
+        ) : null}
+
         <Button label="Finish workout" onPress={finish} />
       </ScrollView>
+
+      <RestTimerBar />
 
       <ExercisePickerModal
         visible={pickerOpen}

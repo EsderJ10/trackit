@@ -1,6 +1,6 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { CalendarClock } from 'lucide-react-native';
-import { ScrollView } from 'react-native';
+import { Pressable, ScrollView } from 'react-native';
 
 import { Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
@@ -8,7 +8,15 @@ import { formatRelativeDate } from '../format';
 import { useFinishedSessions } from '../queries';
 
 export function History() {
+  const router = useRouter();
   const { data: sessions } = useFinishedSessions();
+
+  function openSession(sessionId: number) {
+    router.push({
+      pathname: '/modules/gym/session',
+      params: { sessionId: String(sessionId) },
+    });
+  }
 
   return (
     <Screen>
@@ -22,19 +30,22 @@ export function History() {
       ) : (
         <ScrollView contentContainerClassName="gap-3 p-5">
           {sessions.map((session) => (
-            <Card
+            <Pressable
               key={session.id}
-              className="flex-row items-center justify-between"
+              onPress={() => openSession(session.id)}
+              className="active:opacity-70"
             >
-              <Text variant="heading">
-                {session.routineName ?? 'Freestyle'}
-              </Text>
-              <Text variant="muted">
-                {session.finishedAt
-                  ? formatRelativeDate(session.finishedAt)
-                  : ''}
-              </Text>
-            </Card>
+              <Card className="flex-row items-center justify-between">
+                <Text variant="heading">
+                  {session.routineName ?? 'Freestyle'}
+                </Text>
+                <Text variant="muted">
+                  {session.finishedAt
+                    ? formatRelativeDate(session.finishedAt)
+                    : ''}
+                </Text>
+              </Card>
+            </Pressable>
           ))}
         </ScrollView>
       )}

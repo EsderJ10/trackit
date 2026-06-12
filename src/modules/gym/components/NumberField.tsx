@@ -5,6 +5,7 @@ import { Text, cn, colors } from '@/ui';
 export interface NumberFieldProps {
   label?: string;
   value: string;
+  placeholder?: string;
   onChangeText: (text: string) => void;
   onEndEditing?: () => void;
   className?: string;
@@ -14,6 +15,7 @@ export interface NumberFieldProps {
 export function NumberField({
   label,
   value,
+  placeholder,
   onChangeText,
   onEndEditing,
   className,
@@ -27,6 +29,7 @@ export function NumberField({
       ) : null}
       <TextInput
         value={value}
+        placeholder={placeholder}
         onChangeText={onChangeText}
         onEndEditing={onEndEditing}
         keyboardType="numeric"

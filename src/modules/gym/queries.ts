@@ -119,6 +119,14 @@ export function useExercises() {
   );
 }
 
+export function useExercise(exerciseId: number) {
+  const { data } = useLiveQuery(
+    db.select().from(exercises).where(eq(exercises.id, exerciseId)),
+    [exerciseId],
+  );
+  return data[0];
+}
+
 export function createExercise(
   name: string,
   muscleGroup: string,
@@ -242,6 +250,49 @@ export function getLastPerformance(
     .all();
 }
 
+export interface ExerciseHistoryRow {
+  setId: number;
+  sessionId: number;
+  // Non-null in practice (the query filters finished sessions) but Drizzle's
+  // inferred type keeps the column's nullability.
+  finishedAt: Date | null;
+  setNumber: number;
+  reps: number;
+  weight: number;
+  rpe: number | null;
+}
+
+/**
+ * Every completed set for one exercise across finished sessions, newest first.
+ * Weights stay canonical kg; the progression view converts at render. Grouped
+ * into per-session blocks by the screen, and fed to `computePRs`.
+ */
+export function useExerciseSetHistory(exerciseId: number) {
+  return useLiveQuery(
+    db
+      .select({
+        setId: setLogs.id,
+        sessionId: setLogs.sessionId,
+        finishedAt: workoutSessions.finishedAt,
+        setNumber: setLogs.setNumber,
+        reps: setLogs.reps,
+        weight: setLogs.weight,
+        rpe: setLogs.rpe,
+      })
+      .from(setLogs)
+      .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+      .where(
+        and(
+          eq(setLogs.exerciseId, exerciseId),
+          isNotNull(setLogs.completedAt),
+          isNotNull(workoutSessions.finishedAt),
+        ),
+      )
+      .orderBy(desc(workoutSessions.finishedAt), setLogs.setNumber),
+    [exerciseId],
+  );
+}
+
 export function useSession(sessionId: number) {
   const { data } = useLiveQuery(
     db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)),
@@ -309,10 +360,14 @@ export function addSet(input: AddSetInput): number {
   return result.lastInsertRowId;
 }
 
-export function updateSet(
-  id: number,
-  patch: Partial<{ reps: number; weight: number }>,
-): void {
+export interface SetPatch {
+  reps?: number;
+  weight?: number;
+  /** RPE 1–10 (half-steps allowed); null clears it. */
+  rpe?: number | null;
+}
+
+export function updateSet(id: number, patch: SetPatch): void {
   db.update(setLogs).set(patch).where(eq(setLogs.id, id)).run();
 }
 
@@ -340,6 +395,13 @@ export function deleteExerciseSets(
     .run();
 }
 
+export function updateSessionNotes(sessionId: number, notes: string): void {
+  db.update(workoutSessions)
+    .set({ notes: notes.trim() === '' ? null : notes })
+    .where(eq(workoutSessions.id, sessionId))
+    .run();
+}
+
 export function finishWorkout(sessionId: number): void {
   db.update(workoutSessions)
     .set({ finishedAt: new Date() })
@@ -360,6 +422,7 @@ export interface SessionSummary {
   routineName: string | null;
   startedAt: Date;
   finishedAt: Date | null;
+  notes: string | null;
 }
 
 export function useFinishedSessions() {
@@ -370,12 +433,32 @@ export function useFinishedSessions() {
         routineName: routines.name,
         startedAt: workoutSessions.startedAt,
         finishedAt: workoutSessions.finishedAt,
+        notes: workoutSessions.notes,
       })
       .from(workoutSessions)
       .leftJoin(routines, eq(workoutSessions.routineId, routines.id))
       .where(isNotNull(workoutSessions.finishedAt))
       .orderBy(desc(workoutSessions.finishedAt)),
   );
+}
+
+/** One finished (or in-progress) session with its routine name, for detail. */
+export function useSessionSummary(sessionId: number) {
+  const { data } = useLiveQuery(
+    db
+      .select({
+        id: workoutSessions.id,
+        routineName: routines.name,
+        startedAt: workoutSessions.startedAt,
+        finishedAt: workoutSessions.finishedAt,
+        notes: workoutSessions.notes,
+      })
+      .from(workoutSessions)
+      .leftJoin(routines, eq(workoutSessions.routineId, routines.id))
+      .where(eq(workoutSessions.id, sessionId)),
+    [sessionId],
+  );
+  return data[0];
 }
 
 export interface GymStats {

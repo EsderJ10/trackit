@@ -86,6 +86,34 @@ that run in CI-able form; `lint` passes.
 **Done when:** notes/RPE are editable and visible; each exercise has a
 progression view with PRs; the active workout has a rest timer.
 
+**As built:**
+
+- **No schema changes.** `set_logs.rpe` and `workout_sessions.notes` already
+  existed (added with the gym schema); M3 only wired up write paths + display,
+  so there is no migration and no rebuild required for this milestone.
+- **Notes & RPE.** RPE is an inline per-set field (1–10, half-steps, clamped;
+  blank clears it). Notes are a per-session multiline field on the active
+  workout. Both surface read-only in a new **session-detail screen** reachable
+  by tapping a row in History (the old History was a flat summary with no
+  detail).
+- **Progression view** has **both** entry points: a dedicated Exercises list in
+  the gym module, and tap-an-exercise-name from the active-workout card and the
+  session-detail screen. PRs are heaviest set + estimated 1RM (Epley); the math
+  lives in `progression.ts` and is unit-tested. All PR math runs on canonical
+  kg and converts at render (M1 discipline).
+- **Rest timer** is the gym module's first Zustand store
+  (`rest-timer-store.ts`). The default rest length is **in-memory only** (no
+  persisted preference, by design — a stored default would mean a schema
+  column/migration, out of scope for "polish"); the ±30s controls reshape the
+  running timer. It stores an absolute `endsAt` so the countdown survives
+  re-renders, and auto-starts when a set is checked off.
+- **Unverified at runtime (logic-only gates can't see UI).** `tsc`/lint/tests
+  pass, but the device behaviors are pending a real run: the rest-timer tick and
+  auto-dismiss, the `SetRow` density now that it carries reps × weight + RPE +
+  two touch targets on a narrow screen (the redundant inline ✕ was kept since
+  swipe-to-delete already exists — a candidate to drop if it's too tight), and
+  the multiline notes field. Confirm these on a device.
+
 ---
 
 ## M4 — Validate extensibility (v2) · `feat/m4-second-module`
