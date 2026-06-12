@@ -2,6 +2,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { AccountSettings } from '@/core/auth/AccountSettings';
 import { SecuritySettings } from '@/core/auth/SecuritySettings';
+import { BackupSettings } from '@/core/backup/BackupSettings';
 import { MODULES } from '@/core/module-registry';
 import type { WeightUnit } from '@/core/settings/schema';
 import { setWeightUnit, useSettings } from '@/core/settings/use-settings';
@@ -64,6 +65,11 @@ export default function SettingsRoute() {
         <View className="gap-2">
           <SectionLabel>Security</SectionLabel>
           <SecuritySettings />
+        </View>
+
+        <View className="gap-2">
+          <SectionLabel>Data</SectionLabel>
+          <BackupSettings />
         </View>
 
         {MODULES.map((module) => {
