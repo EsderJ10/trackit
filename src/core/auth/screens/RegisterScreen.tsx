@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, TextField } from '@/ui';
+import { Button, Text, TextField } from '@/ui';
 
 import { accountBackend } from '../account-backend';
 import { useSessionStore } from '../session-store';
@@ -123,6 +123,10 @@ export function RegisterScreen() {
         />
       </View>
       <View className="gap-3">
+        <Text variant="caption" className="text-center text-warning">
+          There's no password recovery. If you forget it, the only way back in is
+          erasing the app — which deletes all your data.
+        </Text>
         <Button label="Create account" loading={busy} onPress={submit} />
         {hasAccount ? (
           <Button
