@@ -3,17 +3,11 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 
 import { db } from '@/core/db/client';
 
-import {
-  type AppSettings,
-  type ThemePreference,
-  type WeightUnit,
-  appSettings,
-} from './schema';
+import { type AppSettings, type WeightUnit, appSettings } from './schema';
 
 const DEFAULTS: AppSettings = {
   id: 1,
   weightUnit: 'kg',
-  theme: 'system',
   updatedAt: new Date(0),
 };
 
@@ -28,13 +22,6 @@ export function useSettings(): AppSettings {
 export function setWeightUnit(weightUnit: WeightUnit): void {
   db.update(appSettings)
     .set({ weightUnit, updatedAt: new Date() })
-    .where(eq(appSettings.id, 1))
-    .run();
-}
-
-export function setThemePreference(theme: ThemePreference): void {
-  db.update(appSettings)
-    .set({ theme, updatedAt: new Date() })
     .where(eq(appSettings.id, 1))
     .run();
 }

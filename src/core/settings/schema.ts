@@ -11,9 +11,6 @@ export const appSettings = sqliteTable('app_settings', {
   weightUnit: text('weight_unit', { enum: ['kg', 'lb'] })
     .notNull()
     .default('kg'),
-  theme: text('theme', { enum: ['system', 'light', 'dark'] })
-    .notNull()
-    .default('system'),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
@@ -30,4 +27,3 @@ export const moduleSeedState = sqliteTable('module_seed_state', {
 
 export type AppSettings = typeof appSettings.$inferSelect;
 export type WeightUnit = AppSettings['weightUnit'];
-export type ThemePreference = AppSettings['theme'];
