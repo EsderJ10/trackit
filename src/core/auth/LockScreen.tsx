@@ -61,7 +61,11 @@ export function LockScreen() {
               variant="ghost"
               onPress={tryBiometric}
               leftIcon={
-                <Icon icon={Fingerprint} size={20} color={colors.primaryBright} />
+                <Icon
+                  icon={Fingerprint}
+                  size={20}
+                  color={colors.primaryBright}
+                />
               }
             />
           ) : null}

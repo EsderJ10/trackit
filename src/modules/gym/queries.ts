@@ -65,10 +65,7 @@ export function useRoutineExercises(routineId: number) {
 }
 
 export function createRoutine(name: string, description?: string): number {
-  const result = db
-    .insert(routines)
-    .values({ name, description })
-    .run();
+  const result = db.insert(routines).values({ name, description }).run();
   return result.lastInsertRowId;
 }
 
@@ -96,9 +93,16 @@ export function addExerciseToRoutine(
 
 export function updateRoutineExercise(
   id: number,
-  patch: Partial<{ targetSets: number; targetReps: number; targetWeight: number | null }>,
+  patch: Partial<{
+    targetSets: number;
+    targetReps: number;
+    targetWeight: number | null;
+  }>,
 ): void {
-  db.update(routineExercises).set(patch).where(eq(routineExercises.id, id)).run();
+  db.update(routineExercises)
+    .set(patch)
+    .where(eq(routineExercises.id, id))
+    .run();
 }
 
 export function removeRoutineExercise(id: number): void {
@@ -325,13 +329,13 @@ export function deleteSetLog(id: number): void {
 }
 
 /** Remove every set for one exercise in a session (used to drop the exercise). */
-export function deleteExerciseSets(sessionId: number, exerciseId: number): void {
+export function deleteExerciseSets(
+  sessionId: number,
+  exerciseId: number,
+): void {
   db.delete(setLogs)
     .where(
-      and(
-        eq(setLogs.sessionId, sessionId),
-        eq(setLogs.exerciseId, exerciseId),
-      ),
+      and(eq(setLogs.sessionId, sessionId), eq(setLogs.exerciseId, exerciseId)),
     )
     .run();
 }
@@ -383,7 +387,11 @@ export interface GymStats {
 export function useGymStats(): GymStats {
   const { data: sets } = useLiveQuery(
     db
-      .select({ weight: setLogs.weight, reps: setLogs.reps, completedAt: setLogs.completedAt })
+      .select({
+        weight: setLogs.weight,
+        reps: setLogs.reps,
+        completedAt: setLogs.completedAt,
+      })
       .from(setLogs),
   );
   const { data: lastSessions } = useLiveQuery(
@@ -400,6 +408,9 @@ export function useGymStats(): GymStats {
   );
 
   return useMemo<GymStats>(() => {
+    // Intentional read of the current time for the rolling 7-day window; the
+    // memo recomputes when `sets` change, which is when this value matters.
+    // eslint-disable-next-line react-hooks/purity
     const cutoff = Date.now() - WEEK_MS;
     // Only completed sets count toward volume; planned sets have null completedAt.
     const weekly = sets.filter(
@@ -412,7 +423,10 @@ export function useGymStats(): GymStats {
       weeklySets: weekly.length,
       lastWorkout:
         last && last.finishedAt
-          ? { name: last.routineName ?? 'Freestyle', finishedAt: last.finishedAt }
+          ? {
+              name: last.routineName ?? 'Freestyle',
+              finishedAt: last.finishedAt,
+            }
           : null,
     };
   }, [sets, lastSessions]);

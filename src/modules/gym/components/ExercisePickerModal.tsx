@@ -46,7 +46,11 @@ export function ExercisePickerModal({
         >
           <View className="flex-row items-center justify-between border-b border-border-soft p-4">
             <Text variant="heading">Add exercise</Text>
-            <Pressable onPress={onClose} hitSlop={8} className="active:opacity-60">
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              className="active:opacity-60"
+            >
               <Icon icon={X} size={22} color={colors.fgMuted} />
             </Pressable>
           </View>

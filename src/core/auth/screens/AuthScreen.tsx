@@ -1,10 +1,5 @@
 import type { ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 
 import { Screen, Text } from '@/ui';
 

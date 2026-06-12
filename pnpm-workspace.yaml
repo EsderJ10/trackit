@@ -6,3 +6,6 @@ nodeLinker: hoisted
 # in the app bundle); allow its install script so the CLI works.
 allowBuilds:
   esbuild: true
+  # napi resolver used by the ESLint import plugin (lint tooling only); ships
+  # prebuilt binaries, so its postinstall just links the right one — no compile.
+  unrs-resolver: true

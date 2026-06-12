@@ -58,7 +58,11 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
-      style={variant === 'primary' && !isDisabled ? glow(colors.primaryGlow, 0.4) : undefined}
+      style={
+        variant === 'primary' && !isDisabled
+          ? glow(colors.primaryGlow, 0.4)
+          : undefined
+      }
       className={cn(
         'flex-row items-center justify-center gap-2 rounded-2xl',
         CONTAINER[variant],

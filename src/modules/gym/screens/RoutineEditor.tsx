@@ -58,7 +58,10 @@ export function RoutineEditor() {
             placeholder="Routine name"
             placeholderTextColor={colors.fgFaint}
             onEndEditing={(event) =>
-              renameRoutine(routineId, event.nativeEvent.text.trim() || 'Routine')
+              renameRoutine(
+                routineId,
+                event.nativeEvent.text.trim() || 'Routine',
+              )
             }
             className="rounded-xl border border-border bg-surface px-4 py-3 text-lg font-semibold text-fg"
           />
@@ -89,7 +92,12 @@ export function RoutineEditor() {
         />
 
         <Button label="Start workout" onPress={start} />
-        <Button label="Delete routine" variant="danger" size="md" onPress={remove} />
+        <Button
+          label="Delete routine"
+          variant="danger"
+          size="md"
+          onPress={remove}
+        />
       </ScrollView>
 
       <ExercisePickerModal

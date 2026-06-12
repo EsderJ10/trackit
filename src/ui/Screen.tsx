@@ -20,10 +20,7 @@ export function Screen({
   edges = ['top', 'bottom'],
 }: ScreenProps) {
   return (
-    <SafeAreaView
-      edges={edges}
-      style={{ flex: 1, backgroundColor: colors.bg }}
-    >
+    <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: colors.bg }}>
       <View className={cn('flex-1', className)}>{children}</View>
     </SafeAreaView>
   );

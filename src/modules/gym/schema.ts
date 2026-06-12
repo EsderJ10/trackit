@@ -20,7 +20,9 @@ export const routines = sqliteTable('routines', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   description: text('description'),
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(now),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(now),
 });
 
 /** An exercise within a routine template, with its targets. */
@@ -45,7 +47,9 @@ export const workoutSessions = sqliteTable('workout_sessions', {
   routineId: integer('routine_id').references(() => routines.id, {
     onDelete: 'set null',
   }),
-  startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull().default(now),
+  startedAt: integer('started_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(now),
   finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
   notes: text('notes'),
 });

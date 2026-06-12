@@ -22,8 +22,13 @@ export function History() {
       ) : (
         <ScrollView contentContainerClassName="gap-3 p-5">
           {sessions.map((session) => (
-            <Card key={session.id} className="flex-row items-center justify-between">
-              <Text variant="heading">{session.routineName ?? 'Freestyle'}</Text>
+            <Card
+              key={session.id}
+              className="flex-row items-center justify-between"
+            >
+              <Text variant="heading">
+                {session.routineName ?? 'Freestyle'}
+              </Text>
               <Text variant="muted">
                 {session.finishedAt
                   ? formatRelativeDate(session.finishedAt)

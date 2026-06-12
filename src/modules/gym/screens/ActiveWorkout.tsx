@@ -1,7 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView } from 'react-native';
 
 import { useSettings } from '@/core/settings/use-settings';
 import { Button, Icon, Screen, colors } from '@/ui';
@@ -93,10 +93,20 @@ export function ActiveWorkout() {
     for (const id of [...setsByExercise.keys(), ...extraIds]) {
       if (seen.has(id) || removed.has(id)) continue;
       seen.add(id);
-      list.push({ exerciseId: id, name: catalogById.get(id)?.name ?? 'Exercise' });
+      list.push({
+        exerciseId: id,
+        name: catalogById.get(id)?.name ?? 'Exercise',
+      });
     }
     return list;
-  }, [plan, setsByExercise, extraIds, removedIds, targetByExercise, catalogById]);
+  }, [
+    plan,
+    setsByExercise,
+    extraIds,
+    removedIds,
+    targetByExercise,
+    catalogById,
+  ]);
 
   function addSetTo(exerciseId: number) {
     const current = setsByExercise.get(exerciseId) ?? [];

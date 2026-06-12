@@ -60,14 +60,18 @@ export function RoutineExerciseRow({
           label="Sets"
           value={sets}
           onChangeText={setSets}
-          onEndEditing={() => onUpdate({ targetSets: toInt(sets, row.targetSets) })}
+          onEndEditing={() =>
+            onUpdate({ targetSets: toInt(sets, row.targetSets) })
+          }
           className="flex-1"
         />
         <NumberField
           label="Reps"
           value={reps}
           onChangeText={setReps}
-          onEndEditing={() => onUpdate({ targetReps: toInt(reps, row.targetReps) })}
+          onEndEditing={() =>
+            onUpdate({ targetReps: toInt(reps, row.targetReps) })
+          }
           className="flex-1"
         />
         <NumberField

@@ -19,5 +19,13 @@ expoDb.execSync('PRAGMA foreign_keys = ON;');
 
 export const db = drizzle(expoDb, { schema });
 
+/**
+ * The raw expo-sqlite handle, for the rare low-level need the Drizzle layer
+ * doesn't model — e.g. module-agnostic backup/restore that introspects
+ * `sqlite_master` to dump every table. Writes here still fire the change
+ * listener, so `useLiveQuery` stays reactive. Prefer `db` for everything else.
+ */
+export const sqlite = expoDb;
+
 /** The fully-typed Drizzle database, including every module's tables. */
 export type AppDatabase = typeof db;

@@ -6,7 +6,7 @@ landed. **One branch per milestone** (branch names below); commits within a
 milestone stay atomic per the repo convention.
 
 Current state (2026-06): the core shell, auth seams, and the gym module are
-built and `tsc` passes clean. Three things are *half-built* (stored-but-unused
+built and `tsc` passes clean. Three things are _half-built_ (stored-but-unused
 or mislabeled), there is no test/lint/export infrastructure, and the central
 architectural promise — "add a module in one line" — has only ever been
 exercised by a single module.
@@ -53,6 +53,23 @@ total data loss, and a contract many modules depend on needs regression cover.
 **Done when:** a user can export and restore their data; core seams have tests
 that run in CI-able form; `lint` passes.
 
+**As built:**
+
+- Backup excludes the `users` table on purpose: the credential lives in
+  SecureStore, so restoring a stale profile onto a fresh install would block
+  re-login. Tracking/preference data is not user-scoped, so it restores under
+  whatever account exists on the device.
+- Tests are **logic-only** (Vitest): unit conversion, formatters, and the backup
+  serialize/parse+validate. Contract and DB-bound seams (seed idempotency, query
+  helpers) need a native harness and are deferred — revisit if we adopt jest-expo.
+- **Known limitation — restore is same-schema only.** A backup records its
+  migration tag and restore rejects a mismatch (refuse, don't corrupt). This
+  means a backup taken now won't restore on a future build that adds a migration
+  — i.e. the device-loss-then-reinstall-latest path. Forward-migrating old
+  backups is deferred; for now the safe failure is intentional.
+- The restore IO and M1's `DROP COLUMN` migration are **unverified at runtime**
+  (logic-only tests don't touch the DB write path) — confirm on a device.
+
 ---
 
 ## M3 — Gym depth (polish) · `feat/m3-gym-depth`
@@ -75,11 +92,11 @@ progression view with PRs; the active workout has a rest timer.
 
 **Goal:** prove the architecture's reason for existing. The "one line to add a
 module" claim is untested at N=1, and the registry's own comment already admits
-it's really *two* steps (registry array **and** schema barrel + `db:generate` +
+it's really _two_ steps (registry array **and** schema barrel + `db:generate` +
 rebuild). A second, differently-shaped module is the only real test.
 
 - **Build module #2** (e.g. Habits or Finance) — ideally one that exercises the
-  *generic* `ModuleScreen` route and a `SettingsPanel`, paths the gym module
+  _generic_ `ModuleScreen` route and a `SettingsPanel`, paths the gym module
   doesn't use.
 - **Close the DX gap** the second module exposes; reconcile the "one line"
   claim with reality (either make it true or correct the docs).
