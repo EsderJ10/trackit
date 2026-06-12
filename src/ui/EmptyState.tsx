@@ -11,7 +11,12 @@ export interface EmptyStateProps {
 }
 
 /** Centered placeholder for empty lists / first-run states. */
-export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+}: EmptyStateProps) {
   return (
     <View className="flex-1 items-center justify-center gap-3 p-8">
       {icon}

@@ -29,7 +29,10 @@ export const navigationTheme: Theme = {
  * pass a module accent to recolor. iOS renders the colored shadow directly;
  * Android approximates it via elevation (colored on API 28+).
  */
-export function glow(color: string = colors.primaryGlow, opacity = 0.5): ViewStyle {
+export function glow(
+  color: string = colors.primaryGlow,
+  opacity = 0.5,
+): ViewStyle {
   return {
     shadowColor: color,
     shadowOpacity: opacity,

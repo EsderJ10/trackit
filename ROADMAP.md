@@ -6,7 +6,7 @@ landed. **One branch per milestone** (branch names below); commits within a
 milestone stay atomic per the repo convention.
 
 Current state (2026-06): the core shell, auth seams, and the gym module are
-built and `tsc` passes clean. Three things are *half-built* (stored-but-unused
+built and `tsc` passes clean. Three things are _half-built_ (stored-but-unused
 or mislabeled), there is no test/lint/export infrastructure, and the central
 architectural promise — "add a module in one line" — has only ever been
 exercised by a single module.
@@ -75,11 +75,11 @@ progression view with PRs; the active workout has a rest timer.
 
 **Goal:** prove the architecture's reason for existing. The "one line to add a
 module" claim is untested at N=1, and the registry's own comment already admits
-it's really *two* steps (registry array **and** schema barrel + `db:generate` +
+it's really _two_ steps (registry array **and** schema barrel + `db:generate` +
 rebuild). A second, differently-shaped module is the only real test.
 
 - **Build module #2** (e.g. Habits or Finance) — ideally one that exercises the
-  *generic* `ModuleScreen` route and a `SettingsPanel`, paths the gym module
+  _generic_ `ModuleScreen` route and a `SettingsPanel`, paths the gym module
   doesn't use.
 - **Close the DX gap** the second module exposes; reconcile the "one line"
   claim with reality (either make it true or correct the docs).

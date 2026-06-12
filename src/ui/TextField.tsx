@@ -4,8 +4,10 @@ import { cn } from './cn';
 import { Text } from './Text';
 import { colors } from './theme';
 
-export interface TextFieldProps
-  extends Omit<TextInputProps, 'placeholderTextColor' | 'className'> {
+export interface TextFieldProps extends Omit<
+  TextInputProps,
+  'placeholderTextColor' | 'className'
+> {
   /** Optional uppercase caption shown above the input. */
   label?: string;
   /** Validation/error message shown below the input (also reddens the border). */
@@ -19,7 +21,12 @@ export interface TextFieldProps
  * change-password, …). Forwards every native `TextInput` prop, so callers set
  * `secureTextEntry`, `keyboardType`, `autoCapitalize`, `textContentType`, etc.
  */
-export function TextField({ label, error, className, ...input }: TextFieldProps) {
+export function TextField({
+  label,
+  error,
+  className,
+  ...input
+}: TextFieldProps) {
   return (
     <View className={cn('gap-1.5', className)}>
       {label ? (

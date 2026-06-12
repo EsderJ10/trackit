@@ -14,5 +14,7 @@ export function Icon({
   strokeWidth = 2,
   ...rest
 }: IconProps) {
-  return <Glyph size={size} color={color} strokeWidth={strokeWidth} {...rest} />;
+  return (
+    <Glyph size={size} color={color} strokeWidth={strokeWidth} {...rest} />
+  );
 }

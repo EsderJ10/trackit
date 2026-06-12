@@ -39,7 +39,10 @@ export function LoginScreen() {
   }
 
   return (
-    <AuthScreen title="Welcome back" subtitle="Sign in to your TrackIt account.">
+    <AuthScreen
+      title="Welcome back"
+      subtitle="Sign in to your TrackIt account."
+    >
       <View className="gap-4">
         <TextField
           label="Username or email"

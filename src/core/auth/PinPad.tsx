@@ -7,7 +7,18 @@ import { Icon, Text, cn, colors } from '@/ui';
 export const PIN_LENGTH = 4;
 
 const KEYS: readonly string[] = [
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '',
+  '0',
+  'del',
 ];
 
 export interface PinPadProps {

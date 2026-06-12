@@ -6,23 +6,11 @@
     "allowJs": true,
     "resolveJsonModule": true,
     "paths": {
-      "@/core/*": [
-        "./src/core/*"
-      ],
-      "@/modules/*": [
-        "./src/modules/*"
-      ],
-      "@/ui/*": [
-        "./src/ui/*"
-      ],
-      "@/*": [
-        "./src/*"
-      ]
+      "@/core/*": ["./src/core/*"],
+      "@/modules/*": ["./src/modules/*"],
+      "@/ui/*": ["./src/ui/*"],
+      "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "nativewind-env.d.ts"
-  ]
+  "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"]
 }

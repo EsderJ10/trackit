@@ -93,10 +93,20 @@ export function ActiveWorkout() {
     for (const id of [...setsByExercise.keys(), ...extraIds]) {
       if (seen.has(id) || removed.has(id)) continue;
       seen.add(id);
-      list.push({ exerciseId: id, name: catalogById.get(id)?.name ?? 'Exercise' });
+      list.push({
+        exerciseId: id,
+        name: catalogById.get(id)?.name ?? 'Exercise',
+      });
     }
     return list;
-  }, [plan, setsByExercise, extraIds, removedIds, targetByExercise, catalogById]);
+  }, [
+    plan,
+    setsByExercise,
+    extraIds,
+    removedIds,
+    targetByExercise,
+    catalogById,
+  ]);
 
   function addSetTo(exerciseId: number) {
     const current = setsByExercise.get(exerciseId) ?? [];
