@@ -5,7 +5,16 @@ import { useMemo } from 'react';
 import { db } from '@/core/db/client';
 
 import {
+  advance,
+  type ProgressionScheme,
+  type ProgressionState,
+  suggestNext,
+} from './progression-engine';
+import {
   exercises,
+  exerciseTrainingState,
+  programExercises,
+  programs,
   routineExercises,
   routines,
   setLogs,
@@ -403,10 +412,28 @@ export function updateSessionNotes(sessionId: number, notes: string): void {
 }
 
 export function finishWorkout(sessionId: number): void {
+  const session = db
+    .select({
+      finishedAt: workoutSessions.finishedAt,
+      programId: workoutSessions.programId,
+      dayIndex: workoutSessions.programDayIndex,
+    })
+    .from(workoutSessions)
+    .where(eq(workoutSessions.id, sessionId))
+    .all()[0];
+
+  // Idempotent: only the null → finished transition advances progression, so a
+  // re-finish can't double-advance the working weight.
+  if (session == null || session.finishedAt != null) return;
+
   db.update(workoutSessions)
     .set({ finishedAt: new Date() })
     .where(eq(workoutSessions.id, sessionId))
     .run();
+
+  if (session.programId != null) {
+    advanceProgram(session.programId, session.dayIndex ?? 0, sessionId);
+  }
 }
 
 export function deleteSession(sessionId: number): void {
@@ -513,4 +540,325 @@ export function useGymStats(): GymStats {
           : null,
     };
   }, [sets, lastSessions]);
+}
+
+// ---------------------------------------------------------------------------
+// Programs + progression (M5)
+//
+// Programs are the opt-in path: they drive the next session's suggested sets
+// (`suggestNext`) and advance their own per-exercise state when a session is
+// finished (`advance`). The decision logic lives in the unit-tested
+// `progression-engine`; everything here is mechanical glue. State is keyed per
+// (program, exercise) — phase-1 programs run one progression per lift.
+// ---------------------------------------------------------------------------
+
+export function useActivePrograms() {
+  return useLiveQuery(
+    db
+      .select()
+      .from(programs)
+      .where(eq(programs.active, true))
+      .orderBy(desc(programs.createdAt)),
+  );
+}
+
+export function useProgram(programId: number) {
+  const { data } = useLiveQuery(
+    db.select().from(programs).where(eq(programs.id, programId)),
+    [programId],
+  );
+  return data[0];
+}
+
+export interface ProgramExerciseRow {
+  id: number;
+  exerciseId: number;
+  exerciseName: string;
+  muscleGroup: string;
+  dayIndex: number;
+  position: number;
+  schemeType: 'lp' | 'dp' | 'percent' | 'rpe';
+  targetSets: number;
+  /** Current working weight (canonical kg) — convert at render. */
+  currentWeightKg: number;
+  currentReps: number;
+  /** Why the suggestion is what it is (suggest+confirm); null before the first
+   * finished session. */
+  lastReason: string | null;
+}
+
+/** A program's exercises joined with their live progression state, for display. */
+export function useProgramExercises(programId: number) {
+  return useLiveQuery(
+    db
+      .select({
+        id: programExercises.id,
+        exerciseId: exercises.id,
+        exerciseName: exercises.name,
+        muscleGroup: exercises.muscleGroup,
+        dayIndex: programExercises.dayIndex,
+        position: programExercises.position,
+        schemeType: programExercises.schemeType,
+        targetSets: programExercises.targetSets,
+        currentWeightKg: exerciseTrainingState.currentWeightKg,
+        currentReps: exerciseTrainingState.currentReps,
+        lastReason: exerciseTrainingState.lastReason,
+      })
+      .from(programExercises)
+      .innerJoin(exercises, eq(programExercises.exerciseId, exercises.id))
+      .innerJoin(
+        exerciseTrainingState,
+        and(
+          eq(exerciseTrainingState.programId, programExercises.programId),
+          eq(exerciseTrainingState.exerciseId, programExercises.exerciseId),
+        ),
+      )
+      .where(eq(programExercises.programId, programId))
+      .orderBy(programExercises.dayIndex, programExercises.position),
+    [programId],
+  );
+}
+
+export function createProgram(name: string, description?: string): number {
+  const result = db.insert(programs).values({ name, description }).run();
+  return result.lastInsertRowId;
+}
+
+export function deleteProgram(programId: number): void {
+  db.delete(programs).where(eq(programs.id, programId)).run();
+}
+
+export interface AddProgramExerciseInput {
+  programId: number;
+  exerciseId: number;
+  scheme: ProgressionScheme;
+  targetSets: number;
+  /** Starting working weight (canonical kg). */
+  startingWeightKg: number;
+  /** Starting rep target — required for lp (its rep target lives only in
+   * state); dp ignores it and starts at `minReps`. */
+  startingReps?: number;
+  dayIndex?: number;
+}
+
+/**
+ * Add an exercise to a program with its progression rule and seed its initial
+ * training state (one row per program-exercise — guarded against duplicates).
+ */
+export function addProgramExercise(input: AddProgramExerciseInput): void {
+  const { programId, exerciseId, scheme, targetSets } = input;
+  const dayIndex = input.dayIndex ?? 0;
+
+  const siblings = db
+    .select({ id: programExercises.id })
+    .from(programExercises)
+    .where(
+      and(
+        eq(programExercises.programId, programId),
+        eq(programExercises.dayIndex, dayIndex),
+      ),
+    )
+    .all();
+
+  db.insert(programExercises)
+    .values({
+      programId,
+      exerciseId,
+      dayIndex,
+      position: siblings.length,
+      schemeType: scheme.type,
+      targetSets,
+      incrementKg: scheme.incrementKg,
+      minReps: scheme.type === 'dp' ? scheme.minReps : null,
+      maxReps: scheme.type === 'dp' ? scheme.maxReps : null,
+      failThreshold: scheme.type === 'lp' ? scheme.failThreshold : 3,
+      deloadPct: scheme.type === 'lp' ? scheme.deloadPct : 0.1,
+    })
+    .run();
+
+  // One state row per (program, exercise); never seed twice.
+  const existing = db
+    .select({ id: exerciseTrainingState.id })
+    .from(exerciseTrainingState)
+    .where(
+      and(
+        eq(exerciseTrainingState.programId, programId),
+        eq(exerciseTrainingState.exerciseId, exerciseId),
+      ),
+    )
+    .all();
+  if (existing.length > 0) return;
+
+  db.insert(exerciseTrainingState)
+    .values({
+      programId,
+      exerciseId,
+      currentWeightKg: input.startingWeightKg,
+      currentReps:
+        scheme.type === 'dp' ? scheme.minReps : (input.startingReps ?? 5),
+      lastReason: 'Starting weight',
+    })
+    .run();
+}
+
+/**
+ * Start a session from a program: pre-fill each exercise on the current day from
+ * its progression suggestion (`suggestNext`) rather than last performance.
+ * Returns the new session id.
+ */
+export function startProgramWorkout(programId: number): number {
+  const program = db
+    .select({ currentWeek: programs.currentWeek })
+    .from(programs)
+    .where(eq(programs.id, programId))
+    .all()[0];
+  if (program == null) throw new Error(`Program ${programId} not found`);
+
+  const dayIndex = 0; // phase 1: single-day programs; waves land in phase 2.
+  const result = db
+    .insert(workoutSessions)
+    .values({
+      programId,
+      programWeekIndex: program.currentWeek,
+      programDayIndex: dayIndex,
+    })
+    .run();
+  const sessionId = result.lastInsertRowId;
+
+  const plan = db
+    .select({
+      exerciseId: programExercises.exerciseId,
+      targetSets: programExercises.targetSets,
+      currentWeightKg: exerciseTrainingState.currentWeightKg,
+      currentReps: exerciseTrainingState.currentReps,
+      successStreak: exerciseTrainingState.successStreak,
+      failStreak: exerciseTrainingState.failStreak,
+    })
+    .from(programExercises)
+    .innerJoin(
+      exerciseTrainingState,
+      and(
+        eq(exerciseTrainingState.programId, programExercises.programId),
+        eq(exerciseTrainingState.exerciseId, programExercises.exerciseId),
+      ),
+    )
+    .where(
+      and(
+        eq(programExercises.programId, programId),
+        eq(programExercises.dayIndex, dayIndex),
+      ),
+    )
+    .orderBy(programExercises.position)
+    .all();
+
+  for (const slot of plan) {
+    const state: ProgressionState = {
+      currentWeightKg: slot.currentWeightKg,
+      currentReps: slot.currentReps,
+      successStreak: slot.successStreak,
+      failStreak: slot.failStreak,
+    };
+    suggestNext(state, slot.targetSets).forEach((set, index) => {
+      addSet({
+        sessionId,
+        exerciseId: slot.exerciseId,
+        setNumber: index + 1,
+        reps: set.reps,
+        weight: set.weightKg,
+      });
+    });
+  }
+
+  return sessionId;
+}
+
+/**
+ * After a program session is finished, fold each exercise's completed sets into
+ * its progression state. Exercises with no completed set this session are left
+ * untouched (a skip is not a failed attempt → no phantom deload).
+ */
+function advanceProgram(
+  programId: number,
+  dayIndex: number,
+  sessionId: number,
+): void {
+  const slots = db
+    .select()
+    .from(programExercises)
+    .where(
+      and(
+        eq(programExercises.programId, programId),
+        eq(programExercises.dayIndex, dayIndex),
+      ),
+    )
+    .all();
+
+  for (const slot of slots) {
+    // Phase 1 advances lp/dp only; percentage/rpe schemes land later.
+    if (slot.schemeType !== 'lp' && slot.schemeType !== 'dp') continue;
+
+    const logged = db
+      .select({ reps: setLogs.reps, weight: setLogs.weight })
+      .from(setLogs)
+      .where(
+        and(
+          eq(setLogs.sessionId, sessionId),
+          eq(setLogs.exerciseId, slot.exerciseId),
+          isNotNull(setLogs.completedAt),
+        ),
+      )
+      .orderBy(setLogs.setNumber)
+      .all();
+    if (logged.length === 0) continue; // untouched this session → leave as-is.
+
+    const stateRow = db
+      .select()
+      .from(exerciseTrainingState)
+      .where(
+        and(
+          eq(exerciseTrainingState.programId, programId),
+          eq(exerciseTrainingState.exerciseId, slot.exerciseId),
+        ),
+      )
+      .all()[0];
+    if (stateRow == null) continue;
+
+    const scheme: ProgressionScheme =
+      slot.schemeType === 'dp'
+        ? {
+            type: 'dp',
+            incrementKg: slot.incrementKg,
+            minReps: slot.minReps ?? 1,
+            maxReps: slot.maxReps ?? slot.minReps ?? 1,
+          }
+        : {
+            type: 'lp',
+            incrementKg: slot.incrementKg,
+            failThreshold: slot.failThreshold,
+            deloadPct: slot.deloadPct,
+          };
+
+    const { state, reason } = advance(
+      scheme,
+      {
+        currentWeightKg: stateRow.currentWeightKg,
+        currentReps: stateRow.currentReps,
+        successStreak: stateRow.successStreak,
+        failStreak: stateRow.failStreak,
+      },
+      logged.map((s) => ({ reps: s.reps, weightKg: s.weight })),
+      slot.targetSets,
+    );
+
+    db.update(exerciseTrainingState)
+      .set({
+        currentWeightKg: state.currentWeightKg,
+        currentReps: state.currentReps,
+        successStreak: state.successStreak,
+        failStreak: state.failStreak,
+        lastReason: reason,
+      })
+      .where(eq(exerciseTrainingState.id, stateRow.id))
+      .run();
+  }
 }
