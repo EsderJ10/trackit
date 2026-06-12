@@ -69,6 +69,12 @@ describe('advance — linear progression', () => {
     expect(reason).toMatch(/\+2\.5 kg/);
   });
 
+  it('keeps a non-2.5 increment exact on success (no grid snap)', () => {
+    const micro: LpScheme = { ...lp, incrementKg: 1.25 };
+    const { state: next } = advance(micro, state(), sets(3, 5), 3);
+    expect(next.currentWeightKg).toBe(101.25); // not snapped to 102.5
+  });
+
   it('holds the weight after a single miss', () => {
     const { state: next, reason } = advance(lp, state(), sets(3, 4), 3);
     expect(next.currentWeightKg).toBe(100);

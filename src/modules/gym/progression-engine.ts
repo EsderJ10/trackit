@@ -148,7 +148,9 @@ function advanceLp(
   );
 
   if (success) {
-    const next = roundKg(state.currentWeightKg + scheme.incrementKg);
+    // start + n×increment is loadable by construction — only the deload path
+    // (×0.9) yields a fractional weight that needs rounding.
+    const next = state.currentWeightKg + scheme.incrementKg;
     return {
       state: {
         ...state,
@@ -188,7 +190,9 @@ function advanceDp(
 ): AdvanceResult {
   // Cleared the top of the range on every set → add weight, reset to the bottom.
   if (hitTargets(logged, targetSets, scheme.maxReps, state.currentWeightKg)) {
-    const next = roundKg(state.currentWeightKg + scheme.incrementKg);
+    // start + n×increment is loadable by construction — only the deload path
+    // (×0.9) yields a fractional weight that needs rounding.
+    const next = state.currentWeightKg + scheme.incrementKg;
     return {
       state: {
         ...state,
