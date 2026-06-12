@@ -232,10 +232,12 @@ Invariants baked in from the research (not afterthoughts):
 
 ### Build order (each phase ships something usable)
 
-1. **Engine + LP/DP, derived from history** — `programs` /
-   `program_exercises` / `exercise_training_state` schema, the two simplest
-   schemes, suggest+confirm wired into Start Workout. Validates the UX with the
-   least machinery.
+1. **Engine + LP/DP, state-based** — `programs` / `program_exercises` /
+   `exercise_training_state` schema, the two simplest schemes, suggest+confirm
+   wired into Start Workout. Validates the UX with the least machinery. (The
+   research sketch derived progression from history; the build stores the
+   working weight + streaks instead — deterministic and ready for the phase-2
+   training max, at the cost of making advance-on-finish idempotency our job.)
 2. **`program_sets` + percentage / 5-3-1** — the wave template, training-max
    input, the week/cycle cursor + deload week.
 3. **RPE autoregulation** — RPE→%1RM table on top of e1RM (the per-set RPE data
@@ -248,6 +250,42 @@ suggestions they can accept or override, and have the program advance (weights,
 training maxes, week/cycle cursor) automatically after each workout — across all
 four schemes; routines and freestyle workouts are unchanged; the engine math is
 unit-tested on canonical kg; `tsc`/lint/tests clean.
+
+**As built — phase 1 (lp/dp):**
+
+- **State-based, not derived-from-history.** Each program-exercise stores its
+  working weight + rep target + success/fail streaks in `exercise_training_state`
+  (keyed `(programId, exerciseId)` — one progression per lift). `suggestNext`
+  renders the next sets from that state; `advance` folds a finished session back
+  into it. Decision logic is pure and unit-tested in `progression-engine.ts`
+  (lp + dp, 13 tests); the DB glue in `queries.ts` is mechanical.
+- **Three correctness guards in the glue** (the tax for mutable state):
+  `finishWorkout` advances **only** on the null→finished transition (no
+  double-advance on re-finish); an exercise with **zero completed sets** this
+  session is left untouched (a skip is not a failed attempt → no phantom
+  deload); `addProgramExercise` refuses a **duplicate lift** in a program (it
+  would share one state row and double-advance).
+- **Rounding discipline.** The success path is `start + n×increment` (loadable by
+  construction, never snapped); only the deload (`×0.9`) is rounded — so a non-2.5
+  increment (microplates, the kg value of 5 lb) stays exact. Locked by a test.
+- **Suggest + confirm.** Program sessions pre-fill sets from the suggestion and
+  show the rationale (`lastReason`, e.g. "+2.5 kg — hit all reps") under each
+  exercise; the user edits any set freely. Programs are a path **parallel** to
+  routines — not opting in leaves the routine/freestyle flow byte-identical.
+- **Unverified at runtime (logic-only gates can't see the DB write path or UI).**
+  `tsc`/lint/tests pass, but migration `0005` and the entire program flow have
+  never executed. Only the 13 pure-engine tests touch new logic;
+  `startProgramWorkout`/`advanceProgram`/`finishWorkout` and all the new screens
+  passed tsc + lint only. **Device check:** fresh launch (0005 applies clean) →
+  create program → add one DP lift → set working weight → Start workout
+  (suggested sets pre-fill at that weight, "Starting weight" shows) → complete
+  all sets at the top of the range → Finish → Start again → **weight advanced,
+  reason reads "+2.5 kg — cleared 12 reps."** Then a session with missed reps →
+  confirm no advance, and an eventual deload after the fail threshold.
+- **Not yet built (later M5 phases):** `program_sets` (per-week waves),
+  percentage/training-max and RPE schemes, the week/cycle cursor advancing,
+  multi-day programs, and per-param editing (increment / rep-range / sets are
+  fixed at scheme defaults; only the working weight is editable in the UI).
 
 ---
 
