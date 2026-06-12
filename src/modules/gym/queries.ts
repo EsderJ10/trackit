@@ -659,6 +659,20 @@ export function addProgramExercise(input: AddProgramExerciseInput): void {
   const { programId, exerciseId, scheme, targetSets } = input;
   const dayIndex = input.dayIndex ?? 0;
 
+  // One slot per lift per program: state is keyed (program, exercise), so a
+  // second slot would share that row and double-advance it. Ignore duplicates.
+  const already = db
+    .select({ id: programExercises.id })
+    .from(programExercises)
+    .where(
+      and(
+        eq(programExercises.programId, programId),
+        eq(programExercises.exerciseId, exerciseId),
+      ),
+    )
+    .all();
+  if (already.length > 0) return;
+
   const siblings = db
     .select({ id: programExercises.id })
     .from(programExercises)
