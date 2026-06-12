@@ -124,8 +124,8 @@ export function RegisterScreen() {
       </View>
       <View className="gap-3">
         <Text variant="caption" className="text-center text-warning">
-          There's no password recovery. If you forget it, the only way back in is
-          erasing the app — which deletes all your data.
+          There is no password recovery. If you forget it, the only way back in
+          is erasing the app — which deletes all your data.
         </Text>
         <Button label="Create account" loading={busy} onPress={submit} />
         {hasAccount ? (

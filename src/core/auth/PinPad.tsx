@@ -1,5 +1,5 @@
 import { Delete } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Icon, Text, cn, colors } from '@/ui';
@@ -29,9 +29,14 @@ export function PinPad({
 }: PinPadProps) {
   const [pin, setPin] = useState('');
 
-  useEffect(() => {
+  // Clear the entry when the parent bumps `resetSignal` (e.g. a wrong PIN).
+  // Adjusting state during render on a changed prop is React's recommended
+  // alternative to a setState-in-effect for this "reset on signal" pattern.
+  const [prevReset, setPrevReset] = useState(resetSignal);
+  if (resetSignal !== prevReset) {
+    setPrevReset(resetSignal);
     setPin('');
-  }, [resetSignal]);
+  }
 
   function press(key: string) {
     if (key === '') return;

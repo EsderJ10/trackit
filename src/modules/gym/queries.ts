@@ -400,6 +400,9 @@ export function useGymStats(): GymStats {
   );
 
   return useMemo<GymStats>(() => {
+    // Intentional read of the current time for the rolling 7-day window; the
+    // memo recomputes when `sets` change, which is when this value matters.
+    // eslint-disable-next-line react-hooks/purity
     const cutoff = Date.now() - WEEK_MS;
     // Only completed sets count toward volume; planned sets have null completedAt.
     const weekly = sets.filter(
