@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import {
   advance,
+  advanceCursor,
   type DpScheme,
+  e1rmFromLoggedSet,
   type LpScheme,
+  type ProgramCursor,
   type ProgressionState,
+  renderPrescribedSet,
   roundKg,
+  rpePct,
   suggestNext,
 } from './progression-engine';
 
@@ -147,5 +152,152 @@ describe('advance — double progression', () => {
     expect(next.currentReps).toBe(10);
     expect(next.currentWeightKg).toBe(100);
     expect(reason).toMatch(/Repeat/);
+  });
+});
+
+describe('advanceCursor', () => {
+  const cursor = (over: Partial<ProgramCursor> = {}): ProgramCursor => ({
+    currentWeek: 1,
+    currentDayIndex: 0,
+    currentCycle: 1,
+    ...over,
+  });
+
+  it('moves to the next day within a week', () => {
+    // 3 days, 4 weeks: day 0 → day 1, same week/cycle.
+    expect(advanceCursor(cursor(), 3, 4)).toEqual({
+      currentWeek: 1,
+      currentDayIndex: 1,
+      currentCycle: 1,
+    });
+  });
+
+  it('wraps the last day of a week into the next week', () => {
+    expect(advanceCursor(cursor({ currentDayIndex: 2 }), 3, 4)).toEqual({
+      currentWeek: 2,
+      currentDayIndex: 0,
+      currentCycle: 1,
+    });
+  });
+
+  it('wraps the last day of the last week into the next cycle', () => {
+    expect(
+      advanceCursor(cursor({ currentWeek: 4, currentDayIndex: 2 }), 3, 4),
+    ).toEqual({ currentWeek: 1, currentDayIndex: 0, currentCycle: 2 });
+  });
+
+  it('treats a single-week program as a day rotation that bumps the cycle', () => {
+    // StrongLifts-style: 1 week, 2 alternating days. Day 1 → day 0, cycle++.
+    expect(
+      advanceCursor(cursor({ currentDayIndex: 1 }), 2, 1),
+    ).toEqual({ currentWeek: 1, currentDayIndex: 0, currentCycle: 2 });
+  });
+
+  it('clamps degenerate day/week counts to at least one', () => {
+    expect(advanceCursor(cursor(), 0, 0)).toEqual({
+      currentWeek: 1,
+      currentDayIndex: 0,
+      currentCycle: 2,
+    });
+  });
+});
+
+describe('rpePct — RPE → %1RM', () => {
+  it('is monotonic: harder RPE and fewer reps mean a higher %1RM', () => {
+    expect(rpePct(10, 1)).toBeGreaterThan(rpePct(8, 1));
+    expect(rpePct(8, 3)).toBeGreaterThan(rpePct(8, 8));
+  });
+
+  it('renders a heavy single near full 1RM and an easy set well below', () => {
+    expect(rpePct(10, 1)).toBeCloseTo(1 / (1 + 1 / 30), 5); // ~0.968
+    expect(rpePct(8, 8)).toBeLessThan(0.8); // 8 reps @ RPE8 → 10 to failure
+  });
+
+  it('clamps RPE to [1, 10]', () => {
+    expect(rpePct(12, 1)).toBe(rpePct(10, 1));
+    expect(rpePct(0, 1)).toBe(rpePct(1, 1));
+  });
+});
+
+describe('renderPrescribedSet', () => {
+  const ctx = {
+    currentWeightKg: 80,
+    trainingMaxKg: 100,
+    e1rmKg: 120,
+    stepKg: 2.5,
+  };
+
+  it('renders a percentage of the training max, rounded to the step', () => {
+    // 0.85 × 100 = 85 → loadable already
+    expect(
+      renderPrescribedSet(
+        { reps: 5, intensityKind: 'pct', intensityValue: 0.85, amrap: false },
+        ctx,
+      ),
+    ).toEqual({ reps: 5, weightKg: 85, amrap: false });
+    // 0.93 × 100 = 93 → nearest 2.5 = 92.5; AMRAP flag carried through
+    expect(
+      renderPrescribedSet(
+        { reps: 1, intensityKind: 'pct', intensityValue: 0.93, amrap: true },
+        ctx,
+      ),
+    ).toEqual({ reps: 1, weightKg: 92.5, amrap: true });
+  });
+
+  it('renders an RPE target from e1RM, rounded to the step', () => {
+    const set = renderPrescribedSet(
+      { reps: 5, intensityKind: 'rpe', intensityValue: 8, amrap: false },
+      ctx,
+    );
+    expect(set.weightKg).toBe(roundKg(120 * rpePct(8, 5), 2.5));
+    expect(set.reps).toBe(5);
+  });
+
+  it('renders an absolute load, falling back to the working weight when 0', () => {
+    expect(
+      renderPrescribedSet(
+        { reps: 5, intensityKind: 'abs', intensityValue: 60, amrap: false },
+        ctx,
+      ).weightKg,
+    ).toBe(60);
+    expect(
+      renderPrescribedSet(
+        { reps: 5, intensityKind: 'abs', intensityValue: 0, amrap: false },
+        ctx,
+      ).weightKg,
+    ).toBe(80); // falls back to currentWeightKg
+  });
+
+  it('treats a null training max as zero load (unset TM)', () => {
+    expect(
+      renderPrescribedSet(
+        { reps: 5, intensityKind: 'pct', intensityValue: 0.85, amrap: false },
+        { ...ctx, trainingMaxKg: null },
+      ).weightKg,
+    ).toBe(0);
+  });
+});
+
+describe('e1rmFromLoggedSet — the RPE re-anchor (inverse of the render path)', () => {
+  it('holds the anchor flat when the prescription is hit on the nose', () => {
+    // Render 5 reps @ RPE8 from a 90 kg anchor, log exactly that, re-anchor.
+    const anchor = 90;
+    const rendered = 90 * rpePct(8, 5);
+    const reanchored = e1rmFromLoggedSet(rendered, 5, 8);
+    expect(reanchored).toBeCloseTo(anchor, 6); // no downward spiral
+  });
+
+  it('raises the anchor when you beat the prescription', () => {
+    const rendered = 90 * rpePct(8, 5);
+    // Same load, but it only felt like RPE7 (you had more in the tank).
+    expect(e1rmFromLoggedSet(rendered, 5, 7)).toBeGreaterThan(90);
+    // Same load and RPE, but you got an extra rep.
+    expect(e1rmFromLoggedSet(rendered, 6, 8)).toBeGreaterThan(90);
+  });
+
+  it('lowers the anchor when you miss the prescription', () => {
+    const rendered = 90 * rpePct(8, 5);
+    // Hit the load but it ground to RPE9 — harder than prescribed.
+    expect(e1rmFromLoggedSet(rendered, 5, 9)).toBeLessThan(90);
   });
 });

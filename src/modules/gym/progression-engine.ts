@@ -74,6 +74,44 @@ export interface LoggedSet {
 }
 
 // ---------------------------------------------------------------------------
+// Cursor — where the lifter is in the program's week × day grid
+// ---------------------------------------------------------------------------
+
+/** The program's position: which week (1-based), which day (0-based), cycle. */
+export interface ProgramCursor {
+  currentWeek: number;
+  currentDayIndex: number;
+  currentCycle: number;
+}
+
+/**
+ * Advance the cursor one day. Days rotate within a week; past the last day the
+ * week advances; past the last week the cycle advances and we wrap to week 1,
+ * day 0 (a new pass through the whole program — where percentage schemes bump
+ * their training max). `dayCount`/`weekCount` are the program's totals (>= 1).
+ */
+export function advanceCursor(
+  cursor: ProgramCursor,
+  dayCount: number,
+  weekCount: number,
+): ProgramCursor {
+  const days = Math.max(1, dayCount);
+  const weeks = Math.max(1, weekCount);
+  let { currentWeek, currentDayIndex, currentCycle } = cursor;
+
+  currentDayIndex += 1;
+  if (currentDayIndex >= days) {
+    currentDayIndex = 0;
+    currentWeek += 1;
+    if (currentWeek > weeks) {
+      currentWeek = 1;
+      currentCycle += 1;
+    }
+  }
+  return { currentWeek, currentDayIndex, currentCycle };
+}
+
+// ---------------------------------------------------------------------------
 // Rounding — suggestions must land on a loadable weight, never 62.5237 kg
 // ---------------------------------------------------------------------------
 
@@ -81,6 +119,99 @@ export interface LoggedSet {
 export function roundKg(weightKg: number, stepKg = 2.5): number {
   if (stepKg <= 0) return weightKg;
   return Math.round(weightKg / stepKg) * stepKg;
+}
+
+// ---------------------------------------------------------------------------
+// RPE → %1RM — the autoregulated intensity (Epley-consistent)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fraction of estimated 1RM a set of `reps` taken to `rpe` represents. RPE is on
+ * the RIR scale (RIR = 10 − RPE), so a set of `reps` @ `rpe` is `reps + RIR`
+ * reps from true failure; inverting Epley (1RM = w·(1 + n/30)) gives the load.
+ * Clamped to [0, 1]; RPE above 10 or below 1 is treated as the nearest bound.
+ */
+export function rpePct(rpe: number, reps: number): number {
+  const clampedRpe = Math.min(10, Math.max(1, rpe));
+  const repsToFailure = Math.max(1, reps + (10 - clampedRpe));
+  return 1 / (1 + repsToFailure / 30);
+}
+
+/**
+ * Estimated 1RM (kg) implied by a logged set of `reps` at `weightKg` taken to
+ * `rpe`. This is the exact inverse of the rpe render path (`weight = e1rm ·
+ * rpePct`), so re-anchoring from a set that *hit its prescription* leaves the
+ * anchor flat — beating it (more reps / higher RPE at the same load) raises it,
+ * missing it lowers it. (Using a to-failure 1RM estimate here instead would make
+ * a hit-the-target session spiral the anchor — and the load — downward.)
+ */
+export function e1rmFromLoggedSet(
+  weightKg: number,
+  reps: number,
+  rpe: number,
+): number {
+  return weightKg / rpePct(rpe, reps);
+}
+
+// ---------------------------------------------------------------------------
+// Prescription rendering — one program_set row → a concrete suggested set
+// ---------------------------------------------------------------------------
+
+/** A per-set prescription (one `program_sets` row), independent of scheme. */
+export interface Prescription {
+  reps: number;
+  /** `abs` = literal kg, `pct` = fraction of training max, `rpe` = target RPE. */
+  intensityKind: 'abs' | 'pct' | 'rpe';
+  intensityValue: number;
+  amrap: boolean;
+}
+
+/** The mutable numbers a prescription is rendered against. */
+export interface RenderContext {
+  /** Working weight (kg) — the `abs` fallback when no literal load is given. */
+  currentWeightKg: number;
+  /** Training max (kg) for `pct` prescriptions. */
+  trainingMaxKg: number | null;
+  /** Estimated 1RM (kg) for `rpe` prescriptions. */
+  e1rmKg: number | null;
+  /** Loadable rounding step (kg). */
+  stepKg: number;
+}
+
+/** A rendered set: a concrete load + reps, plus whether it's an AMRAP top set. */
+export interface RenderedSet {
+  reps: number;
+  weightKg: number;
+  amrap: boolean;
+}
+
+/** Turn one prescription into a concrete suggested set against the context. */
+export function renderPrescribedSet(
+  p: Prescription,
+  ctx: RenderContext,
+): RenderedSet {
+  if (p.intensityKind === 'pct') {
+    const tm = ctx.trainingMaxKg ?? 0;
+    return {
+      reps: p.reps,
+      weightKg: roundKg(tm * p.intensityValue, ctx.stepKg),
+      amrap: p.amrap,
+    };
+  }
+  if (p.intensityKind === 'rpe') {
+    const e1rm = ctx.e1rmKg ?? 0;
+    return {
+      reps: p.reps,
+      weightKg: roundKg(e1rm * rpePct(p.intensityValue, p.reps), ctx.stepKg),
+      amrap: p.amrap,
+    };
+  }
+  // `abs`: a literal kg load, falling back to the working weight when unset (0).
+  return {
+    reps: p.reps,
+    weightKg: p.intensityValue || ctx.currentWeightKg,
+    amrap: p.amrap,
+  };
 }
 
 // ---------------------------------------------------------------------------
