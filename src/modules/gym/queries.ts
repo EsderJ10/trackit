@@ -6,15 +6,20 @@ import { db } from '@/core/db/client';
 
 import {
   advance,
+  advanceCursor,
+  e1rmFromLoggedSet,
   type ProgressionScheme,
-  type ProgressionState,
+  renderPrescribedSet,
   suggestNext,
 } from './progression-engine';
 import {
   exercises,
   exerciseTrainingState,
+  programDays,
   programExercises,
   programs,
+  programSets,
+  programWeeks,
   routineExercises,
   routines,
   setLogs,
@@ -416,7 +421,8 @@ export function finishWorkout(sessionId: number): void {
     .select({
       finishedAt: workoutSessions.finishedAt,
       programId: workoutSessions.programId,
-      dayIndex: workoutSessions.programDayIndex,
+      programDayId: workoutSessions.programDayId,
+      weekIndex: workoutSessions.programWeekIndex,
     })
     .from(workoutSessions)
     .where(eq(workoutSessions.id, sessionId))
@@ -431,8 +437,13 @@ export function finishWorkout(sessionId: number): void {
     .where(eq(workoutSessions.id, sessionId))
     .run();
 
-  if (session.programId != null) {
-    advanceProgram(session.programId, session.dayIndex ?? 0, sessionId);
+  if (session.programId != null && session.programDayId != null) {
+    advanceProgram(
+      session.programId,
+      session.programDayId,
+      session.weekIndex ?? 1,
+      sessionId,
+    );
   }
 }
 
@@ -542,14 +553,18 @@ export function useGymStats(): GymStats {
   }, [sets, lastSessions]);
 }
 
+
 // ---------------------------------------------------------------------------
 // Programs + progression (M5)
 //
-// Programs are the opt-in path: they drive the next session's suggested sets
-// (`suggestNext`) and advance their own per-exercise state when a session is
-// finished (`advance`). The decision logic lives in the unit-tested
-// `progression-engine`; everything here is mechanical glue. State is keyed per
-// (program, exercise) — phase-1 programs run one progression per lift.
+// A program is a roadmap, not a flat list: it owns DAYS (the split) and WEEKS
+// (the periodization), and a cursor (`currentWeek` + `currentDayIndex`) walks
+// the lifter through the week × day grid, advancing on each finished session.
+// Each exercise drives the next session's suggested sets (`suggestNext`) and
+// advances its own per-slot state (`advance`) when a session is finished. State
+// is keyed per program-exercise slot, so a lift may appear on more than one day.
+// The decision logic lives in the unit-tested `progression-engine`; everything
+// here is mechanical glue.
 // ---------------------------------------------------------------------------
 
 export function useActivePrograms() {
@@ -570,64 +585,159 @@ export function useProgram(programId: number) {
   return data[0];
 }
 
-export interface ProgramExerciseRow {
-  id: number;
-  exerciseId: number;
-  exerciseName: string;
-  muscleGroup: string;
-  dayIndex: number;
-  position: number;
-  schemeType: 'lp' | 'dp' | 'percent' | 'rpe';
-  targetSets: number;
-  incrementKg: number;
-  minReps: number | null;
-  maxReps: number | null;
-  /** Current working weight (canonical kg) — convert at render. */
-  currentWeightKg: number;
-  currentReps: number;
-  /** Why the suggestion is what it is (suggest+confirm); null before the first
-   * finished session. */
-  lastReason: string | null;
-}
-
-/** A program's exercises joined with their live progression state, for display. */
-export function useProgramExercises(programId: number) {
+/** Every program's days (id, index, name) — for rendering each program's cursor. */
+export function useAllProgramDays() {
   return useLiveQuery(
     db
       .select({
-        id: programExercises.id,
-        exerciseId: exercises.id,
-        exerciseName: exercises.name,
-        muscleGroup: exercises.muscleGroup,
-        dayIndex: programExercises.dayIndex,
-        position: programExercises.position,
-        schemeType: programExercises.schemeType,
-        targetSets: programExercises.targetSets,
-        incrementKg: programExercises.incrementKg,
-        minReps: programExercises.minReps,
-        maxReps: programExercises.maxReps,
-        currentWeightKg: exerciseTrainingState.currentWeightKg,
-        currentReps: exerciseTrainingState.currentReps,
-        lastReason: exerciseTrainingState.lastReason,
+        programId: programDays.programId,
+        dayIndex: programDays.dayIndex,
+        name: programDays.name,
       })
-      .from(programExercises)
-      .innerJoin(exercises, eq(programExercises.exerciseId, exercises.id))
-      .innerJoin(
-        exerciseTrainingState,
-        and(
-          eq(exerciseTrainingState.programId, programExercises.programId),
-          eq(exerciseTrainingState.exerciseId, programExercises.exerciseId),
-        ),
-      )
-      .where(eq(programExercises.programId, programId))
-      .orderBy(programExercises.dayIndex, programExercises.position),
+      .from(programDays)
+      .orderBy(programDays.programId, programDays.dayIndex),
+  );
+}
+
+// --- Days ----------------------------------------------------------------
+
+export interface ProgramDayRow {
+  id: number;
+  dayIndex: number;
+  name: string;
+}
+
+export function useProgramDays(programId: number) {
+  return useLiveQuery(
+    db
+      .select({
+        id: programDays.id,
+        dayIndex: programDays.dayIndex,
+        name: programDays.name,
+      })
+      .from(programDays)
+      .where(eq(programDays.programId, programId))
+      .orderBy(programDays.dayIndex),
     [programId],
   );
 }
 
-export function createProgram(name: string, description?: string): number {
-  const result = db.insert(programs).values({ name, description }).run();
+/** Append a day at the next index; returns the new day id. */
+export function addProgramDay(programId: number, name?: string): number {
+  const siblings = db
+    .select({ id: programDays.id })
+    .from(programDays)
+    .where(eq(programDays.programId, programId))
+    .all();
+  const dayIndex = siblings.length;
+  const result = db
+    .insert(programDays)
+    .values({ programId, dayIndex, name: name ?? `Day ${dayIndex + 1}` })
+    .run();
   return result.lastInsertRowId;
+}
+
+export function renameProgramDay(dayId: number, name: string): void {
+  db.update(programDays)
+    .set({ name: name.trim() || 'Day' })
+    .where(eq(programDays.id, dayId))
+    .run();
+}
+
+/** Remove a day (its exercises + their state/sets cascade) and reindex the rest. */
+export function removeProgramDay(programId: number, dayId: number): void {
+  db.transaction((tx) => {
+    tx.delete(programDays).where(eq(programDays.id, dayId)).run();
+    const remaining = tx
+      .select({ id: programDays.id })
+      .from(programDays)
+      .where(eq(programDays.programId, programId))
+      .orderBy(programDays.dayIndex)
+      .all();
+    remaining.forEach((row, index) => {
+      tx.update(programDays)
+        .set({ dayIndex: index })
+        .where(eq(programDays.id, row.id))
+        .run();
+    });
+  });
+}
+
+// --- Weeks ---------------------------------------------------------------
+
+export interface ProgramWeekRow {
+  id: number;
+  weekIndex: number;
+  name: string | null;
+  isDeload: boolean;
+}
+
+export function useProgramWeeks(programId: number) {
+  return useLiveQuery(
+    db
+      .select({
+        id: programWeeks.id,
+        weekIndex: programWeeks.weekIndex,
+        name: programWeeks.name,
+        isDeload: programWeeks.isDeload,
+      })
+      .from(programWeeks)
+      .where(eq(programWeeks.programId, programId))
+      .orderBy(programWeeks.weekIndex),
+    [programId],
+  );
+}
+
+/** Append a week at the next index and keep `programs.lengthWeeks` in sync. */
+export function addProgramWeek(programId: number, name?: string): number {
+  return db.transaction((tx) => {
+    const siblings = tx
+      .select({ id: programWeeks.id })
+      .from(programWeeks)
+      .where(eq(programWeeks.programId, programId))
+      .all();
+    const weekIndex = siblings.length + 1;
+    const result = tx
+      .insert(programWeeks)
+      .values({ programId, weekIndex, name: name ?? `Week ${weekIndex}` })
+      .run();
+    tx.update(programs)
+      .set({ lengthWeeks: weekIndex })
+      .where(eq(programs.id, programId))
+      .run();
+    return result.lastInsertRowId;
+  });
+}
+
+export function setProgramWeekDeload(weekId: number, isDeload: boolean): void {
+  db.update(programWeeks)
+    .set({ isDeload })
+    .where(eq(programWeeks.id, weekId))
+    .run();
+}
+
+export function renameProgramWeek(weekId: number, name: string): void {
+  db.update(programWeeks)
+    .set({ name: name.trim() || null })
+    .where(eq(programWeeks.id, weekId))
+    .run();
+}
+
+// --- Program lifecycle ---------------------------------------------------
+
+/** Create a program seeded with one week and one day so it's usable at once. */
+export function createProgram(name: string, description?: string): number {
+  return db.transaction((tx) => {
+    const result = tx.insert(programs).values({ name, description }).run();
+    const programId = result.lastInsertRowId;
+    tx.insert(programWeeks)
+      .values({ programId, weekIndex: 1, name: 'Week 1' })
+      .run();
+    tx.insert(programDays)
+      .values({ programId, dayIndex: 0, name: 'Day 1' })
+      .run();
+    return programId;
+  });
 }
 
 export function renameProgram(programId: number, name: string): void {
@@ -635,197 +745,383 @@ export function renameProgram(programId: number, name: string): void {
 }
 
 export function deleteProgram(programId: number): void {
-  db.delete(programs).where(eq(programs.id, programId)).run();
+  // `workout_sessions.program_id` was added via ALTER (migration 0005), so
+  // SQLite dropped its ON DELETE clause — clear the references ourselves so
+  // history survives. Days/weeks/exercises (and their state/sets) cascade.
+  db.transaction((tx) => {
+    tx.update(workoutSessions)
+      .set({ programId: null, programDayId: null })
+      .where(eq(workoutSessions.programId, programId))
+      .run();
+    tx.delete(programs).where(eq(programs.id, programId)).run();
+  });
+}
+
+// --- Exercises -----------------------------------------------------------
+
+export interface ProgramExerciseRow {
+  id: number;
+  programDayId: number;
+  dayIndex: number;
+  dayName: string;
+  exerciseId: number;
+  exerciseName: string;
+  muscleGroup: string;
+  position: number;
+  schemeType: 'lp' | 'dp' | 'percent' | 'rpe';
+  targetSets: number;
+  incrementKg: number;
+  minReps: number | null;
+  maxReps: number | null;
+  targetRpe: number | null;
+  /** Current working weight (canonical kg) — convert at render. */
+  currentWeightKg: number;
+  currentReps: number;
+  trainingMaxKg: number | null;
+  e1rmKg: number | null;
+  /** Why the suggestion is what it is; null before the first finished session. */
+  lastReason: string | null;
+}
+
+const programExerciseSelection = {
+  id: programExercises.id,
+  programDayId: programExercises.programDayId,
+  dayIndex: programDays.dayIndex,
+  dayName: programDays.name,
+  exerciseId: exercises.id,
+  exerciseName: exercises.name,
+  muscleGroup: exercises.muscleGroup,
+  position: programExercises.position,
+  schemeType: programExercises.schemeType,
+  targetSets: programExercises.targetSets,
+  incrementKg: programExercises.incrementKg,
+  minReps: programExercises.minReps,
+  maxReps: programExercises.maxReps,
+  targetRpe: programExercises.targetRpe,
+  currentWeightKg: exerciseTrainingState.currentWeightKg,
+  currentReps: exerciseTrainingState.currentReps,
+  trainingMaxKg: exerciseTrainingState.trainingMaxKg,
+  e1rmKg: exerciseTrainingState.e1rmKg,
+  lastReason: exerciseTrainingState.lastReason,
+};
+
+/** A program's exercises (all days) joined with their live state, for the editor. */
+export function useProgramExercises(programId: number) {
+  return useLiveQuery(
+    db
+      .select(programExerciseSelection)
+      .from(programExercises)
+      .innerJoin(programDays, eq(programExercises.programDayId, programDays.id))
+      .innerJoin(exercises, eq(programExercises.exerciseId, exercises.id))
+      .innerJoin(
+        exerciseTrainingState,
+        eq(exerciseTrainingState.programExerciseId, programExercises.id),
+      )
+      .where(eq(programExercises.programId, programId))
+      .orderBy(programDays.dayIndex, programExercises.position),
+    [programId],
+  );
+}
+
+/** The exercises for one program day (the active workout's day), with state. */
+export function useProgramDayExercises(programDayId: number) {
+  return useLiveQuery(
+    db
+      .select(programExerciseSelection)
+      .from(programExercises)
+      .innerJoin(programDays, eq(programExercises.programDayId, programDays.id))
+      .innerJoin(exercises, eq(programExercises.exerciseId, exercises.id))
+      .innerJoin(
+        exerciseTrainingState,
+        eq(exerciseTrainingState.programExerciseId, programExercises.id),
+      )
+      .where(eq(programExercises.programDayId, programDayId))
+      .orderBy(programExercises.position),
+    [programDayId],
+  );
 }
 
 export interface AddProgramExerciseInput {
   programId: number;
+  programDayId: number;
   exerciseId: number;
   scheme: ProgressionScheme;
   targetSets: number;
   /** Starting working weight (canonical kg). */
   startingWeightKg: number;
-  /** Starting rep target — required for lp (its rep target lives only in
-   * state); dp ignores it and starts at `minReps`. */
+  /** Starting rep target — lp keeps its rep target only in state; dp uses minReps. */
   startingReps?: number;
-  dayIndex?: number;
 }
 
 /**
- * Add an exercise to a program with its progression rule and seed its initial
- * training state (one row per program-exercise — guarded against duplicates).
+ * Add an exercise to a program day with its progression rule and seed its 1:1
+ * training-state row. Duplicate lifts are refused within the same day only.
+ * Returns the new program-exercise id.
  */
-export function addProgramExercise(input: AddProgramExerciseInput): void {
-  const { programId, exerciseId, scheme, targetSets } = input;
-  const dayIndex = input.dayIndex ?? 0;
+export function addProgramExercise(input: AddProgramExerciseInput): number {
+  const { programId, programDayId, exerciseId, scheme, targetSets } = input;
 
-  // One slot per lift per program: state is keyed (program, exercise), so a
-  // second slot would share that row and double-advance it. Ignore duplicates.
-  const already = db
-    .select({ id: programExercises.id })
+  const daySlots = db
+    .select({ id: programExercises.id, exerciseId: programExercises.exerciseId })
     .from(programExercises)
-    .where(
-      and(
-        eq(programExercises.programId, programId),
-        eq(programExercises.exerciseId, exerciseId),
-      ),
-    )
+    .where(eq(programExercises.programDayId, programDayId))
     .all();
-  if (already.length > 0) return;
+  const duplicate = daySlots.find((slot) => slot.exerciseId === exerciseId);
+  if (duplicate) return duplicate.id;
 
-  const siblings = db
-    .select({ id: programExercises.id })
-    .from(programExercises)
-    .where(
-      and(
-        eq(programExercises.programId, programId),
-        eq(programExercises.dayIndex, dayIndex),
-      ),
-    )
-    .all();
+  return db.transaction((tx) => {
+    const inserted = tx
+      .insert(programExercises)
+      .values({
+        programId,
+        programDayId,
+        exerciseId,
+        position: daySlots.length,
+        schemeType: scheme.type,
+        targetSets,
+        incrementKg: scheme.incrementKg,
+        minReps: scheme.type === 'dp' ? scheme.minReps : null,
+        maxReps: scheme.type === 'dp' ? scheme.maxReps : null,
+        failThreshold: scheme.type === 'lp' ? scheme.failThreshold : 3,
+        deloadPct: scheme.type === 'lp' ? scheme.deloadPct : 0.1,
+      })
+      .run();
+    const programExerciseId = inserted.lastInsertRowId;
 
-  db.insert(programExercises)
-    .values({
-      programId,
-      exerciseId,
-      dayIndex,
-      position: siblings.length,
-      schemeType: scheme.type,
-      targetSets,
-      incrementKg: scheme.incrementKg,
-      minReps: scheme.type === 'dp' ? scheme.minReps : null,
-      maxReps: scheme.type === 'dp' ? scheme.maxReps : null,
-      failThreshold: scheme.type === 'lp' ? scheme.failThreshold : 3,
-      deloadPct: scheme.type === 'lp' ? scheme.deloadPct : 0.1,
-    })
-    .run();
-
-  // One state row per (program, exercise); never seed twice.
-  const existing = db
-    .select({ id: exerciseTrainingState.id })
-    .from(exerciseTrainingState)
-    .where(
-      and(
-        eq(exerciseTrainingState.programId, programId),
-        eq(exerciseTrainingState.exerciseId, exerciseId),
-      ),
-    )
-    .all();
-  if (existing.length > 0) return;
-
-  db.insert(exerciseTrainingState)
-    .values({
-      programId,
-      exerciseId,
-      currentWeightKg: input.startingWeightKg,
-      currentReps:
-        scheme.type === 'dp' ? scheme.minReps : (input.startingReps ?? 5),
-      lastReason: 'Starting weight',
-    })
-    .run();
+    tx.insert(exerciseTrainingState)
+      .values({
+        programExerciseId,
+        currentWeightKg: input.startingWeightKg,
+        currentReps:
+          scheme.type === 'dp' ? scheme.minReps : (input.startingReps ?? 5),
+        lastReason: 'Starting weight',
+      })
+      .run();
+    return programExerciseId;
+  });
 }
 
-/**
- * Set an exercise's working weight (canonical kg) — used to seed the starting
- * weight before the first session sets progression in motion.
- */
+/** Set a slot's working weight (canonical kg). */
 export function setProgramExerciseWeight(
-  programId: number,
-  exerciseId: number,
+  programExerciseId: number,
   weightKg: number,
 ): void {
   db.update(exerciseTrainingState)
     .set({ currentWeightKg: weightKg })
-    .where(
-      and(
-        eq(exerciseTrainingState.programId, programId),
-        eq(exerciseTrainingState.exerciseId, exerciseId),
-      ),
-    )
+    .where(eq(exerciseTrainingState.programExerciseId, programExerciseId))
     .run();
 }
 
-/** Remove an exercise slot from a program, along with its progression state. */
-export function removeProgramExercise(
-  programId: number,
-  exerciseId: number,
+/** Set a slot's training max (canonical kg) — percentage schemes. */
+export function setProgramExerciseTrainingMax(
+  programExerciseId: number,
+  trainingMaxKg: number,
 ): void {
-  db.delete(programExercises)
-    .where(
-      and(
-        eq(programExercises.programId, programId),
-        eq(programExercises.exerciseId, exerciseId),
-      ),
-    )
-    .run();
-  db.delete(exerciseTrainingState)
-    .where(
-      and(
-        eq(exerciseTrainingState.programId, programId),
-        eq(exerciseTrainingState.exerciseId, exerciseId),
-      ),
-    )
+  db.update(exerciseTrainingState)
+    .set({ trainingMaxKg })
+    .where(eq(exerciseTrainingState.programExerciseId, programExerciseId))
     .run();
 }
+
+/** Set a slot's estimated 1RM anchor (canonical kg) — rpe scheme. */
+export function setProgramExerciseE1rm(
+  programExerciseId: number,
+  e1rmKg: number,
+): void {
+  db.update(exerciseTrainingState)
+    .set({ e1rmKg })
+    .where(eq(exerciseTrainingState.programExerciseId, programExerciseId))
+    .run();
+}
+
+/** Remove a program-exercise slot (its state + prescriptions cascade). */
+export function removeProgramExercise(programExerciseId: number): void {
+  db.delete(programExercises)
+    .where(eq(programExercises.id, programExerciseId))
+    .run();
+}
+
+// --- Per-week prescriptions ---------------------------------------------
+
+export interface ProgramSetRow {
+  id: number;
+  weekIndex: number;
+  setNumber: number;
+  reps: number;
+  intensityKind: 'abs' | 'pct' | 'rpe';
+  intensityValue: number;
+  amrap: boolean;
+  restSec: number | null;
+}
+
+export function useProgramSets(programExerciseId: number) {
+  return useLiveQuery(
+    db
+      .select({
+        id: programSets.id,
+        weekIndex: programSets.weekIndex,
+        setNumber: programSets.setNumber,
+        reps: programSets.reps,
+        intensityKind: programSets.intensityKind,
+        intensityValue: programSets.intensityValue,
+        amrap: programSets.amrap,
+        restSec: programSets.restSec,
+      })
+      .from(programSets)
+      .where(eq(programSets.programExerciseId, programExerciseId))
+      .orderBy(programSets.weekIndex, programSets.setNumber),
+    [programExerciseId],
+  );
+}
+
+export interface UpsertProgramSetInput {
+  programExerciseId: number;
+  weekIndex: number;
+  setNumber: number;
+  reps: number;
+  intensityKind: 'abs' | 'pct' | 'rpe';
+  intensityValue: number;
+  amrap?: boolean;
+  restSec?: number | null;
+}
+
+/** Insert or replace the prescription for one (slot, week, set). */
+export function upsertProgramSet(input: UpsertProgramSetInput): void {
+  db.transaction((tx) => {
+    tx.delete(programSets)
+      .where(
+        and(
+          eq(programSets.programExerciseId, input.programExerciseId),
+          eq(programSets.weekIndex, input.weekIndex),
+          eq(programSets.setNumber, input.setNumber),
+        ),
+      )
+      .run();
+    tx.insert(programSets)
+      .values({
+        programExerciseId: input.programExerciseId,
+        weekIndex: input.weekIndex,
+        setNumber: input.setNumber,
+        reps: input.reps,
+        intensityKind: input.intensityKind,
+        intensityValue: input.intensityValue,
+        amrap: input.amrap ?? false,
+        restSec: input.restSec ?? null,
+      })
+      .run();
+  });
+}
+
+export function removeProgramSet(id: number): void {
+  db.delete(programSets).where(eq(programSets.id, id)).run();
+}
+
+// --- Start a session from the cursor ------------------------------------
 
 /**
- * Start a session from a program: pre-fill each exercise on the current day from
- * its progression suggestion (`suggestNext`) rather than last performance.
+ * Start a session from a program's cursor: the current week + day decide which
+ * exercises and prescriptions to pre-fill. Each lp/dp slot is rendered from its
+ * state via `suggestNext` (percentage/rpe rendering lands in later phases).
  * Returns the new session id.
  */
 export function startProgramWorkout(programId: number): number {
   const program = db
-    .select({ currentWeek: programs.currentWeek })
+    .select({
+      currentWeek: programs.currentWeek,
+      currentDayIndex: programs.currentDayIndex,
+      roundingStepKg: programs.roundingStepKg,
+    })
     .from(programs)
     .where(eq(programs.id, programId))
     .all()[0];
   if (program == null) throw new Error(`Program ${programId} not found`);
 
-  const dayIndex = 0; // phase 1: single-day programs; waves land in phase 2.
+  const weekIndex = program.currentWeek;
+  const day = db
+    .select({ id: programDays.id })
+    .from(programDays)
+    .where(
+      and(
+        eq(programDays.programId, programId),
+        eq(programDays.dayIndex, program.currentDayIndex),
+      ),
+    )
+    .all()[0];
+
   const result = db
     .insert(workoutSessions)
     .values({
       programId,
-      programWeekIndex: program.currentWeek,
-      programDayIndex: dayIndex,
+      programWeekIndex: weekIndex,
+      programDayIndex: program.currentDayIndex,
+      programDayId: day?.id ?? null,
     })
     .run();
   const sessionId = result.lastInsertRowId;
+  if (day == null) return sessionId;
 
   const plan = db
     .select({
+      programExerciseId: programExercises.id,
       exerciseId: programExercises.exerciseId,
       targetSets: programExercises.targetSets,
       currentWeightKg: exerciseTrainingState.currentWeightKg,
       currentReps: exerciseTrainingState.currentReps,
       successStreak: exerciseTrainingState.successStreak,
       failStreak: exerciseTrainingState.failStreak,
+      trainingMaxKg: exerciseTrainingState.trainingMaxKg,
+      e1rmKg: exerciseTrainingState.e1rmKg,
     })
     .from(programExercises)
     .innerJoin(
       exerciseTrainingState,
-      and(
-        eq(exerciseTrainingState.programId, programExercises.programId),
-        eq(exerciseTrainingState.exerciseId, programExercises.exerciseId),
-      ),
+      eq(exerciseTrainingState.programExerciseId, programExercises.id),
     )
-    .where(
-      and(
-        eq(programExercises.programId, programId),
-        eq(programExercises.dayIndex, dayIndex),
-      ),
-    )
+    .where(eq(programExercises.programDayId, day.id))
     .orderBy(programExercises.position)
     .all();
 
   for (const slot of plan) {
-    const state: ProgressionState = {
-      currentWeightKg: slot.currentWeightKg,
-      currentReps: slot.currentReps,
-      successStreak: slot.successStreak,
-      failStreak: slot.failStreak,
-    };
-    suggestNext(state, slot.targetSets).forEach((set, index) => {
+    // Prescriptions for this week win (percent/rpe waves); lp/dp fall back to
+    // rendering identical sets from the working-weight state.
+    const prescribed = db
+      .select({
+        reps: programSets.reps,
+        intensityKind: programSets.intensityKind,
+        intensityValue: programSets.intensityValue,
+        amrap: programSets.amrap,
+      })
+      .from(programSets)
+      .where(
+        and(
+          eq(programSets.programExerciseId, slot.programExerciseId),
+          eq(programSets.weekIndex, weekIndex),
+        ),
+      )
+      .orderBy(programSets.setNumber)
+      .all();
+
+    const sets: { reps: number; weightKg: number }[] =
+      prescribed.length > 0
+        ? prescribed.map((p) =>
+            renderPrescribedSet(p, {
+              currentWeightKg: slot.currentWeightKg,
+              trainingMaxKg: slot.trainingMaxKg,
+              e1rmKg: slot.e1rmKg,
+              stepKg: program.roundingStepKg,
+            }),
+          )
+        : suggestNext(
+            {
+              currentWeightKg: slot.currentWeightKg,
+              currentReps: slot.currentReps,
+              successStreak: slot.successStreak,
+              failStreak: slot.failStreak,
+            },
+            slot.targetSets,
+          );
+
+    sets.forEach((set, index) => {
       addSet({
         sessionId,
         exerciseId: slot.exerciseId,
@@ -841,91 +1137,210 @@ export function startProgramWorkout(programId: number): number {
 
 /**
  * After a program session is finished, fold each exercise's completed sets into
- * its progression state. Exercises with no completed set this session are left
- * untouched (a skip is not a failed attempt → no phantom deload).
+ * its progression state, then advance the cursor one day (wrapping week/cycle).
+ * Exercises with no completed set are left untouched (a skip is not a failure);
+ * a deload week advances the cursor but applies no progression.
  */
 function advanceProgram(
   programId: number,
-  dayIndex: number,
+  programDayId: number,
+  weekIndex: number,
   sessionId: number,
 ): void {
+  const week = db
+    .select({ isDeload: programWeeks.isDeload })
+    .from(programWeeks)
+    .where(
+      and(
+        eq(programWeeks.programId, programId),
+        eq(programWeeks.weekIndex, weekIndex),
+      ),
+    )
+    .all()[0];
+  const isDeload = week?.isDeload ?? false;
+
   const slots = db
     .select()
     .from(programExercises)
+    .where(eq(programExercises.programDayId, programDayId))
+    .all();
+
+  if (!isDeload) {
+    for (const slot of slots) {
+      // Percentage schemes don't move per session — their training max bumps on
+      // the cycle wrap (see `bumpTrainingMaxes`).
+      if (slot.schemeType === 'percent') continue;
+
+      const logged = db
+        .select({
+          reps: setLogs.reps,
+          weight: setLogs.weight,
+          rpe: setLogs.rpe,
+        })
+        .from(setLogs)
+        .where(
+          and(
+            eq(setLogs.sessionId, sessionId),
+            eq(setLogs.exerciseId, slot.exerciseId),
+            isNotNull(setLogs.completedAt),
+          ),
+        )
+        .orderBy(setLogs.setNumber)
+        .all();
+      if (logged.length === 0) continue; // untouched this session → leave as-is.
+
+      const stateRow = db
+        .select()
+        .from(exerciseTrainingState)
+        .where(eq(exerciseTrainingState.programExerciseId, slot.id))
+        .all()[0];
+      if (stateRow == null) continue;
+
+      // RPE autoregulates: re-anchor the estimated 1RM from the best logged set
+      // via the exact inverse of the render path, so a hit-the-prescription
+      // session holds the anchor flat (and beating it raises it). Pre-filled sets
+      // log no RPE, so fall back to the slot's target RPE (the load was rendered
+      // at exactly that RPE).
+      if (slot.schemeType === 'rpe') {
+        const targetRpe = slot.targetRpe ?? 8;
+        const best = Math.max(
+          ...logged.map((s) =>
+            e1rmFromLoggedSet(s.weight, s.reps, s.rpe ?? targetRpe),
+          ),
+        );
+        db.update(exerciseTrainingState)
+          .set({
+            e1rmKg: best,
+            lastReason: `Est. 1RM ${Math.round(best)} kg — autoregulated`,
+          })
+          .where(eq(exerciseTrainingState.id, stateRow.id))
+          .run();
+        continue;
+      }
+
+      const scheme: ProgressionScheme =
+        slot.schemeType === 'dp'
+          ? {
+              type: 'dp',
+              incrementKg: slot.incrementKg,
+              minReps: slot.minReps ?? 1,
+              maxReps: slot.maxReps ?? slot.minReps ?? 1,
+            }
+          : {
+              type: 'lp',
+              incrementKg: slot.incrementKg,
+              failThreshold: slot.failThreshold,
+              deloadPct: slot.deloadPct,
+            };
+
+      const { state, reason } = advance(
+        scheme,
+        {
+          currentWeightKg: stateRow.currentWeightKg,
+          currentReps: stateRow.currentReps,
+          successStreak: stateRow.successStreak,
+          failStreak: stateRow.failStreak,
+        },
+        logged.map((s) => ({ reps: s.reps, weightKg: s.weight })),
+        slot.targetSets,
+      );
+
+      db.update(exerciseTrainingState)
+        .set({
+          currentWeightKg: state.currentWeightKg,
+          currentReps: state.currentReps,
+          successStreak: state.successStreak,
+          failStreak: state.failStreak,
+          lastReason: reason,
+        })
+        .where(eq(exerciseTrainingState.id, stateRow.id))
+        .run();
+    }
+  }
+
+  advanceProgramCursor(programId);
+}
+
+/** Move the program's cursor forward one day (wrapping week, then cycle). */
+function advanceProgramCursor(programId: number): void {
+  const program = db
+    .select({
+      currentWeek: programs.currentWeek,
+      currentDayIndex: programs.currentDayIndex,
+      currentCycle: programs.currentCycle,
+    })
+    .from(programs)
+    .where(eq(programs.id, programId))
+    .all()[0];
+  if (program == null) return;
+
+  const dayCount = db
+    .select({ id: programDays.id })
+    .from(programDays)
+    .where(eq(programDays.programId, programId))
+    .all().length;
+  const weekCount = db
+    .select({ id: programWeeks.id })
+    .from(programWeeks)
+    .where(eq(programWeeks.programId, programId))
+    .all().length;
+
+  const next = advanceCursor(
+    {
+      currentWeek: program.currentWeek,
+      currentDayIndex: program.currentDayIndex,
+      currentCycle: program.currentCycle,
+    },
+    dayCount,
+    weekCount,
+  );
+
+  db.update(programs)
+    .set({
+      currentWeek: next.currentWeek,
+      currentDayIndex: next.currentDayIndex,
+      currentCycle: next.currentCycle,
+    })
+    .where(eq(programs.id, programId))
+    .run();
+
+  // A completed cycle (a full pass through every week) bumps each percentage
+  // exercise's training max — the 5/3/1 wave. This fires on the cycle wrap
+  // itself, independent of whether the final week was a deload.
+  if (next.currentCycle > program.currentCycle) {
+    bumpTrainingMaxes(programId);
+  }
+}
+
+/** Raise every percent-scheme slot's training max by its per-cycle increment. */
+function bumpTrainingMaxes(programId: number): void {
+  const slots = db
+    .select({
+      id: programExercises.id,
+      tmIncrementKg: programExercises.tmIncrementKg,
+      trainingMaxKg: exerciseTrainingState.trainingMaxKg,
+    })
+    .from(programExercises)
+    .innerJoin(
+      exerciseTrainingState,
+      eq(exerciseTrainingState.programExerciseId, programExercises.id),
+    )
     .where(
       and(
         eq(programExercises.programId, programId),
-        eq(programExercises.dayIndex, dayIndex),
+        eq(programExercises.schemeType, 'percent'),
       ),
     )
     .all();
 
   for (const slot of slots) {
-    // Phase 1 advances lp/dp only; percentage/rpe schemes land later.
-    if (slot.schemeType !== 'lp' && slot.schemeType !== 'dp') continue;
-
-    const logged = db
-      .select({ reps: setLogs.reps, weight: setLogs.weight })
-      .from(setLogs)
-      .where(
-        and(
-          eq(setLogs.sessionId, sessionId),
-          eq(setLogs.exerciseId, slot.exerciseId),
-          isNotNull(setLogs.completedAt),
-        ),
-      )
-      .orderBy(setLogs.setNumber)
-      .all();
-    if (logged.length === 0) continue; // untouched this session → leave as-is.
-
-    const stateRow = db
-      .select()
-      .from(exerciseTrainingState)
-      .where(
-        and(
-          eq(exerciseTrainingState.programId, programId),
-          eq(exerciseTrainingState.exerciseId, slot.exerciseId),
-        ),
-      )
-      .all()[0];
-    if (stateRow == null) continue;
-
-    const scheme: ProgressionScheme =
-      slot.schemeType === 'dp'
-        ? {
-            type: 'dp',
-            incrementKg: slot.incrementKg,
-            minReps: slot.minReps ?? 1,
-            maxReps: slot.maxReps ?? slot.minReps ?? 1,
-          }
-        : {
-            type: 'lp',
-            incrementKg: slot.incrementKg,
-            failThreshold: slot.failThreshold,
-            deloadPct: slot.deloadPct,
-          };
-
-    const { state, reason } = advance(
-      scheme,
-      {
-        currentWeightKg: stateRow.currentWeightKg,
-        currentReps: stateRow.currentReps,
-        successStreak: stateRow.successStreak,
-        failStreak: stateRow.failStreak,
-      },
-      logged.map((s) => ({ reps: s.reps, weightKg: s.weight })),
-      slot.targetSets,
-    );
-
+    if (slot.trainingMaxKg == null) continue;
     db.update(exerciseTrainingState)
       .set({
-        currentWeightKg: state.currentWeightKg,
-        currentReps: state.currentReps,
-        successStreak: state.successStreak,
-        failStreak: state.failStreak,
-        lastReason: reason,
+        trainingMaxKg: slot.trainingMaxKg + slot.tmIncrementKg,
+        lastReason: `+${slot.tmIncrementKg} kg training max — new cycle`,
       })
-      .where(eq(exerciseTrainingState.id, stateRow.id))
+      .where(eq(exerciseTrainingState.programExerciseId, slot.id))
       .run();
   }
 }
