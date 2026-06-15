@@ -1,5 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 import { Plus, TrendingUp } from 'lucide-react-native';
+import { useMemo } from 'react';
 import { Pressable, ScrollView } from 'react-native';
 
 import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
@@ -8,11 +9,24 @@ import {
   createProgram,
   startProgramWorkout,
   useActivePrograms,
+  useAllProgramDays,
 } from '../queries';
 
 export function ProgramList() {
   const router = useRouter();
   const { data: programs } = useActivePrograms();
+  const { data: days } = useAllProgramDays();
+
+  // Group day names by program so each card can show "Next: <day>".
+  const daysByProgram = useMemo(() => {
+    const map = new Map<number, string[]>();
+    for (const day of days) {
+      const list = map.get(day.programId) ?? [];
+      list.push(day.name);
+      map.set(day.programId, list);
+    }
+    return map;
+  }, [days]);
 
   function openProgram(programId: number) {
     router.push({
@@ -42,29 +56,49 @@ export function ProgramList() {
           <EmptyState
             icon={<Icon icon={TrendingUp} size={40} color={colors.fgFaint} />}
             title="No programs yet"
-            description="A program suggests your next weights and reps, and advances itself as you log workouts."
+            description="A program is a multi-week, multi-day roadmap: it suggests your next weights and reps, and walks you through the cycle as you log workouts."
           />
         ) : (
-          programs.map((program) => (
-            <Card key={program.id} className="gap-3">
-              <Pressable
-                onPress={() => openProgram(program.id)}
-                className="active:opacity-70"
-              >
-                <Text variant="heading">{program.name}</Text>
-                {program.description ? (
-                  <Text variant="caption" className="mt-1">
-                    {program.description}
+          programs.map((program) => {
+            const programDays = daysByProgram.get(program.id) ?? [];
+            const dayCount = programDays.length;
+            const nextDay = programDays[program.currentDayIndex];
+            // Cursor: where the lifter is in the week × day grid.
+            const cursor =
+              dayCount === 0
+                ? 'No days yet'
+                : `Week ${program.currentWeek} of ${program.lengthWeeks} · Next: ${
+                    nextDay ?? 'Day 1'
+                  } (${program.currentDayIndex + 1}/${dayCount})`;
+
+            return (
+              <Card key={program.id} className="gap-3">
+                <Pressable
+                  onPress={() => openProgram(program.id)}
+                  className="active:opacity-70"
+                >
+                  <Text variant="heading">{program.name}</Text>
+                  {program.description ? (
+                    <Text variant="caption" className="mt-1">
+                      {program.description}
+                    </Text>
+                  ) : null}
+                  <Text
+                    variant="caption"
+                    className="mt-2"
+                    style={{ color: colors.primaryBright }}
+                  >
+                    {cursor}
                   </Text>
-                ) : null}
-              </Pressable>
-              <Button
-                label="Start workout"
-                size="md"
-                onPress={() => openWorkout(startProgramWorkout(program.id))}
-              />
-            </Card>
-          ))
+                </Pressable>
+                <Button
+                  label="Start workout"
+                  size="md"
+                  onPress={() => openWorkout(startProgramWorkout(program.id))}
+                />
+              </Card>
+            );
+          })
         )}
       </ScrollView>
     </Screen>

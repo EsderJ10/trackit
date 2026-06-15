@@ -23,7 +23,7 @@ import {
   updateSessionNotes,
   updateSet,
   useExercises,
-  useProgramExercises,
+  useProgramDayExercises,
   useRoutineExercises,
   useSession,
   useSessionSets,
@@ -48,7 +48,9 @@ export function ActiveWorkout() {
   // 0 never matches an autoincrement id, so these yield no rows when the session
   // isn't routine- / program-based. A session is one or the other, never both.
   const { data: plan } = useRoutineExercises(session?.routineId ?? 0);
-  const { data: programPlan } = useProgramExercises(session?.programId ?? 0);
+  const { data: programPlan } = useProgramDayExercises(
+    session?.programDayId ?? 0,
+  );
   const { data: sets } = useSessionSets(sessionId);
   const { data: catalog } = useExercises();
   const { weightUnit } = useSettings();
@@ -83,11 +85,16 @@ export function ActiveWorkout() {
       });
     }
     for (const row of programPlan) {
-      map.set(row.exerciseId, {
-        sets: row.targetSets,
-        reps: row.currentReps,
-        weight: row.currentWeightKg,
-      });
+      // lp/dp have a single working weight worth summarising; percent/rpe carry
+      // their load per set (already pre-filled), so a one-line target would be
+      // misleading — let the set rows speak instead.
+      if (row.schemeType === 'lp' || row.schemeType === 'dp') {
+        map.set(row.exerciseId, {
+          sets: row.targetSets,
+          reps: row.currentReps,
+          weight: row.currentWeightKg,
+        });
+      }
     }
     return map;
   }, [plan, programPlan]);

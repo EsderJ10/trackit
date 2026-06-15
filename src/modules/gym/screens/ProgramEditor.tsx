@@ -1,27 +1,33 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 
 import { useSettings } from '@/core/settings/use-settings';
 import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
-import { ProgramExerciseRow } from '../components/ProgramExerciseRow';
+import { ProgramDaySection } from '../components/ProgramDaySection';
 import type { ProgressionScheme } from '../progression-engine';
 import {
+  addProgramDay,
   addProgramExercise,
   deleteProgram,
+  removeProgramDay,
   removeProgramExercise,
   renameProgram,
+  renameProgramDay,
+  setProgramExerciseE1rm,
+  setProgramExerciseTrainingMax,
   setProgramExerciseWeight,
   startProgramWorkout,
   useProgram,
+  useProgramDays,
   useProgramExercises,
+  type ProgramExerciseRow,
 } from '../queries';
 
-// Default starting weight (canonical kg) — the user adjusts it per exercise
-// before the first session.
+// Default starting weight (canonical kg) — the user adjusts it per exercise.
 const DEFAULT_START_KG = 20;
 
 const SCHEMES: { label: string; scheme: ProgressionScheme; reps?: number }[] = [
@@ -36,6 +42,13 @@ const SCHEMES: { label: string; scheme: ProgressionScheme; reps?: number }[] = [
   },
 ];
 
+/** The exercise awaiting a scheme choice, tagged with the day it belongs to. */
+interface Pending {
+  dayId: number;
+  exerciseId: number;
+  name: string;
+}
+
 export function ProgramEditor() {
   const { programId: programParam } = useLocalSearchParams<{
     programId: string;
@@ -43,20 +56,30 @@ export function ProgramEditor() {
   const programId = Number(programParam);
   const router = useRouter();
   const program = useProgram(programId);
+  const { data: days } = useProgramDays(programId);
   const { data: exercises } = useProgramExercises(programId);
   const { weightUnit } = useSettings();
 
-  const [pickerOpen, setPickerOpen] = useState(false);
-  // The exercise awaiting a progression-scheme choice before it's added.
-  const [pending, setPending] = useState<{ id: number; name: string } | null>(
-    null,
-  );
+  // Which day's picker is open, and the exercise awaiting a scheme choice.
+  const [pickerDayId, setPickerDayId] = useState<number | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
+
+  const exercisesByDay = useMemo(() => {
+    const map = new Map<number, ProgramExerciseRow[]>();
+    for (const row of exercises) {
+      const list = map.get(row.programDayId) ?? [];
+      list.push(row);
+      map.set(row.programDayId, list);
+    }
+    return map;
+  }, [exercises]);
 
   function chooseScheme(option: (typeof SCHEMES)[number]) {
     if (pending == null) return;
     addProgramExercise({
       programId,
-      exerciseId: pending.id,
+      programDayId: pending.dayId,
+      exerciseId: pending.exerciseId,
       scheme: option.scheme,
       targetSets: 3,
       startingWeightKg: DEFAULT_START_KG,
@@ -102,21 +125,25 @@ export function ProgramEditor() {
           />
         </View>
 
-        {exercises.length === 0 ? (
+        {days.length === 0 ? (
           <EmptyState
-            title="No exercises"
-            description="Add a lift and pick how it should progress."
+            title="No days"
+            description="Add a training day, then fill it with lifts and how each progresses."
           />
         ) : (
-          exercises.map((row) => (
-            <ProgramExerciseRow
-              key={row.id}
-              row={row}
+          days.map((day) => (
+            <ProgramDaySection
+              key={day.id}
+              day={day}
+              exercises={exercisesByDay.get(day.id) ?? []}
               unit={weightUnit}
-              onSetWeight={(kg) =>
-                setProgramExerciseWeight(programId, row.exerciseId, kg)
-              }
-              onRemove={() => removeProgramExercise(programId, row.exerciseId)}
+              onRenameDay={(name) => renameProgramDay(day.id, name)}
+              onRemoveDay={() => removeProgramDay(programId, day.id)}
+              onAddExercise={() => setPickerDayId(day.id)}
+              onSetWeight={setProgramExerciseWeight}
+              onSetTrainingMax={setProgramExerciseTrainingMax}
+              onSetE1rm={setProgramExerciseE1rm}
+              onRemoveExercise={removeProgramExercise}
             />
           ))
         )}
@@ -140,14 +167,14 @@ export function ProgramEditor() {
               onPress={() => setPending(null)}
             />
           </Card>
-        ) : (
-          <Button
-            label="Add exercise"
-            variant="secondary"
-            leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
-            onPress={() => setPickerOpen(true)}
-          />
-        )}
+        ) : null}
+
+        <Button
+          label="Add day"
+          variant="secondary"
+          leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
+          onPress={() => addProgramDay(programId)}
+        />
 
         <Button label="Start workout" onPress={start} />
         <Button
@@ -159,11 +186,17 @@ export function ProgramEditor() {
       </ScrollView>
 
       <ExercisePickerModal
-        visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(exercise) =>
-          setPending({ id: exercise.id, name: exercise.name })
-        }
+        visible={pickerDayId != null}
+        onClose={() => setPickerDayId(null)}
+        onSelect={(exercise) => {
+          if (pickerDayId == null) return;
+          setPending({
+            dayId: pickerDayId,
+            exerciseId: exercise.id,
+            name: exercise.name,
+          });
+          setPickerDayId(null);
+        }}
       />
     </Screen>
   );
