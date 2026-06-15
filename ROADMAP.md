@@ -287,6 +287,43 @@ unit-tested on canonical kg; `tsc`/lint/tests clean.
   multi-day programs, and per-param editing (increment / rep-range / sets are
   fixed at scheme defaults; only the working weight is editable in the UI).
 
+**Redesign — programs as a Days × Weeks roadmap (supersedes the flat phase 1):**
+
+The original phase 1 shipped a single-day, flat program that was indistinguishable
+from a routine. Following Liftosaur's model (Program → Weeks → Days → Exercises →
+Sets), programs were rebuilt as a periodized roadmap — **structured Drizzle
+tables, deliberately not a Liftoscript-style text DSL** (no parser; stays inside
+the offline-first model).
+
+- **Schema (migration `0006`):** new `program_days` (the split) and
+  `program_weeks` (the periodization, with `is_deload`); `program_sets` — the
+  per-week × per-set prescription keystone (`abs` kg | `pct` of training max |
+  `rpe`, + AMRAP); `program_exercises` now belongs to a **day**;
+  `exercise_training_state` rekeyed to the **slot** (`program_exercise_id`), so a
+  lift can appear on more than one day; `programs` gained a **cursor**
+  (`current_day_index` + `current_week`/`current_cycle`) and `rounding_step_kg`.
+  Migration verified end-to-end against SQLite (clean apply over `0005`, FK
+  cascades, history-preserving program delete).
+- **Engine (pure, unit-tested):** `advanceCursor` (day → week → cycle wrap);
+  `renderPrescribedSet` (TM×% and e1RM×RPE rendering, loadable-rounded);
+  `rpePct` (Epley-consistent RPE→%1RM). 28 engine tests.
+- **All four schemes:** lp/dp advance per session; **percent** bumps the training
+  max at **cycle wrap** (independent of the deload-week skip — week 4 is a deload
+  yet the cycle still bumps); **rpe** re-anchors the estimated 1RM from the best
+  logged set. Start-workout renders the cursor's week+day; finish advances state
+  then the cursor.
+- **UI:** hierarchical editor (days → scheme-aware exercise rows editing the
+  right anchor: working weight / training max / e1RM); program list shows the
+  cursor ("Week 2 of 4 · Next: Pull (2/4)"); active workout scopes to the
+  session's day.
+- **Templates (seeded, idempotent):** StrongLifts 5×5 (lp, A/B), Push/Pull/Legs
+  (dp), 5/3/1 (percent, 4 weeks + deload, per-cycle TM bump), RPE Strength (rpe).
+- **Still deferred:** in-editor authoring of percentage/RPE **waves** and
+  week/deload management (templates deliver these today; the editor authors
+  lp/dp + multi-day and adjusts every scheme's anchor). Device runtime check of
+  the full create → start → finish → advance loop still pending (logic, schema
+  dry-run, and rendering are verified; the live DB write path is not).
+
 ---
 
 ## Out of scope (deferred, by design)
