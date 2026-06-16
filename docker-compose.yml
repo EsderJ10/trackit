@@ -1,0 +1,19 @@
+# Builds a standalone, offline TrackIt APK entirely inside a container — no
+# Android tooling installed on the host. The signed APK is written to
+# ./build-output/trackit.apk.
+#
+# Usage:
+#   docker compose run --rm apk-builder       # build once, see live output
+#   (first run compiles the image: JDK + Android SDK/NDK, several GB + minutes)
+#
+# Re-run any time after code changes to produce a fresh APK.
+services:
+  apk-builder:
+    build:
+      context: ./docker
+    image: trackit-apk-builder
+    environment:
+      - CI=1 # keep pnpm / expo non-interactive
+    volumes:
+      - ./:/src:ro # repo source, read-only (kept pristine)
+      - ./build-output:/output # APK lands here on the host
