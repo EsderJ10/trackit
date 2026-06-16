@@ -41,16 +41,26 @@ function schemeSummary(row: ProgramExerciseRowData, unit: WeightUnit): string {
  * Which mutable anchor a scheme exposes for editing: lp/dp edit the working
  * weight; percent edits the training max; rpe edits the estimated 1RM.
  */
-function anchorFor(
-  row: ProgramExerciseRowData,
-): { label: string; valueKg: number; commit: 'weight' | 'tm' | 'e1rm' } {
+function anchorFor(row: ProgramExerciseRowData): {
+  label: string;
+  valueKg: number;
+  commit: 'weight' | 'tm' | 'e1rm';
+} {
   if (row.schemeType === 'percent') {
-    return { label: 'Training max', valueKg: row.trainingMaxKg ?? 0, commit: 'tm' };
+    return {
+      label: 'Training max',
+      valueKg: row.trainingMaxKg ?? 0,
+      commit: 'tm',
+    };
   }
   if (row.schemeType === 'rpe') {
     return { label: 'Est. 1RM', valueKg: row.e1rmKg ?? 0, commit: 'e1rm' };
   }
-  return { label: 'Working weight', valueKg: row.currentWeightKg, commit: 'weight' };
+  return {
+    label: 'Working weight',
+    valueKg: row.currentWeightKg,
+    commit: 'weight',
+  };
 }
 
 /** Editable program-template row: scheme summary, anchor weight, next-up hint. */
@@ -107,7 +117,9 @@ export function ProgramExerciseRow({
             <Text variant="caption" className="uppercase tracking-wider">
               Next up
             </Text>
-            <Text style={{ color: colors.primaryBright }}>{row.lastReason}</Text>
+            <Text style={{ color: colors.primaryBright }}>
+              {row.lastReason}
+            </Text>
           </View>
         ) : null}
       </View>

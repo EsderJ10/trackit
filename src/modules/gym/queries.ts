@@ -553,7 +553,6 @@ export function useGymStats(): GymStats {
   }, [sets, lastSessions]);
 }
 
-
 // ---------------------------------------------------------------------------
 // Programs + progression (M5)
 //
@@ -862,7 +861,10 @@ export function addProgramExercise(input: AddProgramExerciseInput): number {
   const { programId, programDayId, exerciseId, scheme, targetSets } = input;
 
   const daySlots = db
-    .select({ id: programExercises.id, exerciseId: programExercises.exerciseId })
+    .select({
+      id: programExercises.id,
+      exerciseId: programExercises.exerciseId,
+    })
     .from(programExercises)
     .where(eq(programExercises.programDayId, programDayId))
     .all();

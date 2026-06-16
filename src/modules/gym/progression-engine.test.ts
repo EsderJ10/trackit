@@ -188,9 +188,11 @@ describe('advanceCursor', () => {
 
   it('treats a single-week program as a day rotation that bumps the cycle', () => {
     // StrongLifts-style: 1 week, 2 alternating days. Day 1 → day 0, cycle++.
-    expect(
-      advanceCursor(cursor({ currentDayIndex: 1 }), 2, 1),
-    ).toEqual({ currentWeek: 1, currentDayIndex: 0, currentCycle: 2 });
+    expect(advanceCursor(cursor({ currentDayIndex: 1 }), 2, 1)).toEqual({
+      currentWeek: 1,
+      currentDayIndex: 0,
+      currentCycle: 2,
+    });
   });
 
   it('clamps degenerate day/week counts to at least one', () => {

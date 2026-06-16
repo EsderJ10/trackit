@@ -43,7 +43,11 @@ export function ProgramDaySection({
           onEndEditing={(event) => onRenameDay(event.nativeEvent.text)}
           className="flex-1 text-base font-semibold text-fg"
         />
-        <Pressable onPress={onRemoveDay} hitSlop={8} className="active:opacity-60">
+        <Pressable
+          onPress={onRemoveDay}
+          hitSlop={8}
+          className="active:opacity-60"
+        >
           <Icon icon={Trash2} size={18} color={colors.fgFaint} />
         </Pressable>
       </View>
