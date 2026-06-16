@@ -6,6 +6,8 @@ import m0001 from './0001_clear_mac_gargan.sql';
 import m0002 from './0002_dark_sugar_man.sql';
 import m0003 from './0003_bent_multiple_man.sql';
 import m0004 from './0004_brown_pyro.sql';
+import m0005 from './0005_spooky_thanos.sql';
+import m0006 from './0006_sturdy_bulldozer.sql';
 
   export default {
     journal,
@@ -14,7 +16,9 @@ import m0004 from './0004_brown_pyro.sql';
 m0001,
 m0002,
 m0003,
-m0004
+m0004,
+m0005,
+m0006
     }
   }
   

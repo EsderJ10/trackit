@@ -23,6 +23,7 @@ import {
   updateSessionNotes,
   updateSet,
   useExercises,
+  useProgramDayExercises,
   useRoutineExercises,
   useSession,
   useSessionSets,
@@ -44,8 +45,12 @@ export function ActiveWorkout() {
   const router = useRouter();
 
   const session = useSession(sessionId);
-  // 0 never matches an autoincrement id, so this yields no rows for freestyle.
+  // 0 never matches an autoincrement id, so these yield no rows when the session
+  // isn't routine- / program-based. A session is one or the other, never both.
   const { data: plan } = useRoutineExercises(session?.routineId ?? 0);
+  const { data: programPlan } = useProgramDayExercises(
+    session?.programDayId ?? 0,
+  );
   const { data: sets } = useSessionSets(sessionId);
   const { data: catalog } = useExercises();
   const { weightUnit } = useSettings();
@@ -79,15 +84,36 @@ export function ActiveWorkout() {
         weight: row.targetWeight,
       });
     }
+    for (const row of programPlan) {
+      // lp/dp have a single working weight worth summarising; percent/rpe carry
+      // their load per set (already pre-filled), so a one-line target would be
+      // misleading — let the set rows speak instead.
+      if (row.schemeType === 'lp' || row.schemeType === 'dp') {
+        map.set(row.exerciseId, {
+          sets: row.targetSets,
+          reps: row.currentReps,
+          weight: row.currentWeightKg,
+        });
+      }
+    }
     return map;
-  }, [plan]);
+  }, [plan, programPlan]);
+
+  // Program suggestion rationale, surfaced under each exercise's target.
+  const reasonByExercise = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const row of programPlan) {
+      if (row.lastReason) map.set(row.exerciseId, row.lastReason);
+    }
+    return map;
+  }, [programPlan]);
 
   const displayExercises = useMemo<DisplayExercise[]>(() => {
     const removed = new Set(removedIds);
     const list: DisplayExercise[] = [];
     const seen = new Set<number>();
-    for (const row of plan) {
-      if (removed.has(row.exerciseId)) continue;
+    for (const row of [...plan, ...programPlan]) {
+      if (removed.has(row.exerciseId) || seen.has(row.exerciseId)) continue;
       list.push({
         exerciseId: row.exerciseId,
         name: row.exerciseName,
@@ -106,6 +132,7 @@ export function ActiveWorkout() {
     return list;
   }, [
     plan,
+    programPlan,
     setsByExercise,
     extraIds,
     removedIds,
@@ -175,6 +202,7 @@ export function ActiveWorkout() {
             key={exercise.exerciseId}
             name={exercise.name}
             target={exercise.target}
+            reason={reasonByExercise.get(exercise.exerciseId)}
             sets={setsByExercise.get(exercise.exerciseId) ?? []}
             unit={weightUnit}
             onAddSet={() => addSetTo(exercise.exerciseId)}

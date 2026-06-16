@@ -3,6 +3,7 @@ import {
   Dumbbell,
   History as HistoryIcon,
   Plus,
+  Target,
   TrendingUp,
 } from 'lucide-react-native';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -49,12 +50,22 @@ export function RoutineList() {
           />
         </View>
 
-        <Button
-          label="Exercises"
-          variant="secondary"
-          leftIcon={<Icon icon={TrendingUp} size={18} color={colors.fg} />}
-          onPress={() => router.push('/modules/gym/exercises')}
-        />
+        <View className="flex-row gap-3">
+          <Button
+            label="Programs"
+            variant="secondary"
+            className="flex-1"
+            leftIcon={<Icon icon={Target} size={18} color={colors.fg} />}
+            onPress={() => router.push('/modules/gym/programs')}
+          />
+          <Button
+            label="Exercises"
+            variant="secondary"
+            className="flex-1"
+            leftIcon={<Icon icon={TrendingUp} size={18} color={colors.fg} />}
+            onPress={() => router.push('/modules/gym/exercises')}
+          />
+        </View>
 
         {routines.length === 0 ? (
           <EmptyState

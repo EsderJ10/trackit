@@ -36,6 +36,20 @@
       "when": 1781254608845,
       "tag": "0004_brown_pyro",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1781261719610,
+      "tag": "0005_spooky_thanos",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1781509919084,
+      "tag": "0006_sturdy_bulldozer",
+      "breakpoints": true
     }
   ]
 }

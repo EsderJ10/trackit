@@ -3,8 +3,15 @@ import { Dumbbell } from 'lucide-react-native';
 import type { TrackerModule } from '@/core/types/module';
 import { colors } from '@/ui';
 
+import { seedProgramTemplates } from './program-templates';
 import { seedGym } from './seed';
 import { GymDashboardWidget } from './widgets/GymDashboardWidget';
+
+/** Seed the exercise catalog first, then the program templates that reference it. */
+function seedGymModule(db: Parameters<typeof seedGym>[0]): void {
+  seedGym(db);
+  seedProgramTemplates(db);
+}
 
 /**
  * The Gym tracking module. Ships its own route files under `app/modules/gym/`
@@ -20,5 +27,5 @@ export const gymModule: TrackerModule = {
     version: '1.0.0',
   },
   DashboardWidget: GymDashboardWidget,
-  seed: seedGym,
+  seed: seedGymModule,
 };
