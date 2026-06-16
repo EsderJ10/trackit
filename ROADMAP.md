@@ -326,6 +326,100 @@ the offline-first model).
 
 ---
 
+## M6+ — Research-driven gym priorities
+
+**Source:** a 2026-06-16 deep-research pass on what users want from
+strength-training loggers (Strong, Hevy, Liftosaur, Boostcamp, Jefit, FitNotes)
+— 20 sources, 25 claims adversarially verified (19 confirmed, 6 refuted).
+Findings are reconciled here against what TrackIt already ships, so these are
+**only the real gaps**, prioritized P0 → P2. The hard, expensive wants
+(a real progression engine, offline-first, modularity) are **already done** —
+M5's engine is more sophisticated than Strong/Hevy, and the built-in program
+library landed with M5's templates. What remains is mostly last-mile polish.
+
+> Verified user wants already satisfied (do not rebuild): structured
+> programs/auto-progression (M5), built-in named-program library — StrongLifts,
+> PPL, 5/3/1, RPE (M5 templates), set prefill from last performance (M3/M5),
+> rest timer surviving backgrounding (M3), est-1RM + PR view (M3), kg/lb
+> conversion (M1), offline-first + JSON export/restore (M2).
+>
+> Refuted by the research — **do not** treat as established: "logging speed is
+> the single dominant churn driver," "<3 s set logging," "auto-adaptation is
+> baseline (not optional)." Social/community demand was **unmeasured** (no claim
+> survived) — keep it deferred behind the module seam, don't speculate.
+
+### M6 — Gym: live-logging last mile · `feat/m6-live-logging` (P0)
+
+The cheapest, highest-impact wins — TrackIt is ~90% there on both.
+
+- **Previous-session column + improvement cue.** We prefill, but the #1 verified
+  live-workout want is _seeing_ last session's numbers beside the input with a
+  delta/green-arrow cue ("last time 80×5"). Surface `getLastPerformance` inline
+  in `SetRow`/`ExerciseSessionCard`, not just on the progression screen.
+- **Rest-timer notifications + sound.** The timer survives backgrounding (M3) but
+  must fire a **push notification + sound** when the phone is away — the exact
+  regression that publicly churned a long-time Jefit user. Add
+  `expo-notifications`; also persist the default rest length (M3 left it
+  in-memory) and consider per-exercise defaults (Liftosaur).
+
+**Done when:** the active workout shows previous-set values + a beat-it cue; the
+rest timer alerts via notification + sound in the background; default rest length
+persists.
+
+### M7 — Gym: analytics & charts · `feat/m7-analytics` (P1)
+
+The biggest _visible_ gap — today analytics are raw lists + PR numbers, **no
+graphs**.
+
+- **Charts.** Est-1RM trend line, volume-over-time, per-exercise progression.
+  Highest-ranked analytics want; "estimated-1RM trend" is called the single most
+  useful metric. Pick a chart lib that fits RN/Reanimated 4.
+- **Cross-mesocycle / long-term trend views.** The thing competitors _fail_ at
+  (can't dig across multiple blocks) → a differentiator, and M5's program/cycle
+  model already has the data to scope by block.
+- **Per-muscle-group volume + frequency** (secondary): the schema already carries
+  `muscleGroup`.
+
+**Done when:** each exercise has a progression chart (est-1RM + volume); a
+program view shows trend across weeks/cycles; charts read canonical kg, convert
+at render.
+
+### M8 — Gym: supersets, body metrics & open export · `feat/m8-gym-breadth` (P2)
+
+- **Supersets / exercise grouping.** Absent today; needed for real programs and
+  for smart in-workout navigation (Hevy auto-advances to the next superset lift
+  on set completion). Likely a `groupId`/`supersetId` on the exercise slot.
+- **Bodyweight / body-metrics tracking.** Absent; commonly bundled with export
+  (FitNotes pairs them). A natural candidate for its own lightweight module given
+  the modular thesis.
+- **CSV / human-portable export.** M2 ships full-dataset JSON backup/restore;
+  users also expect a flat **CSV** of workout + body data for spreadsheets and
+  no-lock-in migration. Add a CSV exporter alongside the JSON path.
+
+**Done when:** sets can be grouped into supersets and the active workout
+navigates them; bodyweight is trackable and charts; data exports to CSV.
+
+### Deferred / unproven (typed seams only, do not build)
+
+- **Social/community** — demand unmeasured in the research; defer behind the
+  module seam.
+- **AI coaching, wearable / HealthKit / Garmin sync** — real emerging trends but
+  thin evidence and cloud-tier concerns; leave seams, don't build.
+- **Scriptable program DSL** (Liftosaur's Liftoscript) — a power-user
+  differentiator, but M5 deliberately chose Days×Weeks tables. Revisit only if
+  the open question below resolves toward power users.
+
+### Open questions the research could not settle
+
+- How much do mainstream lifters use scriptable programs vs. a curated library?
+  (Validates M5's tables-not-DSL bet.)
+- The real quantitative ranking of churn drivers (friction vs. price vs. missing
+  programs vs. analytics) — several churn claims were refuted.
+- Actual demand for social features, and for AI/wearable integration _specific to
+  strength training_.
+
+---
+
 ## Out of scope (deferred, by design)
 
 At-rest DB encryption (SQLCipher), cloud accounts/sync, and stronger password
