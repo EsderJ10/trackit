@@ -1,3 +1,4 @@
+export { Avatar, type AvatarProps } from './Avatar';
 export {
   Button,
   type ButtonProps,
