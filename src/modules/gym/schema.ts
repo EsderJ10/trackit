@@ -220,6 +220,17 @@ export const setLogs = sqliteTable('set_logs', {
   completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
 });
 
+/**
+ * Gym-module preferences. Single-row table (id pinned to 1), mirroring core
+ * `app_settings` — module-specific prefs live in the module's own table, not in
+ * core. Captured by the M2 backup/restore like every other table.
+ */
+export const gymSettings = sqliteTable('gym_settings', {
+  id: integer('id').primaryKey().default(1),
+  /** Default between-sets rest, in seconds. The ±30s timer controls write here. */
+  defaultRestSec: integer('default_rest_sec').notNull().default(120),
+});
+
 export type Exercise = typeof exercises.$inferSelect;
 export type Routine = typeof routines.$inferSelect;
 export type RoutineExercise = typeof routineExercises.$inferSelect;
@@ -231,3 +242,4 @@ export type ProgramWeek = typeof programWeeks.$inferSelect;
 export type ProgramExercise = typeof programExercises.$inferSelect;
 export type ProgramSet = typeof programSets.$inferSelect;
 export type ExerciseTrainingState = typeof exerciseTrainingState.$inferSelect;
+export type GymSettings = typeof gymSettings.$inferSelect;

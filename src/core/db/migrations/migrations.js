@@ -8,6 +8,7 @@ import m0003 from './0003_bent_multiple_man.sql';
 import m0004 from './0004_brown_pyro.sql';
 import m0005 from './0005_spooky_thanos.sql';
 import m0006 from './0006_sturdy_bulldozer.sql';
+import m0007 from './0007_soft_caretaker.sql';
 
   export default {
     journal,
@@ -18,7 +19,8 @@ m0002,
 m0003,
 m0004,
 m0005,
-m0006
+m0006,
+m0007
     }
   }
   
