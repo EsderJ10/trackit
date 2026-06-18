@@ -20,6 +20,8 @@ export interface ExerciseSessionCardProps {
   /** Program suggestion rationale ("+2.5 kg — hit all reps"), if any. */
   reason?: string | null;
   sets: SetLogRow[];
+  /** Last session's sets for this exercise (canonical kg), aligned by index. */
+  previous?: { reps: number; weight: number }[];
   unit: WeightUnit;
   onAddSet: () => void;
   onUpdateSet: (id: number, patch: SetPatch) => void;
@@ -36,6 +38,7 @@ export function ExerciseSessionCard({
   target,
   reason,
   sets,
+  previous,
   unit,
   onAddSet,
   onUpdateSet,
@@ -93,6 +96,7 @@ export function ExerciseSessionCard({
               set={set}
               index={index}
               unit={unit}
+              previous={previous?.[index]}
               onUpdate={onUpdateSet}
               onToggle={onToggleSet}
               onDelete={onDeleteSet}

@@ -18,6 +18,7 @@ import {
   deleteExerciseSets,
   deleteSetLog,
   finishWorkout,
+  getLastPerformance,
   seedExerciseSets,
   setSetCompleted,
   updateSessionNotes,
@@ -140,6 +141,22 @@ export function ActiveWorkout() {
     catalogById,
   ]);
 
+  // Last session's sets per exercise, to show "prev 5 × 80 kg" + a beat-it cue
+  // beside each input. Prior finished sessions don't change mid-workout, so this
+  // is a plain (non-reactive) read keyed on the exercise set, not the live sets.
+  const exerciseIdsKey = displayExercises
+    .map((exercise) => exercise.exerciseId)
+    .join(',');
+  const previousByExercise = useMemo(() => {
+    const map = new Map<number, { reps: number; weight: number }[]>();
+    for (const exercise of displayExercises) {
+      const prev = getLastPerformance(exercise.exerciseId, sessionId);
+      if (prev.length > 0) map.set(exercise.exerciseId, prev);
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exerciseIdsKey, sessionId]);
+
   function addSetTo(exerciseId: number) {
     const current = setsByExercise.get(exerciseId) ?? [];
     const last = current.at(-1);
@@ -204,6 +221,7 @@ export function ActiveWorkout() {
             target={exercise.target}
             reason={reasonByExercise.get(exercise.exerciseId)}
             sets={setsByExercise.get(exercise.exerciseId) ?? []}
+            previous={previousByExercise.get(exercise.exerciseId)}
             unit={weightUnit}
             onAddSet={() => addSetTo(exercise.exerciseId)}
             onUpdateSet={updateSet}

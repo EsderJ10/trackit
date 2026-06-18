@@ -1,4 +1,4 @@
-import { Check, Trash2, X } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, Check, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -7,13 +7,17 @@ import type { WeightUnit } from '@/core/settings/schema';
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { Icon, Text, cn, colors, glow } from '@/ui';
 
+import { formatWeight } from '../format';
 import type { SetLogRow, SetPatch } from '../queries';
+import { compareToPrevious } from '../set-comparison';
 import { NumberField } from './NumberField';
 
 export interface SetRowProps {
   set: SetLogRow;
   index: number;
   unit: WeightUnit;
+  /** The matching set from the last session (canonical kg), if any. */
+  previous?: { reps: number; weight: number };
   onUpdate: (id: number, patch: SetPatch) => void;
   onToggle: (id: number, completed: boolean) => void;
   onDelete: (id: number) => void;
@@ -47,6 +51,7 @@ export function SetRow({
   set,
   index,
   unit,
+  previous,
   onUpdate,
   onToggle,
   onDelete,
@@ -58,6 +63,16 @@ export function SetRow({
   );
   const [rpe, setRpe] = useState(set.rpe != null ? String(set.rpe) : '');
   const completed = set.completedAt != null;
+
+  // Compare the *logged* set against last session only once it's checked off —
+  // comparing the prefilled value would read "even" on every untouched row.
+  const trend =
+    previous && completed
+      ? compareToPrevious(
+          { reps: set.reps, weightKg: set.weight },
+          { reps: previous.reps, weightKg: previous.weight },
+        )
+      : null;
 
   function renderRightActions() {
     return (
@@ -79,75 +94,92 @@ export function SetRow({
     >
       <View
         className={cn(
-          'flex-row items-center gap-2 rounded-xl border px-3 py-2',
+          'rounded-xl border px-3 py-2',
           completed
             ? 'border-success bg-surface-hi'
             : 'border-transparent bg-surface-alt',
         )}
       >
-        <Text variant="muted" className="w-7">
-          {index + 1}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          <Text variant="muted" className="w-7">
+            {index + 1}
+          </Text>
 
-        <NumberField
-          value={reps}
-          onChangeText={setReps}
-          onEndEditing={() => onUpdate(set.id, { reps: toInt(reps, set.reps) })}
-          className="flex-1"
-        />
-        <Text variant="muted">×</Text>
-        <NumberField
-          value={weight}
-          onChangeText={setWeight}
-          onEndEditing={() =>
-            onUpdate(set.id, {
-              weight: fromDisplayWeight(
-                toFloat(weight, toDisplayWeight(set.weight, unit)),
-                unit,
-              ),
-            })
-          }
-          className="flex-1"
-        />
-        <Text variant="caption" className="w-6">
-          {unit}
-        </Text>
+          <NumberField
+            value={reps}
+            onChangeText={setReps}
+            onEndEditing={() =>
+              onUpdate(set.id, { reps: toInt(reps, set.reps) })
+            }
+            className="flex-1"
+          />
+          <Text variant="muted">×</Text>
+          <NumberField
+            value={weight}
+            onChangeText={setWeight}
+            onEndEditing={() =>
+              onUpdate(set.id, {
+                weight: fromDisplayWeight(
+                  toFloat(weight, toDisplayWeight(set.weight, unit)),
+                  unit,
+                ),
+              })
+            }
+            className="flex-1"
+          />
+          <Text variant="caption" className="w-6">
+            {unit}
+          </Text>
 
-        <NumberField
-          value={rpe}
-          placeholder="RPE"
-          onChangeText={setRpe}
-          onEndEditing={() => onUpdate(set.id, { rpe: toRpe(rpe) })}
-          className="w-14"
-        />
+          <NumberField
+            value={rpe}
+            placeholder="RPE"
+            onChangeText={setRpe}
+            onEndEditing={() => onUpdate(set.id, { rpe: toRpe(rpe) })}
+            className="w-14"
+          />
 
-        <Pressable
-          onPress={() => onToggle(set.id, !completed)}
-          hitSlop={8}
-          className="active:opacity-70"
-          style={completed ? glow(colors.success, 0.5) : undefined}
-        >
-          <View
-            className={cn(
-              'h-9 w-9 items-center justify-center rounded-full border-2',
-              completed ? 'border-success bg-success' : 'border-border',
-            )}
+          <Pressable
+            onPress={() => onToggle(set.id, !completed)}
+            hitSlop={8}
+            className="active:opacity-70"
+            style={completed ? glow(colors.success, 0.5) : undefined}
           >
-            <Icon
-              icon={Check}
-              size={18}
-              color={completed ? colors.bg : colors.fgFaint}
-            />
-          </View>
-        </Pressable>
+            <View
+              className={cn(
+                'h-9 w-9 items-center justify-center rounded-full border-2',
+                completed ? 'border-success bg-success' : 'border-border',
+              )}
+            >
+              <Icon
+                icon={Check}
+                size={18}
+                color={completed ? colors.bg : colors.fgFaint}
+              />
+            </View>
+          </Pressable>
 
-        <Pressable
-          onPress={() => onDelete(set.id)}
-          hitSlop={8}
-          className="active:opacity-60"
-        >
-          <Icon icon={X} size={16} color={colors.fgFaint} />
-        </Pressable>
+          <Pressable
+            onPress={() => onDelete(set.id)}
+            hitSlop={8}
+            className="active:opacity-60"
+          >
+            <Icon icon={X} size={16} color={colors.fgFaint} />
+          </Pressable>
+        </View>
+
+        {previous ? (
+          <View className="mt-1 flex-row items-center gap-1 pl-9">
+            <Text variant="caption">
+              prev {previous.reps} × {formatWeight(previous.weight, unit)}
+            </Text>
+            {trend === 'up' ? (
+              <Icon icon={ArrowUp} size={13} color={colors.success} />
+            ) : trend === 'down' ? (
+              <Icon icon={ArrowDown} size={13} color={colors.fgFaint} />
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </ReanimatedSwipeable>
   );
