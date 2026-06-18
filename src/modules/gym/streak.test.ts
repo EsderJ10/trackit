@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeStreakWeeks, startOfWeek } from './streak';
+import {
+  computeLongestStreak,
+  computeStreakWeeks,
+  startOfWeek,
+} from './streak';
 
 /** Build the logged-week-start set from arbitrary dates within each week. */
 function weekSet(...dates: Date[]): Set<number> {
@@ -48,5 +52,34 @@ describe('computeStreakWeeks', () => {
   it('is zero when neither this week nor last week is logged', () => {
     expect(computeStreakWeeks(weekSet(new Date(2024, 4, 1)), current)).toBe(0);
     expect(computeStreakWeeks(new Set(), current)).toBe(0);
+  });
+});
+
+describe('computeLongestStreak', () => {
+  it('is zero for no logged weeks', () => {
+    expect(computeLongestStreak(new Set())).toBe(0);
+  });
+
+  it('counts a single week as 1', () => {
+    expect(computeLongestStreak(weekSet(new Date(2024, 5, 4)))).toBe(1);
+  });
+
+  it('measures the longest run, ignoring gaps and current-week grace', () => {
+    // Run of 3 (Apr 1, 8, 15), gap, then a run of 2 (May 6, 13) → longest is 3.
+    const logged = weekSet(
+      new Date(2024, 3, 1),
+      new Date(2024, 3, 8),
+      new Date(2024, 3, 15),
+      new Date(2024, 4, 6),
+      new Date(2024, 4, 13),
+    );
+    expect(computeLongestStreak(logged)).toBe(3);
+  });
+
+  it('does not let set iteration order inflate a run', () => {
+    // Two separate single weeks far apart → longest run is 1, not 2.
+    expect(
+      computeLongestStreak(weekSet(new Date(2024, 0, 1), new Date(2024, 5, 1))),
+    ).toBe(1);
   });
 });

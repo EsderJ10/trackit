@@ -21,6 +21,13 @@ export function prevWeek(weekStart: Date): Date {
   return prev;
 }
 
+/** The week-bucket one week after `weekStart` (DST-safe via date math). */
+export function nextWeek(weekStart: Date): Date {
+  const next = new Date(weekStart);
+  next.setDate(next.getDate() + 7);
+  return next;
+}
+
 /**
  * Consecutive calendar weeks with a logged session, counting back from the
  * current week. An empty current week stays alive (doesn't break the streak),
@@ -41,4 +48,25 @@ export function computeStreakWeeks(
     cursor = prevWeek(cursor);
   }
   return streak;
+}
+
+/**
+ * The longest run of consecutive logged weeks, all time. Unlike the live streak
+ * there is no current-week grace — this is a pure personal best over history.
+ * Walks forward only from each run's first week (no logged week before it), so
+ * each run is measured once.
+ */
+export function computeLongestStreak(loggedWeekStarts: Set<number>): number {
+  let longest = 0;
+  for (const start of loggedWeekStarts) {
+    if (loggedWeekStarts.has(prevWeek(new Date(start)).getTime())) continue;
+    let length = 0;
+    let cursor = new Date(start);
+    while (loggedWeekStarts.has(cursor.getTime())) {
+      length += 1;
+      cursor = nextWeek(cursor);
+    }
+    if (length > longest) longest = length;
+  }
+  return longest;
 }
