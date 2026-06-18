@@ -157,6 +157,27 @@ export function setDefaultRestSec(defaultRestSec: number): void {
     .run();
 }
 
+const DEFAULT_WEEKLY_GOAL = 3;
+
+/** Live target finished-workouts-per-week; falls back to the default pre-write. */
+export function useWeeklyGoal(): number {
+  const { data } = useLiveQuery(
+    db
+      .select({ weeklyWorkoutGoal: gymSettings.weeklyWorkoutGoal })
+      .from(gymSettings)
+      .where(eq(gymSettings.id, 1)),
+  );
+  return data[0]?.weeklyWorkoutGoal ?? DEFAULT_WEEKLY_GOAL;
+}
+
+/** Persist the weekly workout goal; upserts so the row is created on first write. */
+export function setWeeklyGoal(weeklyWorkoutGoal: number): void {
+  db.insert(gymSettings)
+    .values({ id: 1, weeklyWorkoutGoal })
+    .onConflictDoUpdate({ target: gymSettings.id, set: { weeklyWorkoutGoal } })
+    .run();
+}
+
 // ---------------------------------------------------------------------------
 // Exercise catalog
 // ---------------------------------------------------------------------------

@@ -8,13 +8,14 @@ import {
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 
 import { useSettings } from '@/core/settings/use-settings';
 import type { DashboardWidgetProps } from '@/core/types/module';
 import { Card, EmptyState, Icon, Stat, Text, cn, colors } from '@/ui';
 
 import { formatWeight } from '../format';
-import { useExercisePRs, useGymProfileStats } from '../queries';
+import { useExercisePRs, useGymProfileStats, useWeeklyGoal } from '../queries';
 import { dayKey } from '../streak';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
@@ -43,11 +44,63 @@ export function GymProfileWidget(_props: DashboardWidgetProps) {
 
   return (
     <View className="gap-3">
+      <WeeklyGoalCard done={stats.thisWeekWorkouts} />
       <LifetimeCard stats={stats} weightUnit={weightUnit} />
       <PRsCard weightUnit={weightUnit} />
       <MuscleCard breakdown={stats.muscleBreakdown} />
       <CalendarCard workoutDays={stats.workoutDays} />
     </View>
+  );
+}
+
+function WeeklyGoalCard({ done }: { done: number }) {
+  const goal = useWeeklyGoal();
+  const reached = done >= goal;
+
+  const size = 64;
+  const stroke = 7;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = goal > 0 ? Math.min(1, done / goal) : 0;
+
+  return (
+    <Card className="flex-row items-center gap-4">
+      <View style={{ width: size, height: size }}>
+        <Svg width={size} height={size}>
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={colors.surfaceHi}
+            strokeWidth={stroke}
+            fill="none"
+          />
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={colors.gym}
+            strokeWidth={stroke}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - progress)}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        </Svg>
+        <View className="absolute inset-0 items-center justify-center">
+          <Text variant="label">{done}</Text>
+        </View>
+      </View>
+      <View className="flex-1">
+        <Text variant="heading">This week</Text>
+        <Text variant="muted">
+          {reached
+            ? `Goal reached — ${done} of ${goal} workouts`
+            : `${done} of ${goal} workouts`}
+        </Text>
+      </View>
+    </Card>
   );
 }
 

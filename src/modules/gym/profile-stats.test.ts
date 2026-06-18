@@ -60,6 +60,11 @@ describe('aggregateProfileStats', () => {
     expect(stats.totalWorkouts).toBe(3);
   });
 
+  it('counts only the current week toward the weekly goal', () => {
+    // Of the three sessions, only 18 Jun falls in the current week.
+    expect(stats.thisWeekWorkouts).toBe(1);
+  });
+
   it('ranks the last-7-days muscle breakdown, excluding older sets', () => {
     expect(stats.muscleBreakdown).toEqual([
       { muscleGroup: 'chest', sets: 2 },

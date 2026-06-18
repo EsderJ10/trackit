@@ -32,6 +32,8 @@ export interface MuscleGroupCount {
 export interface GymProfileStats {
   /** Finished sessions, all time. */
   totalWorkouts: number;
+  /** Finished sessions in the current calendar week — feeds the goal ring. */
+  thisWeekWorkouts: number;
   /** Completed sets, all time. */
   totalSets: number;
   /** Completed reps, all time. */
@@ -76,16 +78,21 @@ export function aggregateProfileStats(
     .map(([muscleGroup, count]) => ({ muscleGroup, sets: count }))
     .sort((a, b) => b.sets - a.sets);
 
+  const currentWeek = startOfWeek(new Date(now)).getTime();
   const loggedWeeks = new Set<number>();
   const workoutDays = new Set<string>();
+  let thisWeekWorkouts = 0;
   for (const f of finished) {
     if (f.finishedAt == null) continue;
-    loggedWeeks.add(startOfWeek(f.finishedAt).getTime());
+    const week = startOfWeek(f.finishedAt).getTime();
+    loggedWeeks.add(week);
     workoutDays.add(dayKey(f.finishedAt));
+    if (week === currentWeek) thisWeekWorkouts += 1;
   }
 
   return {
     totalWorkouts: finished.length,
+    thisWeekWorkouts,
     totalSets,
     totalReps,
     totalVolume: Math.round(totalVolume),
