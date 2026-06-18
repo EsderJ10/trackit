@@ -1,8 +1,10 @@
+import { useRouter } from 'expo-router';
 import {
   ChevronLeft,
   ChevronRight,
   Dumbbell,
   Flame,
+  Trophy,
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -12,7 +14,7 @@ import type { DashboardWidgetProps } from '@/core/types/module';
 import { Card, EmptyState, Icon, Stat, Text, cn, colors } from '@/ui';
 
 import { formatWeight } from '../format';
-import { useGymProfileStats } from '../queries';
+import { useExercisePRs, useGymProfileStats } from '../queries';
 import { dayKey } from '../streak';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
@@ -42,6 +44,7 @@ export function GymProfileWidget(_props: DashboardWidgetProps) {
   return (
     <View className="gap-3">
       <LifetimeCard stats={stats} weightUnit={weightUnit} />
+      <PRsCard weightUnit={weightUnit} />
       <MuscleCard breakdown={stats.muscleBreakdown} />
       <CalendarCard workoutDays={stats.workoutDays} />
     </View>
@@ -64,6 +67,11 @@ function LifetimeCard({
             ? `${stats.streakWeeks}-week streak`
             : 'No active streak'}
         </Text>
+        {stats.longestStreakWeeks > 0 ? (
+          <Text variant="caption" className="ml-auto">
+            Best: {stats.longestStreakWeeks} wk
+          </Text>
+        ) : null}
       </View>
       <View className="flex-row justify-between">
         <Stat
@@ -82,6 +90,47 @@ function LifetimeCard({
           accent={colors.gym}
         />
       </View>
+    </Card>
+  );
+}
+
+function PRsCard({ weightUnit }: { weightUnit: 'kg' | 'lb' }) {
+  const prs = useExercisePRs();
+  const router = useRouter();
+
+  if (prs.length === 0) return null;
+
+  return (
+    <Card className="gap-2">
+      <View className="flex-row items-center gap-2">
+        <Icon icon={Trophy} size={18} color={colors.gym} />
+        <Text variant="label">Personal records</Text>
+      </View>
+      {prs.map((pr) => (
+        <Pressable
+          key={pr.exerciseId}
+          onPress={() =>
+            router.push({
+              pathname: '/modules/gym/exercise',
+              params: { exerciseId: String(pr.exerciseId) },
+            })
+          }
+          className="flex-row items-center gap-3 rounded-xl bg-surface-alt px-3 py-2"
+        >
+          <Text variant="body" className="flex-1" numberOfLines={1}>
+            {pr.exerciseName}
+          </Text>
+          <View className="items-end">
+            <Text variant="label" style={{ color: colors.gym }}>
+              {formatWeight(pr.best1RmKg, weightUnit)}
+            </Text>
+            <Text variant="caption">
+              1RM · {formatWeight(pr.heaviestKg, weightUnit)} top
+            </Text>
+          </View>
+          <Icon icon={ChevronRight} size={16} color={colors.fgFaint} />
+        </Pressable>
+      ))}
     </Card>
   );
 }
