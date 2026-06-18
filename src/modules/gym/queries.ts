@@ -15,6 +15,7 @@ import {
 import {
   exercises,
   exerciseTrainingState,
+  gymSettings,
   programDays,
   programExercises,
   programs,
@@ -121,6 +122,34 @@ export function updateRoutineExercise(
 
 export function removeRoutineExercise(id: number): void {
   db.delete(routineExercises).where(eq(routineExercises.id, id)).run();
+}
+
+// ---------------------------------------------------------------------------
+// Gym settings (single row, id = 1)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_REST_SEC = 120;
+
+/**
+ * The persisted default rest length, in seconds. A plain sync read (used to
+ * hydrate the rest-timer store on workout start); falls back to the default when
+ * no row exists yet, so no singleton-row bootstrap is required.
+ */
+export function getDefaultRestSec(): number {
+  const row = db
+    .select({ defaultRestSec: gymSettings.defaultRestSec })
+    .from(gymSettings)
+    .where(eq(gymSettings.id, 1))
+    .all()[0];
+  return row?.defaultRestSec ?? DEFAULT_REST_SEC;
+}
+
+/** Persist the default rest length; upserts so the row is created on first write. */
+export function setDefaultRestSec(defaultRestSec: number): void {
+  db.insert(gymSettings)
+    .values({ id: 1, defaultRestSec })
+    .onConflictDoUpdate({ target: gymSettings.id, set: { defaultRestSec } })
+    .run();
 }
 
 // ---------------------------------------------------------------------------

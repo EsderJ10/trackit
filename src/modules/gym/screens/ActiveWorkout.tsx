@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView } from 'react-native';
 
 import { useSettings } from '@/core/settings/use-settings';
@@ -18,6 +18,7 @@ import {
   deleteExerciseSets,
   deleteSetLog,
   finishWorkout,
+  getDefaultRestSec,
   getLastPerformance,
   seedExerciseSets,
   setSetCompleted,
@@ -30,6 +31,10 @@ import {
   useSessionSets,
   type SetLogRow,
 } from '../queries';
+import {
+  configureRestNotifications,
+  ensureRestPermissions,
+} from '../rest-notifications';
 import { useRestTimer } from '../rest-timer-store';
 
 interface DisplayExercise {
@@ -56,6 +61,17 @@ export function ActiveWorkout() {
   const { data: catalog } = useExercises();
   const { weightUnit } = useSettings();
   const startRest = useRestTimer((state) => state.start);
+  const stopRest = useRestTimer((state) => state.stop);
+  const setRestDuration = useRestTimer((state) => state.setDuration);
+
+  // Set up the rest-timer notification channel/handler, request permission once
+  // (contextually, on entering a workout), and hydrate the timer's default
+  // length from the persisted setting.
+  useEffect(() => {
+    configureRestNotifications();
+    void ensureRestPermissions();
+    setRestDuration(getDefaultRestSec() * 1000);
+  }, [setRestDuration]);
 
   const [extraIds, setExtraIds] = useState<number[]>([]);
   const [removedIds, setRemovedIds] = useState<number[]>([]);
@@ -190,6 +206,9 @@ export function ActiveWorkout() {
   }
 
   function finish() {
+    // Clear any in-flight rest so its "rest over" notification can't fire after
+    // the workout's done (common path: complete last set → tap Finish).
+    stopRest();
     finishWorkout(sessionId);
     router.replace('/modules/gym/history');
   }
