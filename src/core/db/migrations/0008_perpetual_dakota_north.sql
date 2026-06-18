@@ -1,0 +1,1 @@
+ALTER TABLE `gym_settings` ADD `weekly_workout_goal` integer DEFAULT 3 NOT NULL;
