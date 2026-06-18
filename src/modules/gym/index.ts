@@ -6,6 +6,7 @@ import { colors } from '@/ui';
 import { seedProgramTemplates } from './program-templates';
 import { seedGym } from './seed';
 import { GymDashboardWidget } from './widgets/GymDashboardWidget';
+import { GymProfileWidget } from './widgets/GymProfileWidget';
 
 /** Seed the exercise catalog first, then the program templates that reference it. */
 function seedGymModule(db: Parameters<typeof seedGym>[0]): void {
@@ -27,5 +28,6 @@ export const gymModule: TrackerModule = {
     version: '1.0.0',
   },
   DashboardWidget: GymDashboardWidget,
+  ProfileWidget: GymProfileWidget,
   seed: seedGymModule,
 };

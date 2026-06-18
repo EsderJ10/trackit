@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import { db } from '@/core/db/client';
 
+import { computeStreakWeeks, dayKey, startOfWeek } from './streak';
 import {
   advance,
   advanceCursor,
@@ -580,6 +581,96 @@ export function useGymStats(): GymStats {
           : null,
     };
   }, [sets, lastSessions]);
+}
+
+export interface MuscleGroupCount {
+  muscleGroup: string;
+  sets: number;
+}
+
+export interface GymProfileStats {
+  /** Finished sessions, all time. */
+  totalWorkouts: number;
+  /** Completed sets, all time. */
+  totalSets: number;
+  /** Completed reps, all time. */
+  totalReps: number;
+  /** Completed volume (canonical kg), all time — convert at render. */
+  totalVolume: number;
+  /** Consecutive calendar weeks with ≥1 finished session, the current week alive. */
+  streakWeeks: number;
+  /** Completed-set count per muscle group over the last 7 days, ranked. */
+  muscleBreakdown: MuscleGroupCount[];
+  /** Local day keys (see `dayKey`) of every finished session — drives the calendar. */
+  workoutDays: string[];
+}
+
+/**
+ * Lifetime / gamification stats for the profile screen. Lifetime totals count
+ * completed sets (the dashboard's weekly view uses the same rule); workouts,
+ * the streak, and the calendar derive from finished sessions.
+ */
+export function useGymProfileStats(): GymProfileStats {
+  const { data: sets } = useLiveQuery(
+    db
+      .select({
+        weight: setLogs.weight,
+        reps: setLogs.reps,
+        completedAt: setLogs.completedAt,
+        muscleGroup: exercises.muscleGroup,
+      })
+      .from(setLogs)
+      .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id)),
+  );
+  const { data: finished } = useLiveQuery(
+    db
+      .select({ finishedAt: workoutSessions.finishedAt })
+      .from(workoutSessions)
+      .where(isNotNull(workoutSessions.finishedAt)),
+  );
+
+  return useMemo<GymProfileStats>(() => {
+    // Intentional read of the current time for the rolling window + streak; the
+    // memo recomputes when the data changes, which is when this value matters.
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
+    const cutoff = now - WEEK_MS;
+
+    let totalSets = 0;
+    let totalReps = 0;
+    let totalVolume = 0;
+    const muscle = new Map<string, number>();
+    for (const s of sets) {
+      if (s.completedAt == null) continue; // planned sets don't count.
+      totalSets += 1;
+      totalReps += s.reps;
+      totalVolume += s.weight * s.reps;
+      if (s.completedAt.getTime() >= cutoff) {
+        muscle.set(s.muscleGroup, (muscle.get(s.muscleGroup) ?? 0) + 1);
+      }
+    }
+    const muscleBreakdown = [...muscle.entries()]
+      .map(([muscleGroup, count]) => ({ muscleGroup, sets: count }))
+      .sort((a, b) => b.sets - a.sets);
+
+    const loggedWeeks = new Set<number>();
+    const workoutDays = new Set<string>();
+    for (const f of finished) {
+      if (f.finishedAt == null) continue;
+      loggedWeeks.add(startOfWeek(f.finishedAt).getTime());
+      workoutDays.add(dayKey(f.finishedAt));
+    }
+
+    return {
+      totalWorkouts: finished.length,
+      totalSets,
+      totalReps,
+      totalVolume: Math.round(totalVolume),
+      streakWeeks: computeStreakWeeks(loggedWeeks, startOfWeek(new Date(now))),
+      muscleBreakdown,
+      workoutDays: [...workoutDays],
+    };
+  }, [sets, finished]);
 }
 
 // ---------------------------------------------------------------------------
