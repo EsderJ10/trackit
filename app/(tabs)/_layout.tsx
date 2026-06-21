@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { LayoutDashboard, Settings } from 'lucide-react-native';
+import { LayoutDashboard, Settings, UserRound } from 'lucide-react-native';
 
 import { Icon, colors } from '@/ui';
 
@@ -22,6 +22,15 @@ export default function TabsLayout() {
           title: 'Dashboard',
           tabBarIcon: ({ color, size }) => (
             <Icon icon={LayoutDashboard} color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Icon icon={UserRound} color={color} size={size} />
           ),
         }}
       />

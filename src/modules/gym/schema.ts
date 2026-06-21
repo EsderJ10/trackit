@@ -229,6 +229,8 @@ export const gymSettings = sqliteTable('gym_settings', {
   id: integer('id').primaryKey().default(1),
   /** Default between-sets rest, in seconds. The ±30s timer controls write here. */
   defaultRestSec: integer('default_rest_sec').notNull().default(120),
+  /** Target finished workouts per week — drives the profile's weekly-goal ring. */
+  weeklyWorkoutGoal: integer('weekly_workout_goal').notNull().default(3),
 });
 
 export type Exercise = typeof exercises.$inferSelect;

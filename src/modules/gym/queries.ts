@@ -5,6 +5,11 @@ import { useMemo } from 'react';
 import { db } from '@/core/db/client';
 
 import {
+  aggregateProfileStats,
+  type GymProfileStats,
+  rankExercisePRs,
+} from './profile-stats';
+import {
   advance,
   advanceCursor,
   e1rmFromLoggedSet,
@@ -149,6 +154,27 @@ export function setDefaultRestSec(defaultRestSec: number): void {
   db.insert(gymSettings)
     .values({ id: 1, defaultRestSec })
     .onConflictDoUpdate({ target: gymSettings.id, set: { defaultRestSec } })
+    .run();
+}
+
+const DEFAULT_WEEKLY_GOAL = 3;
+
+/** Live target finished-workouts-per-week; falls back to the default pre-write. */
+export function useWeeklyGoal(): number {
+  const { data } = useLiveQuery(
+    db
+      .select({ weeklyWorkoutGoal: gymSettings.weeklyWorkoutGoal })
+      .from(gymSettings)
+      .where(eq(gymSettings.id, 1)),
+  );
+  return data[0]?.weeklyWorkoutGoal ?? DEFAULT_WEEKLY_GOAL;
+}
+
+/** Persist the weekly workout goal; upserts so the row is created on first write. */
+export function setWeeklyGoal(weeklyWorkoutGoal: number): void {
+  db.insert(gymSettings)
+    .values({ id: 1, weeklyWorkoutGoal })
+    .onConflictDoUpdate({ target: gymSettings.id, set: { weeklyWorkoutGoal } })
     .run();
 }
 
@@ -580,6 +606,75 @@ export function useGymStats(): GymStats {
           : null,
     };
   }, [sets, lastSessions]);
+}
+
+export type {
+  ExercisePrRow,
+  GymProfileStats,
+  MuscleGroupCount,
+} from './profile-stats';
+
+/**
+ * Lifetime / gamification stats for the profile screen. Lifetime totals count
+ * completed sets (the dashboard's weekly view uses the same rule); workouts,
+ * the streak, and the calendar derive from finished sessions. The aggregation
+ * itself lives in the pure, unit-tested `aggregateProfileStats`.
+ */
+export function useGymProfileStats(): GymProfileStats {
+  const { data: sets } = useLiveQuery(
+    db
+      .select({
+        weight: setLogs.weight,
+        reps: setLogs.reps,
+        completedAt: setLogs.completedAt,
+        muscleGroup: exercises.muscleGroup,
+      })
+      .from(setLogs)
+      .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id)),
+  );
+  const { data: finished } = useLiveQuery(
+    db
+      .select({ finishedAt: workoutSessions.finishedAt })
+      .from(workoutSessions)
+      .where(isNotNull(workoutSessions.finishedAt)),
+  );
+
+  return useMemo<GymProfileStats>(
+    () =>
+      // Intentional read of the current time for the rolling window + streak;
+      // the memo recomputes when the data changes, which is when it matters.
+      // eslint-disable-next-line react-hooks/purity
+      aggregateProfileStats(sets, finished, Date.now()),
+    [sets, finished],
+  );
+}
+
+/**
+ * Per-exercise personal records, ranked by best estimated 1RM. Mirrors the
+ * exercise-history filter (completed sets in finished sessions) so an
+ * in-progress set can't masquerade as a record.
+ */
+export function useExercisePRs(limit = 5) {
+  const { data } = useLiveQuery(
+    db
+      .select({
+        exerciseId: setLogs.exerciseId,
+        exerciseName: exercises.name,
+        reps: setLogs.reps,
+        weight: setLogs.weight,
+      })
+      .from(setLogs)
+      .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id))
+      .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+      .where(
+        and(
+          isNotNull(setLogs.completedAt),
+          isNotNull(workoutSessions.finishedAt),
+        ),
+      ),
+  );
+
+  return useMemo(() => rankExercisePRs(data, limit), [data, limit]);
 }
 
 // ---------------------------------------------------------------------------

@@ -55,6 +55,12 @@ export interface TrackerModule {
   /** Optional settings section slotted into the core Settings screen. */
   SettingsPanel?: ComponentType;
   /**
+   * Optional read-only section rendered on the core Profile screen, below the
+   * user's identity. Modules use this to surface their own stats / gamification
+   * (lifetime totals, streaks, …) — the core stays ignorant of what's inside.
+   */
+  ProfileWidget?: ComponentType<DashboardWidgetProps>;
+  /**
    * Optional data seed (e.g. a default exercise catalog), run after migrations
    * on EVERY launch. Implementations MUST be idempotent — reconcile against
    * existing rows (insert-missing, rename-once) rather than blind-insert — so

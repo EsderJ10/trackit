@@ -4,10 +4,19 @@ import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { useSettings } from '@/core/settings/use-settings';
-import { Card, EmptyState, Icon, Screen, Stat, Text, colors } from '@/ui';
+import {
+  Card,
+  EmptyState,
+  Icon,
+  LineChart,
+  Screen,
+  Stat,
+  Text,
+  colors,
+} from '@/ui';
 
 import { formatRpe, formatWeight, formatRelativeDate } from '../format';
-import { computePRs } from '../progression';
+import { computePRs, estimateOneRepMax } from '../progression';
 import {
   useExercise,
   useExerciseSetHistory,
@@ -35,6 +44,21 @@ export function ExerciseProgression() {
       ),
     [history],
   );
+
+  // Best estimated 1RM per session, oldest → newest, for the strength trend.
+  const e1rmTrend = useMemo(() => {
+    const bySession = new Map<number, number>();
+    for (const row of history) {
+      const estimate = estimateOneRepMax(row.weight, row.reps);
+      bySession.set(
+        row.sessionId,
+        Math.max(bySession.get(row.sessionId) ?? 0, estimate),
+      );
+    }
+    // `history` is newest-first; reverse the session order for chronology.
+    const order = [...new Set(history.map((row) => row.sessionId))].reverse();
+    return order.map((id) => bySession.get(id) ?? 0);
+  }, [history]);
 
   // Group the flat (newest-first) rows back into per-session blocks, preserving
   // the descending date order.
@@ -80,6 +104,13 @@ export function ExerciseProgression() {
                 value={formatWeight(prs.best1RmKg, weightUnit)}
                 accent={colors.gym}
               />
+            </Card>
+          ) : null}
+
+          {e1rmTrend.length >= 2 ? (
+            <Card className="gap-2">
+              <Text variant="label">Est. 1RM trend</Text>
+              <LineChart data={e1rmTrend} color={colors.gym} height={120} />
             </Card>
           ) : null}
 

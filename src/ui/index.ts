@@ -1,3 +1,4 @@
+export { Avatar, type AvatarProps } from './Avatar';
 export {
   Button,
   type ButtonProps,
@@ -8,6 +9,7 @@ export { Card, type CardProps } from './Card';
 export { cn } from './cn';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { Icon, type IconProps } from './Icon';
+export { LineChart, type LineChartProps } from './LineChart';
 export { Screen, type ScreenProps } from './Screen';
 export { Stat, type StatProps } from './Stat';
 export { Text, type TextProps, type TextVariant } from './Text';
