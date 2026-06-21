@@ -4,7 +4,7 @@ import type { TrackerModule } from '@/core/types/module';
 import { colors } from '@/ui';
 
 import { seedProgramTemplates } from './program-templates';
-import { seedGym } from './seed';
+import { seedGym, seedMuscleLandmarks } from './seed';
 import { GymDashboardWidget } from './widgets/GymDashboardWidget';
 import { GymProfileWidget } from './widgets/GymProfileWidget';
 import { GymSettingsPanel } from './widgets/GymSettingsPanel';
@@ -12,6 +12,7 @@ import { GymSettingsPanel } from './widgets/GymSettingsPanel';
 /** Seed the exercise catalog first, then the program templates that reference it. */
 function seedGymModule(db: Parameters<typeof seedGym>[0]): void {
   seedGym(db);
+  seedMuscleLandmarks(db);
   seedProgramTemplates(db);
 }
 

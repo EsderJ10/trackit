@@ -2,7 +2,8 @@ import { and, eq } from 'drizzle-orm';
 
 import type { AppDatabase } from '@/core/db/client';
 
-import { exercises } from './schema';
+import { DEFAULT_MUSCLE_LANDMARKS } from './landmarks';
+import { exercises, muscleLandmarks } from './schema';
 
 interface SeedExercise {
   name: string;
@@ -190,6 +191,26 @@ export function seedGym(db: AppDatabase): void {
     if (missing.length > 0) {
       tx.insert(exercises)
         .values(missing.map((entry) => ({ ...entry, isCustom: false })))
+        .run();
+    }
+  });
+}
+
+/**
+ * Seeds the per-muscle volume landmarks. Upserts (not insert-or-ignore) so that
+ * tuning `DEFAULT_MUSCLE_LANDMARKS` still reaches already-seeded devices — safe
+ * while there's no editing UI to clobber. Switch to do-nothing once users can
+ * edit their own landmarks. Runs on every launch (see `seedGymModule`).
+ */
+export function seedMuscleLandmarks(db: AppDatabase): void {
+  db.transaction((tx) => {
+    for (const [muscleGroup, b] of Object.entries(DEFAULT_MUSCLE_LANDMARKS)) {
+      tx.insert(muscleLandmarks)
+        .values({ muscleGroup, mv: b.mv, mev: b.mev, mav: b.mav, mrv: b.mrv })
+        .onConflictDoUpdate({
+          target: muscleLandmarks.muscleGroup,
+          set: { mv: b.mv, mev: b.mev, mav: b.mav, mrv: b.mrv },
+        })
         .run();
     }
   });
