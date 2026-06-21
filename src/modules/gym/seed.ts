@@ -46,6 +46,16 @@ const CATALOG: readonly SeedExercise[] = [
     muscleGroup: 'Legs',
     equipment: 'Machine',
   },
+  {
+    name: 'Bulgarian Split Squat',
+    muscleGroup: 'Legs',
+    equipment: 'Dumbbell',
+  },
+  {
+    name: 'Seated Calf Raise (Machine)',
+    muscleGroup: 'Legs',
+    equipment: 'Machine',
+  },
   // Chest
   { name: 'Bench Press (Barbell)', muscleGroup: 'Chest', equipment: 'Barbell' },
   {
@@ -111,6 +121,11 @@ const CATALOG: readonly SeedExercise[] = [
     name: 'Lateral Raise (Dumbbell)',
     muscleGroup: 'Shoulders',
     equipment: 'Dumbbell',
+  },
+  {
+    name: 'Cable Rear Delt Fly',
+    muscleGroup: 'Shoulders',
+    equipment: 'Cable',
   },
   // Arms
   { name: 'Bicep Curl (Dumbbell)', muscleGroup: 'Arms', equipment: 'Dumbbell' },
@@ -197,20 +212,18 @@ export function seedGym(db: AppDatabase): void {
 }
 
 /**
- * Seeds the per-muscle volume landmarks. Upserts (not insert-or-ignore) so that
- * tuning `DEFAULT_MUSCLE_LANDMARKS` still reaches already-seeded devices — safe
- * while there's no editing UI to clobber. Switch to do-nothing once users can
- * edit their own landmarks. Runs on every launch (see `seedGymModule`).
+ * Seeds the per-muscle volume landmarks. Insert-or-IGNORE (not upsert): users
+ * can now edit their own bands in the landmark editor, so re-seeding on every
+ * launch must NOT clobber those edits — it only fills in muscles that have no
+ * row yet. "Reset to defaults" (`resetMuscleLandmarks`) is the explicit way to
+ * re-apply `DEFAULT_MUSCLE_LANDMARKS`. Runs on every launch (see `seedGymModule`).
  */
 export function seedMuscleLandmarks(db: AppDatabase): void {
   db.transaction((tx) => {
     for (const [muscleGroup, b] of Object.entries(DEFAULT_MUSCLE_LANDMARKS)) {
       tx.insert(muscleLandmarks)
         .values({ muscleGroup, mv: b.mv, mev: b.mev, mav: b.mav, mrv: b.mrv })
-        .onConflictDoUpdate({
-          target: muscleLandmarks.muscleGroup,
-          set: { mv: b.mv, mev: b.mev, mav: b.mav, mrv: b.mrv },
-        })
+        .onConflictDoNothing()
         .run();
     }
   });
