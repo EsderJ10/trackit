@@ -10,6 +10,7 @@ import m0005 from './0005_spooky_thanos.sql';
 import m0006 from './0006_sturdy_bulldozer.sql';
 import m0007 from './0007_soft_caretaker.sql';
 import m0008 from './0008_perpetual_dakota_north.sql';
+import m0009 from './0009_chunky_gambit.sql';
 
   export default {
     journal,
@@ -22,7 +23,8 @@ m0004,
 m0005,
 m0006,
 m0007,
-m0008
+m0008,
+m0009
     }
   }
   

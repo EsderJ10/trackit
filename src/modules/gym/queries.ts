@@ -17,10 +17,12 @@ import {
   renderPrescribedSet,
   suggestNext,
 } from './progression-engine';
+import type { MuscleLandmarkBands } from './landmarks';
 import {
   exercises,
   exerciseTrainingState,
   gymSettings,
+  muscleLandmarks,
   programDays,
   programExercises,
   programs,
@@ -176,6 +178,25 @@ export function setWeeklyGoal(weeklyWorkoutGoal: number): void {
     .values({ id: 1, weeklyWorkoutGoal })
     .onConflictDoUpdate({ target: gymSettings.id, set: { weeklyWorkoutGoal } })
     .run();
+}
+
+/**
+ * Live per-muscle volume landmarks, keyed by `muscle_group` for O(1) lookup
+ * against the profile's muscle breakdown. Empty until the seed runs; callers
+ * skip band display for muscles absent from the map (e.g. custom groups).
+ */
+export function useMuscleLandmarks(): Map<string, MuscleLandmarkBands> {
+  const { data } = useLiveQuery(db.select().from(muscleLandmarks));
+  return useMemo(
+    () =>
+      new Map(
+        data.map((r) => [
+          r.muscleGroup,
+          { mv: r.mv, mev: r.mev, mav: r.mav, mrv: r.mrv },
+        ]),
+      ),
+    [data],
+  );
 }
 
 // ---------------------------------------------------------------------------

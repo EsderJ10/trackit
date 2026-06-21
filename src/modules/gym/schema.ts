@@ -233,7 +233,28 @@ export const gymSettings = sqliteTable('gym_settings', {
   weeklyWorkoutGoal: integer('weekly_workout_goal').notNull().default(3),
 });
 
+/**
+ * Per-muscle weekly volume landmarks (MV ≤ MEV ≤ MAV ≤ MRV, in sets/week) from
+ * Renaissance Periodization. Keyed by the coarse `exercises.muscle_group` value
+ * (e.g. 'Chest', 'Legs'). Seeded with editable defaults (`seedMuscleLandmarks`)
+ * so a later settings panel can let users tune them to their own recovery —
+ * captured by backup/restore like every other table.
+ */
+export const muscleLandmarks = sqliteTable('muscle_landmarks', {
+  /** Matches `exercises.muscle_group` exactly. */
+  muscleGroup: text('muscle_group').primaryKey(),
+  /** Maintenance Volume — least that retains the muscle. */
+  mv: integer('mv').notNull(),
+  /** Minimum Effective Volume — least that still drives growth. */
+  mev: integer('mev').notNull(),
+  /** Maximum Adaptive Volume — top of the productive working range. */
+  mav: integer('mav').notNull(),
+  /** Maximum Recoverable Volume — recovery ceiling; beyond it is overreaching. */
+  mrv: integer('mrv').notNull(),
+});
+
 export type Exercise = typeof exercises.$inferSelect;
+export type MuscleLandmark = typeof muscleLandmarks.$inferSelect;
 export type Routine = typeof routines.$inferSelect;
 export type RoutineExercise = typeof routineExercises.$inferSelect;
 export type WorkoutSession = typeof workoutSessions.$inferSelect;
