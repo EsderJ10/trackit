@@ -12,8 +12,15 @@ services:
     build:
       context: ./docker
     image: trackit-apk-builder
+    # Resource caps so a runaway build kills *itself* (OOM inside the cgroup)
+    # instead of thrashing the host into a freeze. Tuned for a 15 GB / 6-core
+    # machine — leaves the desktop ~5 GB and 2 cores to stay responsive.
+    cpus: "4"
+    mem_limit: 10g
+    memswap_limit: 10g # no extra container swap on top of mem_limit
     environment:
       - CI=1 # keep pnpm / expo non-interactive
+      - CMAKE_BUILD_PARALLEL_LEVEL=2 # throttle ninja: cap parallel native C++ compiles
     volumes:
       - ./:/src:ro # repo source, read-only (kept pristine)
       - ./build-output:/output # APK lands here on the host

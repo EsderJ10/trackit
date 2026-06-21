@@ -28,7 +28,13 @@ pnpm exec expo prebuild --platform android --no-install
 
 echo "==> Building release APK (gradle assembleRelease)…"
 cd android
-./gradlew assembleRelease
+# --max-workers=2 throttles Gradle's parallel tasks; reactNativeArchitectures
+# builds a single ABI (arm64-v8a covers virtually all modern phones) instead of
+# all four — roughly quarters the native C++ compile work. Together with the
+# container caps in docker-compose.yml this keeps peak memory under the limit.
+./gradlew assembleRelease \
+  --max-workers=2 \
+  -PreactNativeArchitectures=arm64-v8a
 
 echo "==> Exporting APK to host…"
 mkdir -p "$OUT"
