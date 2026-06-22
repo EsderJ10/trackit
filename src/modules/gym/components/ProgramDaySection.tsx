@@ -18,6 +18,7 @@ export interface ProgramDaySectionProps {
   onSetTrainingMax: (programExerciseId: number, weightKg: number) => void;
   onSetE1rm: (programExerciseId: number, weightKg: number) => void;
   onRemoveExercise: (programExerciseId: number) => void;
+  onEditWave: (programExerciseId: number, name: string) => void;
 }
 
 /** One day of a program: an editable name plus its exercises and an add button. */
@@ -32,6 +33,7 @@ export function ProgramDaySection({
   onSetTrainingMax,
   onSetE1rm,
   onRemoveExercise,
+  onEditWave,
 }: ProgramDaySectionProps) {
   return (
     <View className="gap-3 rounded-2xl border border-border-soft bg-surface-alt/40 p-3">
@@ -64,6 +66,7 @@ export function ProgramDaySection({
             onSetTrainingMax={(kg) => onSetTrainingMax(row.id, kg)}
             onSetE1rm={(kg) => onSetE1rm(row.id, kg)}
             onRemove={() => onRemoveExercise(row.id)}
+            onEditWave={() => onEditWave(row.id, row.exerciseName)}
           />
         ))
       )}

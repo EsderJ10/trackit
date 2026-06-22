@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
@@ -13,9 +13,11 @@ import {
   advance,
   advanceCursor,
   e1rmFromLoggedSet,
+  generateWave,
   type ProgressionScheme,
   renderPrescribedSet,
   suggestNext,
+  type WaveRules,
 } from './progression-engine';
 import {
   DEFAULT_MUSCLE_LANDMARKS,
@@ -1069,6 +1071,147 @@ export function renameProgramWeek(weekId: number, name: string): void {
     .run();
 }
 
+/**
+ * Remove a week: drop its prescriptions across every slot, then shift the higher
+ * weeks (and their `program_sets`, joined by integer `weekIndex` — no FK cascade)
+ * down in lockstep so indices stay contiguous, and resync `programs.lengthWeeks`.
+ */
+export function removeProgramWeek(programId: number, weekId: number): void {
+  db.transaction((tx) => {
+    const target = tx
+      .select({ weekIndex: programWeeks.weekIndex })
+      .from(programWeeks)
+      .where(eq(programWeeks.id, weekId))
+      .all()[0];
+    if (target == null) return;
+    const removed = target.weekIndex;
+
+    const slotIds = tx
+      .select({ id: programExercises.id })
+      .from(programExercises)
+      .where(eq(programExercises.programId, programId))
+      .all()
+      .map((r) => r.id);
+
+    tx.delete(programWeeks).where(eq(programWeeks.id, weekId)).run();
+    if (slotIds.length > 0) {
+      tx.delete(programSets)
+        .where(
+          and(
+            inArray(programSets.programExerciseId, slotIds),
+            eq(programSets.weekIndex, removed),
+          ),
+        )
+        .run();
+    }
+
+    // Reindex remaining weeks to 1..n; move each week's prescriptions in lockstep.
+    const remaining = tx
+      .select({ id: programWeeks.id, weekIndex: programWeeks.weekIndex })
+      .from(programWeeks)
+      .where(eq(programWeeks.programId, programId))
+      .orderBy(programWeeks.weekIndex)
+      .all();
+    remaining.forEach((row, index) => {
+      const newIndex = index + 1;
+      if (row.weekIndex === newIndex) return;
+      tx.update(programWeeks)
+        .set({ weekIndex: newIndex })
+        .where(eq(programWeeks.id, row.id))
+        .run();
+      if (slotIds.length > 0) {
+        tx.update(programSets)
+          .set({ weekIndex: newIndex })
+          .where(
+            and(
+              inArray(programSets.programExerciseId, slotIds),
+              eq(programSets.weekIndex, row.weekIndex),
+            ),
+          )
+          .run();
+      }
+    });
+
+    tx.update(programs)
+      .set({ lengthWeeks: Math.max(1, remaining.length) })
+      .where(eq(programs.id, programId))
+      .run();
+  });
+}
+
+/**
+ * Author a full periodized wave for one slot from mesocycle rules: ensure the
+ * program has enough weeks (creating any missing, flagging the deload week),
+ * wipe the slot's existing prescriptions, and write `generateWave`'s grid as
+ * `program_sets`. This is the "don't hand-enter every cell" path; manual
+ * `upsertProgramSet` remains the escape hatch.
+ */
+export function generateProgramWave(
+  programExerciseId: number,
+  rules: WaveRules,
+): void {
+  const cells = generateWave(rules);
+  const totalWeeks = rules.weekCount + (rules.deload ? 1 : 0);
+  const deloadIndex = rules.deload ? rules.weekCount + 1 : null;
+
+  db.transaction((tx) => {
+    const slot = tx
+      .select({ programId: programExercises.programId })
+      .from(programExercises)
+      .where(eq(programExercises.id, programExerciseId))
+      .all()[0];
+    if (slot == null) return;
+    const { programId } = slot;
+
+    const existing = tx
+      .select({ weekIndex: programWeeks.weekIndex })
+      .from(programWeeks)
+      .where(eq(programWeeks.programId, programId))
+      .all();
+    const haveMax = existing.reduce((m, w) => Math.max(m, w.weekIndex), 0);
+    for (let w = haveMax + 1; w <= totalWeeks; w++) {
+      tx.insert(programWeeks)
+        .values({ programId, weekIndex: w, name: `Week ${w}` })
+        .run();
+    }
+    if (deloadIndex != null) {
+      tx.update(programWeeks)
+        .set({ isDeload: true })
+        .where(
+          and(
+            eq(programWeeks.programId, programId),
+            eq(programWeeks.weekIndex, deloadIndex),
+          ),
+        )
+        .run();
+    }
+    if (totalWeeks > haveMax) {
+      tx.update(programs)
+        .set({ lengthWeeks: totalWeeks })
+        .where(eq(programs.id, programId))
+        .run();
+    }
+
+    tx.delete(programSets)
+      .where(eq(programSets.programExerciseId, programExerciseId))
+      .run();
+    for (const c of cells) {
+      tx.insert(programSets)
+        .values({
+          programExerciseId,
+          weekIndex: c.weekIndex,
+          setNumber: c.setNumber,
+          reps: c.reps,
+          intensityKind: c.intensityKind,
+          intensityValue: c.intensityValue,
+          amrap: c.amrap,
+          restSec: null,
+        })
+        .run();
+    }
+  });
+}
+
 // --- Program lifecycle ---------------------------------------------------
 
 /** Create a program seeded with one week and one day so it's usable at once. */
@@ -1193,11 +1336,20 @@ export function useProgramDayExercises(programDayId: number) {
   );
 }
 
+/**
+ * The progression rule chosen when adding a slot. lp/dp carry their own params
+ * (see `ProgressionScheme`); `rpe` autoregulates against an estimated-1RM anchor
+ * and is the natural target for a periodized wave (see `generateProgramWave`).
+ */
+export type ProgramSchemeChoice =
+  | ProgressionScheme
+  | { type: 'rpe'; targetRpe: number };
+
 export interface AddProgramExerciseInput {
   programId: number;
   programDayId: number;
   exerciseId: number;
-  scheme: ProgressionScheme;
+  scheme: ProgramSchemeChoice;
   targetSets: number;
   /** Starting working weight (canonical kg). */
   startingWeightKg: number;
@@ -1234,11 +1386,12 @@ export function addProgramExercise(input: AddProgramExerciseInput): number {
         position: daySlots.length,
         schemeType: scheme.type,
         targetSets,
-        incrementKg: scheme.incrementKg,
+        incrementKg: scheme.type === 'rpe' ? 2.5 : scheme.incrementKg,
         minReps: scheme.type === 'dp' ? scheme.minReps : null,
         maxReps: scheme.type === 'dp' ? scheme.maxReps : null,
         failThreshold: scheme.type === 'lp' ? scheme.failThreshold : 3,
         deloadPct: scheme.type === 'lp' ? scheme.deloadPct : 0.1,
+        targetRpe: scheme.type === 'rpe' ? scheme.targetRpe : null,
       })
       .run();
     const programExerciseId = inserted.lastInsertRowId;
@@ -1249,6 +1402,9 @@ export function addProgramExercise(input: AddProgramExerciseInput): number {
         currentWeightKg: input.startingWeightKg,
         currentReps:
           scheme.type === 'dp' ? scheme.minReps : (input.startingReps ?? 5),
+        // rpe renders loads off the e1RM anchor — seed it from the starting
+        // weight so the first session isn't zeroed; the user refines it.
+        e1rmKg: scheme.type === 'rpe' ? input.startingWeightKg : null,
         lastReason: 'Starting weight',
       })
       .run();

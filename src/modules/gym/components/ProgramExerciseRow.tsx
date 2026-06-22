@@ -1,10 +1,10 @@
-import { Trash2 } from 'lucide-react-native';
+import { CalendarRange, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { WeightUnit } from '@/core/settings/schema';
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
-import { Card, Icon, Text, colors } from '@/ui';
+import { Button, Card, Icon, Text, colors } from '@/ui';
 
 import { formatWeight } from '../format';
 import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
@@ -20,6 +20,8 @@ export interface ProgramExerciseRowProps {
   /** Commit a new estimated 1RM (rpe), already converted to canonical kg. */
   onSetE1rm: (weightKg: number) => void;
   onRemove: () => void;
+  /** Open the periodization (week × set wave) editor for this slot. */
+  onEditWave: () => void;
 }
 
 /** One-line summary of the progression rule, e.g. "Double · 3 × 8–12 · +2.5 kg". */
@@ -71,6 +73,7 @@ export function ProgramExerciseRow({
   onSetTrainingMax,
   onSetE1rm,
   onRemove,
+  onEditWave,
 }: ProgramExerciseRowProps) {
   const anchor = anchorFor(row);
   // Edits happen in the display unit; the weight is stored canonical kg.
@@ -123,6 +126,16 @@ export function ProgramExerciseRow({
           </View>
         ) : null}
       </View>
+
+      <Button
+        label="Periodize weeks"
+        variant="ghost"
+        size="md"
+        leftIcon={
+          <Icon icon={CalendarRange} size={16} color={colors.primaryBright} />
+        }
+        onPress={onEditWave}
+      />
     </Card>
   );
 }
