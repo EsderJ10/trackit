@@ -13,6 +13,7 @@ import m0008 from './0008_perpetual_dakota_north.sql';
 import m0009 from './0009_chunky_gambit.sql';
 import m0010 from './0010_narrow_madame_hydra.sql';
 import m0011 from './0011_oval_the_renegades.sql';
+import m0012 from './0012_windy_calypso.sql';
 
   export default {
     journal,
@@ -28,7 +29,8 @@ m0007,
 m0008,
 m0009,
 m0010,
-m0011
+m0011,
+m0012
     }
   }
   

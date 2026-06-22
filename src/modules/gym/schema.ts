@@ -13,6 +13,18 @@ export const exercises = sqliteTable('exercises', {
   muscleGroup: text('muscle_group').notNull(),
   equipment: text('equipment'),
   isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(false),
+  /**
+   * How a set of this exercise is measured. `weight_reps` (the default) is the
+   * classic load×reps lift; `bodyweight` adds optional load to a rep count;
+   * `duration` is timed work (planks, carries); `distance_time` pairs metres with
+   * seconds (cardio). Gates the logging UI and excludes non-load kinds from 1RM
+   * PRs and tonnage. See research.txt Part 1 #7.
+   */
+  measurementKind: text('measurement_kind', {
+    enum: ['weight_reps', 'bodyweight', 'duration', 'distance_time'],
+  })
+    .notNull()
+    .default('weight_reps'),
 });
 
 /** A reusable workout template. */
@@ -216,6 +228,20 @@ export const setLogs = sqliteTable('set_logs', {
   reps: integer('reps').notNull(),
   weight: real('weight').notNull().default(0),
   rpe: real('rpe'),
+  /**
+   * What kind of set this is. Only `working` counts toward 1RM PRs and program
+   * progression; `warmup` is excluded from weekly volume while `drop`/`failure`
+   * still count as hard volume. See research.txt Part 1 #3 and landmarks.ts.
+   */
+  setType: text('set_type', {
+    enum: ['warmup', 'working', 'drop', 'failure'],
+  })
+    .notNull()
+    .default('working'),
+  // Non-`weight_reps` measurements land here (null otherwise): seconds of timed
+  // work, and metres of distance work.
+  durationSec: integer('duration_sec'),
+  distanceM: real('distance_m'),
   // Null = planned/incomplete set; a timestamp is written when it's checked off.
   completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
 });
