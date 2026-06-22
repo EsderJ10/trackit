@@ -1,16 +1,22 @@
 import { useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
 import {
   ChevronRight,
+  Download,
   Minus,
   Plus,
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react-native';
-import { Pressable, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, View } from 'react-native';
 
-import { Card, Icon, Text, colors } from '@/ui';
+import { Button, Card, Icon, Text, colors } from '@/ui';
 
+import { toWorkoutCsv } from '../csv-export';
 import {
+  getWorkoutCsvRows,
   setDefaultRestSec,
   setWeeklyGoal,
   useDefaultRestSec,
@@ -91,6 +97,39 @@ export function GymSettingsPanel() {
   const router = useRouter();
   const goal = useWeeklyGoal();
   const rest = useDefaultRestSec();
+  const [exporting, setExporting] = useState(false);
+
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const rows = getWorkoutCsvRows();
+      if (rows.length === 0) {
+        Alert.alert('Nothing to export', 'Log a workout first.');
+        return;
+      }
+      const stamp = new Date().toISOString().slice(0, 10);
+      const file = new File(Paths.cache, `trackit-workouts-${stamp}.csv`);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(toWorkoutCsv(rows));
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export workout history',
+          UTI: 'public.comma-separated-values-text',
+        });
+      } else {
+        Alert.alert('CSV saved', file.uri);
+      }
+    } catch (error) {
+      Alert.alert(
+        'Export failed',
+        error instanceof Error ? error.message : 'Something went wrong.',
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <View className="gap-3">
@@ -132,6 +171,18 @@ export function GymSettingsPanel() {
           <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
         </Card>
       </Pressable>
+
+      <Button
+        label="Export workout history (CSV)"
+        variant="secondary"
+        size="md"
+        loading={exporting}
+        disabled={exporting}
+        leftIcon={<Icon icon={Download} size={18} color={colors.fg} />}
+        onPress={() => {
+          void exportCsv();
+        }}
+      />
     </View>
   );
 }

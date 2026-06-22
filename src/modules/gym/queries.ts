@@ -23,6 +23,7 @@ import {
   DEFAULT_MUSCLE_LANDMARKS,
   type MuscleLandmarkBands,
 } from './landmarks';
+import type { CsvSetRow } from './csv-export';
 import { EMPTY_BESTS, type ExerciseBests, foldBests } from './pr-detect';
 import {
   exercises,
@@ -426,6 +427,33 @@ export function getExerciseBests(exerciseId: number): ExerciseBests {
       }),
     EMPTY_BESTS,
   );
+}
+
+/**
+ * Every completed set across all sessions as flat rows for a CSV export — newest
+ * session first. Plain read (no live query); the settings panel serializes via
+ * `toWorkoutCsv` and shares the file.
+ */
+export function getWorkoutCsvRows(): CsvSetRow[] {
+  return db
+    .select({
+      finishedAt: workoutSessions.finishedAt,
+      exerciseName: exercises.name,
+      setNumber: setLogs.setNumber,
+      setType: setLogs.setType,
+      reps: setLogs.reps,
+      weightKg: setLogs.weight,
+      rpe: setLogs.rpe,
+      durationSec: setLogs.durationSec,
+      distanceM: setLogs.distanceM,
+    })
+    .from(setLogs)
+    .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id))
+    .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+    .where(isNotNull(setLogs.completedAt))
+    .orderBy(desc(workoutSessions.finishedAt), setLogs.id)
+    .all()
+    .map((r) => ({ ...r, finishedAt: r.finishedAt?.getTime() ?? null }));
 }
 
 export interface ExerciseHistoryRow {
