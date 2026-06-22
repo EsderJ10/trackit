@@ -78,6 +78,14 @@ export default function RootLayout() {
                   <Stack.Screen name="modules/gym" />
                   <Stack.Screen name="modules/[moduleId]" />
                   <Stack.Screen
+                    name="settings"
+                    options={{ presentation: 'modal' }}
+                  />
+                  <Stack.Screen
+                    name="dashboard"
+                    options={{ presentation: 'modal' }}
+                  />
+                  <Stack.Screen
                     name="set-pin"
                     options={{ presentation: 'modal' }}
                   />

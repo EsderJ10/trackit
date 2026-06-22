@@ -210,7 +210,10 @@ export function ActiveWorkout() {
     // the workout's done (common path: complete last set → tap Finish).
     stopRest();
     finishWorkout(sessionId);
-    router.replace('/modules/gym/history');
+    // Cross-navigator hop: collapse the gym stack and select the History tab.
+    // `navigate` pops back to the existing tab (and drops the finished workout
+    // from the back stack) — `replace`/`push` would mis-stack across navigators.
+    router.navigate('/history');
   }
 
   function openProgression(exerciseId: number) {

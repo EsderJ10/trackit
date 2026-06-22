@@ -28,6 +28,26 @@ export interface DashboardWidgetProps {
 }
 
 /**
+ * A top-level navigation tab a module contributes to the app's bottom tab bar.
+ * The core reads this metadata to render the tab's label/icon, but the actual
+ * route file (`app/(tabs)/<name>.tsx`) is physical — Expo Router maps tabs to
+ * files — and it imports the module's screen (the `app/` layer is the only place
+ * allowed to import a module directly).
+ *
+ * NOTE — deferred seam: with a single module this maps 1:1 to tab files. A
+ * multi-module combiner (name-collision handling, >1 contributor, ordering) is
+ * intentionally NOT built yet — wire one module, leave the seam.
+ */
+export interface ModulePrimaryTab {
+  /** Route segment under `app/(tabs)/`, e.g. 'train' | 'history'. */
+  name: string;
+  /** Tab label. */
+  title: string;
+  /** Lucide icon component for the tab. */
+  icon: LucideIcon;
+}
+
+/**
  * The contract every tracking module fulfils. A module is a self-contained
  * feature (gym, finance, habits…) that plugs into the core app by being added
  * to the module registry — the core never imports a module directly except via
@@ -54,6 +74,13 @@ export interface TrackerModule {
   ModuleScreen?: ComponentType;
   /** Optional settings section slotted into the core Settings screen. */
   SettingsPanel?: ComponentType;
+  /**
+   * Optional top-level navigation tabs this module contributes to the app's
+   * bottom tab bar (e.g. gym → Train, History). The core renders the tab
+   * chrome from this metadata; the matching route files live under
+   * `app/(tabs)/` and import the module's screens.
+   */
+  primaryTabs?: readonly ModulePrimaryTab[];
   /**
    * Optional read-only section rendered on the core Profile screen, below the
    * user's identity. Modules use this to surface their own stats / gamification
