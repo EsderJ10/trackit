@@ -20,6 +20,7 @@ import {
   glow,
 } from '@/ui';
 
+import { MuscleVolumeBars } from '../components/MuscleVolumeBars';
 import { formatRelativeDate } from '../format';
 import {
   type ActiveSession,
@@ -28,6 +29,7 @@ import {
   startProgramWorkout,
   startWorkout,
   useActiveSession,
+  useGymProfileStats,
   useNextProgramWorkout,
   useRoutineExercises,
   useRoutines,
@@ -38,6 +40,7 @@ export function RoutineList() {
   const { data: routines } = useRoutines();
   const active = useActiveSession();
   const next = useNextProgramWorkout();
+  const { muscleBreakdown } = useGymProfileStats();
 
   function openRoutine(routineId: number) {
     router.push({
@@ -102,6 +105,13 @@ export function RoutineList() {
             onPress={() => router.push('/modules/gym/programs')}
           />
         )}
+
+        {muscleBreakdown.length > 0 ? (
+          <MuscleVolumeBars
+            breakdown={muscleBreakdown}
+            title="This week's volume"
+          />
+        ) : null}
 
         <SectionHeader className="mt-2">Other ways to train</SectionHeader>
 
