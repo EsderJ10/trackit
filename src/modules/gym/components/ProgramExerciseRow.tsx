@@ -127,15 +127,19 @@ export function ProgramExerciseRow({
         ) : null}
       </View>
 
-      <Button
-        label="Periodize weeks"
-        variant="ghost"
-        size="md"
-        leftIcon={
-          <Icon icon={CalendarRange} size={16} color={colors.primaryBright} />
-        }
-        onPress={onEditWave}
-      />
+      {/* Waves render off the e1RM anchor, which only rpe slots carry — gating
+          here keeps an lp/dp slot from generating 0-weight prescribed sets. */}
+      {row.schemeType === 'rpe' ? (
+        <Button
+          label="Periodize weeks"
+          variant="ghost"
+          size="md"
+          leftIcon={
+            <Icon icon={CalendarRange} size={16} color={colors.primaryBright} />
+          }
+          onPress={onEditWave}
+        />
+      ) : null}
     </Card>
   );
 }
