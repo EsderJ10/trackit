@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView } from 'react-native';
 
+import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { useSettings } from '@/core/settings/use-settings';
 import { Button, Icon, Screen, colors } from '@/ui';
 
@@ -12,9 +13,12 @@ import {
   type ExerciseTarget,
 } from '../components/ExerciseSessionCard';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
+import { PlateCalculatorModal } from '../components/PlateCalculatorModal';
 import { PRBanner } from '../components/PRBanner';
 import { RestTimerBar } from '../components/RestTimerBar';
 import { SessionNotesField } from '../components/SessionNotesField';
+import { DEFAULT_BAR } from '../plate-math';
+import { warmupSets } from '../warmup';
 import {
   detectPRs,
   type ExerciseBests,
@@ -23,6 +27,7 @@ import {
 } from '../pr-detect';
 import {
   addSet,
+  addWarmupSets,
   deleteExerciseSets,
   deleteSetLog,
   finishWorkout,
@@ -89,6 +94,8 @@ export function ActiveWorkout() {
   // per-exercise all-time bests, fetched lazily and folded as sets complete.
   const [prMsg, setPrMsg] = useState<string | null>(null);
   const bestsRef = useRef(new Map<number, ExerciseBests>());
+  // Plate calculator target, in the display unit (null = closed).
+  const [plateTarget, setPlateTarget] = useState<number | null>(null);
 
   useEffect(() => {
     if (prMsg == null) return;
@@ -107,6 +114,15 @@ export function ActiveWorkout() {
       const list = map.get(set.exerciseId) ?? [];
       list.push(set);
       map.set(set.exerciseId, list);
+    }
+    // Float warm-ups to the top of each exercise (stable within each group), so a
+    // warm-up generated after the working sets still reads as the ramp-up.
+    for (const list of map.values()) {
+      list.sort((a, b) => {
+        const aw = a.setType === 'warmup' ? 0 : 1;
+        const bw = b.setType === 'warmup' ? 0 : 1;
+        return aw - bw || a.id - b.id;
+      });
     }
     return map;
   }, [sets]);
@@ -134,6 +150,22 @@ export function ActiveWorkout() {
     }
     return map;
   }, [plan, programPlan]);
+
+  // The working weight to seed plate/warm-up tools: the heaviest working set, or
+  // the exercise's target, in canonical kg.
+  function workWeightKg(exerciseId: number): number {
+    const logged = setsByExercise.get(exerciseId) ?? [];
+    const heaviest = logged
+      .filter((s) => s.setType === 'working')
+      .reduce((m, s) => Math.max(m, s.weight), 0);
+    if (heaviest > 0) return heaviest;
+    return targetByExercise.get(exerciseId)?.weight ?? 0;
+  }
+
+  function addWarmup(exerciseId: number) {
+    const barKg = fromDisplayWeight(DEFAULT_BAR[weightUnit], weightUnit);
+    addWarmupSets(sessionId, exerciseId, warmupSets(workWeightKg(exerciseId), barKg));
+  }
 
   // Program suggestion rationale, surfaced under each exercise's target.
   const reasonByExercise = useMemo(() => {
@@ -293,6 +325,12 @@ export function ActiveWorkout() {
             onDeleteSet={deleteSetLog}
             onRemove={() => removeExercise(exercise.exerciseId)}
             onOpenProgression={() => openProgression(exercise.exerciseId)}
+            onAddWarmup={() => addWarmup(exercise.exerciseId)}
+            onShowPlates={() =>
+              setPlateTarget(
+                toDisplayWeight(workWeightKg(exercise.exerciseId), weightUnit),
+              )
+            }
           />
         ))}
 
@@ -315,6 +353,13 @@ export function ActiveWorkout() {
 
       <RestTimerBar />
       <PRBanner message={prMsg} />
+
+      <PlateCalculatorModal
+        visible={plateTarget != null}
+        onClose={() => setPlateTarget(null)}
+        targetDisplay={plateTarget}
+        unit={weightUnit}
+      />
 
       <ExercisePickerModal
         visible={pickerOpen}

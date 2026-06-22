@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Calculator, Flame, Plus, Trash2 } from 'lucide-react-native';
 import { Alert, Pressable, View } from 'react-native';
 
 import type { WeightUnit } from '@/core/settings/schema';
@@ -30,6 +30,10 @@ export interface ExerciseSessionCardProps {
   onRemove: () => void;
   /** Tap the exercise name to open its progression view. */
   onOpenProgression?: () => void;
+  /** Generate ramp-up warm-up sets (barbell lifts only). */
+  onAddWarmup?: () => void;
+  /** Open the plate calculator for this exercise's working weight. */
+  onShowPlates?: () => void;
 }
 
 /** One exercise inside an active workout: target, editable set rows, controls. */
@@ -46,6 +50,8 @@ export function ExerciseSessionCard({
   onDeleteSet,
   onRemove,
   onOpenProgression,
+  onAddWarmup,
+  onShowPlates,
 }: ExerciseSessionCardProps) {
   function confirmRemove() {
     Alert.alert('Remove exercise', `Remove ${name} from this workout?`, [
@@ -53,6 +59,9 @@ export function ExerciseSessionCard({
       { text: 'Remove', style: 'destructive', onPress: onRemove },
     ]);
   }
+
+  // Plate/warm-up tools only make sense for loaded barbell-style lifts.
+  const isLoaded = sets[0]?.measurementKind === 'weight_reps';
 
   return (
     <Card className="gap-3">
@@ -105,13 +114,36 @@ export function ExerciseSessionCard({
         </View>
       ) : null}
 
-      <Button
-        label="Add set"
-        variant="secondary"
-        size="md"
-        leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
-        onPress={onAddSet}
-      />
+      <View className="flex-row gap-2">
+        <Button
+          label="Add set"
+          variant="secondary"
+          size="md"
+          className="flex-1"
+          leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
+          onPress={onAddSet}
+        />
+        {isLoaded && onShowPlates ? (
+          <Button
+            label="Plates"
+            variant="ghost"
+            size="md"
+            leftIcon={
+              <Icon icon={Calculator} size={16} color={colors.fgMuted} />
+            }
+            onPress={onShowPlates}
+          />
+        ) : null}
+        {isLoaded && onAddWarmup ? (
+          <Button
+            label="Warm-up"
+            variant="ghost"
+            size="md"
+            leftIcon={<Icon icon={Flame} size={16} color={colors.warning} />}
+            onPress={onAddWarmup}
+          />
+        ) : null}
+      </View>
     </Card>
   );
 }

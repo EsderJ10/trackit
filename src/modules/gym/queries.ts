@@ -568,6 +568,30 @@ export interface SetPatch {
   distanceM?: number | null;
 }
 
+/** Insert warm-up sets (planned, `setType: 'warmup'`) for an exercise. */
+export function addWarmupSets(
+  sessionId: number,
+  exerciseId: number,
+  sets: { reps: number; weightKg: number }[],
+): void {
+  if (sets.length === 0) return;
+  db.transaction((tx) => {
+    sets.forEach((set, index) => {
+      tx.insert(setLogs)
+        .values({
+          sessionId,
+          exerciseId,
+          setNumber: index + 1,
+          reps: set.reps,
+          weight: set.weightKg,
+          setType: 'warmup',
+          completedAt: null,
+        })
+        .run();
+    });
+  });
+}
+
 export function updateSet(id: number, patch: SetPatch): void {
   db.update(setLogs).set(patch).where(eq(setLogs.id, id)).run();
 }
