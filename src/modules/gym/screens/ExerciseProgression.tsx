@@ -16,7 +16,7 @@ import {
 } from '@/ui';
 
 import { formatRpe, formatWeight, formatRelativeDate } from '../format';
-import { computePRs, estimateOneRepMax } from '../progression';
+import { computePRs, gatedOneRepMax } from '../progression';
 import {
   useExercise,
   useExerciseSetHistory,
@@ -49,7 +49,9 @@ export function ExerciseProgression() {
   const e1rmTrend = useMemo(() => {
     const bySession = new Map<number, number>();
     for (const row of history) {
-      const estimate = estimateOneRepMax(row.weight, row.reps);
+      // Skip high-rep sets — their 1RM estimate is unreliable (see gatedOneRepMax).
+      const estimate = gatedOneRepMax(row.weight, row.reps);
+      if (estimate === null) continue;
       bySession.set(
         row.sessionId,
         Math.max(bySession.get(row.sessionId) ?? 0, estimate),

@@ -11,12 +11,28 @@ export interface PrSet {
 }
 
 /**
+ * Reps above which a 1RM estimate is unreliable — every estimator (Epley
+ * included) loses accuracy past ~12 reps, so we surface "—" rather than a
+ * confidently-wrong number. See research.txt Part 2 §A4.
+ */
+export const E1RM_MAX_REPS = 12;
+
+/**
  * Estimated one-rep max via the Epley formula: `w · (1 + reps/30)`. A single
  * rep is its own 1RM; non-positive reps fall back to the bare weight.
  */
 export function estimateOneRepMax(weightKg: number, reps: number): number {
   if (reps <= 1) return weightKg;
   return weightKg * (1 + reps / 30);
+}
+
+/**
+ * Estimated 1RM gated to the reliable rep range: `null` above `E1RM_MAX_REPS`,
+ * so callers can render "—" instead of an inflated figure from a high-rep set.
+ */
+export function gatedOneRepMax(weightKg: number, reps: number): number | null {
+  if (reps > E1RM_MAX_REPS) return null;
+  return estimateOneRepMax(weightKg, reps);
 }
 
 export interface ExercisePRs {
@@ -33,8 +49,9 @@ export function computePRs(sets: PrSet[]): ExercisePRs | null {
   let best1RmKg = 0;
   for (const set of sets) {
     if (set.weight > heaviestKg) heaviestKg = set.weight;
-    const estimate = estimateOneRepMax(set.weight, set.reps);
-    if (estimate > best1RmKg) best1RmKg = estimate;
+    // High-rep sets give unreliable 1RM estimates — exclude them from the PR.
+    const estimate = gatedOneRepMax(set.weight, set.reps);
+    if (estimate !== null && estimate > best1RmKg) best1RmKg = estimate;
   }
   return { heaviestKg, best1RmKg };
 }

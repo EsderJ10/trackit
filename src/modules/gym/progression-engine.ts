@@ -122,19 +122,84 @@ export function roundKg(weightKg: number, stepKg = 2.5): number {
 }
 
 // ---------------------------------------------------------------------------
-// RPE → %1RM — the autoregulated intensity (Epley-consistent)
+// RPE → %1RM — the autoregulated intensity (RTS chart, non-linear)
 // ---------------------------------------------------------------------------
+
+/**
+ * The canonical Reactive Training Systems (Tuchscherer) RPE→%1RM curve, encoded
+ * as its single underlying dimension: the **@RPE-10 column** — load (as a
+ * fraction of 1RM) you can lift for `n` reps *to failure*. The full chart is
+ * recovered by the RIR-shift identity (RPE 9 ≡ 1 RIR): a set of `reps` @ `rpe`
+ * is `reps + (10 − rpe)` reps from failure, so it loads like that many reps @10.
+ *
+ * Keys are `reps-to-failure × 2` (0.5-rep resolution, which is what 0.5-RPE
+ * steps demand); values are %1RM as a decimal. Transcribed from the published
+ * RTS chart — NOT the old Epley-inverse formula, which is non-linear-mismatched
+ * and was soft at the 1RM anchor (the `rpePct(10,1)=0.968` under-load bug). The
+ * `[2] = 1.0` entry fixes that by construction. See research.txt Part 2 §A2.
+ */
+const RPE10_PCT: Readonly<Record<number, number>> = {
+  2: 1.0, // 1.0 reps to failure  → 1RM
+  3: 0.978, // 1.5
+  4: 0.955, // 2.0
+  5: 0.939, // 2.5
+  6: 0.922, // 3.0
+  7: 0.907, // 3.5
+  8: 0.892, // 4.0
+  9: 0.878, // 4.5
+  10: 0.863, // 5.0
+  11: 0.85, // 5.5
+  12: 0.837, // 6.0
+  13: 0.824, // 6.5
+  14: 0.811, // 7.0
+  15: 0.799, // 7.5
+  16: 0.786, // 8.0
+  17: 0.774, // 8.5
+  18: 0.762, // 9.0
+  19: 0.751, // 9.5
+  20: 0.739, // 10.0
+  21: 0.723, // 10.5
+  22: 0.707, // 11.0
+  23: 0.694, // 11.5
+  24: 0.68, // 12.0
+};
+
+const RPE10_MIN_KEY = 2;
+const RPE10_MAX_KEY = 24;
+
+/**
+ * Load fraction for `n` reps to failure, interpolating the @10 curve at half-rep
+ * resolution and extrapolating past 12 reps along the final slope (clamped to a
+ * sane floor). Pure; the single source of truth shared by `rpePct` and its
+ * inverse `e1rmFromLoggedSet`, so the two can never drift apart.
+ */
+function repsToFailurePct(n: number): number {
+  const key = Math.round(Math.max(1, n) * 2);
+  if (key <= RPE10_MIN_KEY) return RPE10_PCT[RPE10_MIN_KEY] as number;
+  if (key <= RPE10_MAX_KEY) {
+    const exact = RPE10_PCT[key];
+    if (exact !== undefined) return exact;
+    // Half-key landed off-grid (non-0.5 RPE input): linear-interpolate neighbours.
+    const lo = RPE10_PCT[key - 1] as number;
+    const hi = RPE10_PCT[key + 1] as number;
+    return (lo + hi) / 2;
+  }
+  // Past the table — continue along the last segment's slope, floored at 5%.
+  const last = RPE10_PCT[RPE10_MAX_KEY] as number;
+  const prev = RPE10_PCT[RPE10_MAX_KEY - 1] as number;
+  return Math.max(0.05, last + (last - prev) * (key - RPE10_MAX_KEY));
+}
 
 /**
  * Fraction of estimated 1RM a set of `reps` taken to `rpe` represents. RPE is on
  * the RIR scale (RIR = 10 − RPE), so a set of `reps` @ `rpe` is `reps + RIR`
- * reps from true failure; inverting Epley (1RM = w·(1 + n/30)) gives the load.
- * Clamped to [0, 1]; RPE above 10 or below 1 is treated as the nearest bound.
+ * reps from true failure (the RTS chart's structure). Clamped to (0, 1]; RPE
+ * above 10 or below 1 is treated as the nearest bound. `rpePct(10, 1) === 1`.
  */
 export function rpePct(rpe: number, reps: number): number {
   const clampedRpe = Math.min(10, Math.max(1, rpe));
   const repsToFailure = Math.max(1, reps + (10 - clampedRpe));
-  return 1 / (1 + repsToFailure / 30);
+  return repsToFailurePct(repsToFailure);
 }
 
 /**
@@ -353,4 +418,99 @@ function advanceDp(
     state: { ...state, successStreak: 0, failStreak: state.failStreak + 1 },
     reason: 'Repeat — missed reps last time',
   };
+}
+
+// ---------------------------------------------------------------------------
+// Mesocycle wave — generate a periodized week × set prescription grid
+// ---------------------------------------------------------------------------
+
+/**
+ * The two-axis mesocycle the evidence wants (RP, verified 3-0): across the
+ * accumulation weeks **RIR descends** (effort climbs week to week) while the
+ * **working-set count ramps from MEV up toward MRV**; an optional lighter deload
+ * week is appended to dissipate fatigue. Authored once per program-exercise and
+ * rendered per session. See research.txt Part 2 §A3 and 5day-ulppl spec.
+ */
+export interface WaveRules {
+  /** Accumulation (hard) weeks, before any deload. ≥ 1. */
+  weekCount: number;
+  /** Working sets in week 1 (≈ MEV). */
+  setsStart: number;
+  /** Working sets in the last hard week (≈ MRV). */
+  setsEnd: number;
+  /** Working reps per set (held roughly constant across the meso). */
+  reps: number;
+  /** Reps-in-reserve in week 1 (e.g. 3 → RPE 7). */
+  rirStart: number;
+  /** Reps-in-reserve in the last hard week (e.g. 0 → RPE 10, or 1 for risky lifts). */
+  rirEnd: number;
+  /** Mark the top set of every week AMRAP (the "1+" top set). */
+  amrapLastSet: boolean;
+  /** Optional appended deload week (lighter, fewer sets). */
+  deload?: { sets: number; reps: number; rir: number };
+}
+
+/** One generated prescription cell — a `program_sets` row, pre-DB. */
+export interface WaveSet {
+  /** 1-based week. */
+  weekIndex: number;
+  /** 1-based set within the week. */
+  setNumber: number;
+  reps: number;
+  /** Always `rpe`: the descending-RIR wave encodes intensity as target RPE. */
+  intensityKind: 'rpe';
+  /** Target RPE = 10 − RIR, clamped to [1, 10]. */
+  intensityValue: number;
+  amrap: boolean;
+}
+
+/** Linear interpolate `a→b` at fraction `t` (t already in [0, 1]). */
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/**
+ * Expand `WaveRules` into one `WaveSet` per (week, set). Pure — the DB wrapper
+ * `generateProgramWave` turns these into `program_sets` rows. The deload week, if
+ * present, is appended as `weekCount + 1`.
+ */
+export function generateWave(rules: WaveRules): WaveSet[] {
+  const weeks = Math.max(1, Math.round(rules.weekCount));
+  const out: WaveSet[] = [];
+  const span = weeks > 1 ? weeks - 1 : 1;
+
+  for (let w = 1; w <= weeks; w++) {
+    const t = (w - 1) / span;
+    const sets = Math.max(1, Math.round(lerp(rules.setsStart, rules.setsEnd, t)));
+    const rir = lerp(rules.rirStart, rules.rirEnd, t);
+    const rpe = Math.min(10, Math.max(1, 10 - rir));
+    for (let s = 1; s <= sets; s++) {
+      out.push({
+        weekIndex: w,
+        setNumber: s,
+        reps: rules.reps,
+        intensityKind: 'rpe',
+        intensityValue: Math.round(rpe * 2) / 2, // snap to 0.5-RPE steps
+        amrap: rules.amrapLastSet && s === sets,
+      });
+    }
+  }
+
+  if (rules.deload) {
+    const d = rules.deload;
+    const sets = Math.max(1, Math.round(d.sets));
+    const rpe = Math.min(10, Math.max(1, 10 - d.rir));
+    for (let s = 1; s <= sets; s++) {
+      out.push({
+        weekIndex: weeks + 1,
+        setNumber: s,
+        reps: d.reps,
+        intensityKind: 'rpe',
+        intensityValue: Math.round(rpe * 2) / 2,
+        amrap: false,
+      });
+    }
+  }
+
+  return out;
 }
