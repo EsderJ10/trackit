@@ -276,7 +276,8 @@ function MuscleVolumeRow({
 
   const zone = classifyVolume(sets, landmark);
   // Headroom past MRV so an over-the-ceiling bar still reads as "past the line".
-  const scaleMax = Math.max(landmark.mrv, sets) * 1.06;
+  // Floor at 1 so an all-zero / empty band can't divide-by-zero into NaN widths.
+  const scaleMax = Math.max(landmark.mrv, sets, 1) * 1.06;
   const pct = (v: number) => `${(v / scaleMax) * 100}%` as const;
   const ticks = [landmark.mev, landmark.mav, landmark.mrv];
 
