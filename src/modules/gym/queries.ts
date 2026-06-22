@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
@@ -554,6 +554,33 @@ export function useFinishedSessions() {
       .where(isNotNull(workoutSessions.finishedAt))
       .orderBy(desc(workoutSessions.finishedAt)),
   );
+}
+
+export interface ActiveSession {
+  id: number;
+  routineName: string | null;
+  startedAt: Date;
+}
+
+/**
+ * The most recent in-progress workout (no `finishedAt`), if any. Powers the
+ * resume-aware "Start / Resume workout" hero on Home and Train.
+ */
+export function useActiveSession(): ActiveSession | undefined {
+  const { data } = useLiveQuery(
+    db
+      .select({
+        id: workoutSessions.id,
+        routineName: routines.name,
+        startedAt: workoutSessions.startedAt,
+      })
+      .from(workoutSessions)
+      .leftJoin(routines, eq(workoutSessions.routineId, routines.id))
+      .where(isNull(workoutSessions.finishedAt))
+      .orderBy(desc(workoutSessions.startedAt))
+      .limit(1),
+  );
+  return data[0];
 }
 
 /** One finished (or in-progress) session with its routine name, for detail. */
