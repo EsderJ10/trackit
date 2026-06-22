@@ -1,11 +1,17 @@
 import { useRouter } from 'expo-router';
-import { Dumbbell, Play, Plus, Target, TrendingUp } from 'lucide-react-native';
+import {
+  ChevronRight,
+  Dumbbell,
+  Play,
+  Plus,
+  Target,
+  TrendingUp,
+} from 'lucide-react-native';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import {
   Button,
   Card,
-  EmptyState,
   Icon,
   Screen,
   SectionHeader,
@@ -17,9 +23,12 @@ import {
 import { formatRelativeDate } from '../format';
 import {
   type ActiveSession,
+  type NextProgramWorkout,
   createRoutine,
+  startProgramWorkout,
   startWorkout,
   useActiveSession,
+  useNextProgramWorkout,
   useRoutineExercises,
   useRoutines,
 } from '../queries';
@@ -28,11 +37,19 @@ export function RoutineList() {
   const router = useRouter();
   const { data: routines } = useRoutines();
   const active = useActiveSession();
+  const next = useNextProgramWorkout();
 
   function openRoutine(routineId: number) {
     router.push({
       pathname: '/modules/gym/routine',
       params: { routineId: String(routineId) },
+    });
+  }
+
+  function openProgram(programId: number) {
+    router.push({
+      pathname: '/modules/gym/program',
+      params: { programId: String(programId) },
     });
   }
 
@@ -65,11 +82,30 @@ export function RoutineList() {
           </View>
         </View>
 
+        {/* Hero priority: resume an open session → the current program's next
+            workout → finish setting it up → pick a program. */}
         {active ? (
           <ResumeHero session={active} onPress={() => openWorkout(active.id)} />
+        ) : next?.ready ? (
+          <NextWorkoutHero
+            next={next}
+            onStart={() => openWorkout(startProgramWorkout(next.programId))}
+            onOpenProgram={() => openProgram(next.programId)}
+          />
+        ) : next ? (
+          <SetupProgramHero
+            next={next}
+            onPress={() => openProgram(next.programId)}
+          />
         ) : (
-          <StartHero onPress={() => openWorkout(startWorkout())} />
+          <ChooseProgramHero
+            onPress={() => router.push('/modules/gym/programs')}
+          />
         )}
+
+        <SectionHeader className="mt-2">Other ways to train</SectionHeader>
+
+        <EmptyWorkoutCard onPress={() => openWorkout(startWorkout())} />
 
         <SectionHeader
           right={
@@ -89,11 +125,12 @@ export function RoutineList() {
         </SectionHeader>
 
         {routines.length === 0 ? (
-          <EmptyState
-            icon={<Icon icon={Dumbbell} size={40} color={colors.fgFaint} />}
-            title="No routines yet"
-            description="Create a routine to plan your workouts, or start an empty session above."
-          />
+          <Card className="flex-row items-center gap-3">
+            <Icon icon={Dumbbell} size={20} color={colors.fgFaint} />
+            <Text variant="muted" className="flex-1">
+              No routines yet — tap New to plan a reusable session.
+            </Text>
+          </Card>
         ) : (
           routines.map((routine) => (
             <RoutineCard
@@ -132,7 +169,102 @@ function HeaderAction({
   );
 }
 
-function StartHero({ onPress }: { onPress: () => void }) {
+/** The program-centric hero: the next programmed day, one tap from starting. */
+function NextWorkoutHero({
+  next,
+  onStart,
+  onOpenProgram,
+}: {
+  next: NextProgramWorkout;
+  onStart: () => void;
+  onOpenProgram: () => void;
+}) {
+  const preview = next.exerciseNames.slice(0, 4);
+  const extra = next.exerciseNames.length - preview.length;
+
+  return (
+    <View style={glow(colors.gym, 0.5)}>
+      <Card className="gap-4 bg-surface-hi">
+        <View className="flex-row items-start gap-4">
+          <View
+            className="h-14 w-14 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: `${colors.gym}22` }}
+          >
+            <Icon icon={Play} size={26} color={colors.gym} />
+          </View>
+          <View className="flex-1">
+            <Text variant="label" style={{ color: colors.gym }}>
+              {next.isDeload ? 'NEXT · DELOAD' : 'NEXT WORKOUT'}
+            </Text>
+            <Text variant="heading" className="mt-0.5">
+              {next.dayName}
+            </Text>
+            <Text variant="muted">
+              Week {next.weekIndex} of {next.lengthWeeks} · Day{' '}
+              {next.dayIndex + 1} of {next.dayCount}
+            </Text>
+          </View>
+        </View>
+
+        {preview.length > 0 ? (
+          <Text variant="caption">
+            {preview.join(' · ')}
+            {extra > 0 ? ` +${extra} more` : ''}
+          </Text>
+        ) : null}
+
+        <Button
+          label="Start workout"
+          size="md"
+          leftIcon={<Icon icon={Play} size={16} color={colors.fg} />}
+          onPress={onStart}
+        />
+
+        <Pressable
+          onPress={onOpenProgram}
+          className="flex-row items-center gap-1 active:opacity-70"
+        >
+          <Text variant="caption" style={{ color: colors.fgMuted }}>
+            Following {next.programName}
+          </Text>
+          <Icon icon={ChevronRight} size={14} color={colors.fgFaint} />
+        </Pressable>
+      </Card>
+    </View>
+  );
+}
+
+/** Current program exists but its cursor day has no exercises yet. */
+function SetupProgramHero({
+  next,
+  onPress,
+}: {
+  next: NextProgramWorkout;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} className="active:opacity-90">
+      <Card className="flex-row items-center gap-4">
+        <View
+          className="h-14 w-14 items-center justify-center rounded-2xl"
+          style={{ backgroundColor: `${colors.gym}22` }}
+        >
+          <Icon icon={Target} size={26} color={colors.gym} />
+        </View>
+        <View className="flex-1">
+          <Text variant="heading">Finish setting up {next.programName}</Text>
+          <Text variant="muted">
+            Add exercises to this day to get your next workout.
+          </Text>
+        </View>
+        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+      </Card>
+    </Pressable>
+  );
+}
+
+/** No program picked yet — guide the user to choose one. */
+function ChooseProgramHero({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -144,12 +276,36 @@ function StartHero({ onPress }: { onPress: () => void }) {
           className="h-14 w-14 items-center justify-center rounded-2xl"
           style={{ backgroundColor: `${colors.gym}22` }}
         >
-          <Icon icon={Play} size={26} color={colors.gym} />
+          <Icon icon={Target} size={26} color={colors.gym} />
         </View>
         <View className="flex-1">
-          <Text variant="heading">Start an empty workout</Text>
-          <Text variant="muted">Log freestyle, or pick a routine below.</Text>
+          <Text variant="heading">Choose a program</Text>
+          <Text variant="muted">
+            Pick a plan and your next workout shows up right here.
+          </Text>
         </View>
+        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+      </Card>
+    </Pressable>
+  );
+}
+
+/** Compact ad-hoc entry point — demoted below the program hero. */
+function EmptyWorkoutCard({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} className="active:opacity-80">
+      <Card className="flex-row items-center gap-3">
+        <View
+          className="h-10 w-10 items-center justify-center rounded-xl"
+          style={{ backgroundColor: `${colors.gym}1a` }}
+        >
+          <Icon icon={Play} size={18} color={colors.gym} />
+        </View>
+        <View className="flex-1">
+          <Text variant="body">Start an empty workout</Text>
+          <Text variant="muted">Log freestyle, off-plan.</Text>
+        </View>
+        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
       </Card>
     </Pressable>
   );

@@ -1,21 +1,24 @@
 import { Stack, useRouter } from 'expo-router';
-import { Plus, TrendingUp } from 'lucide-react-native';
+import { Check, Play, Plus, TrendingUp } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Pressable, ScrollView } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
 import {
   createProgram,
+  setCurrentProgram,
   startProgramWorkout,
   useActivePrograms,
   useAllProgramDays,
+  useCurrentProgram,
 } from '../queries';
 
 export function ProgramList() {
   const router = useRouter();
   const { data: programs } = useActivePrograms();
   const { data: days } = useAllProgramDays();
+  const current = useCurrentProgram();
 
   // Group day names by program so each card can show "Next: <day>".
   const daysByProgram = useMemo(() => {
@@ -42,6 +45,12 @@ export function ProgramList() {
     });
   }
 
+  // Pick this program to follow, then return to Train where it's now the hero.
+  function pickProgram(programId: number) {
+    setCurrentProgram(programId);
+    router.back();
+  }
+
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Programs' }} />
@@ -56,13 +65,14 @@ export function ProgramList() {
           <EmptyState
             icon={<Icon icon={TrendingUp} size={40} color={colors.fgFaint} />}
             title="No programs yet"
-            description="A program is a multi-week, multi-day roadmap: it suggests your next weights and reps, and walks you through the cycle as you log workouts."
+            description="A program is a multi-week, multi-day roadmap: choose one to follow and it suggests your next weights and reps, walking you through the cycle as you log workouts."
           />
         ) : (
           programs.map((program) => {
             const programDays = daysByProgram.get(program.id) ?? [];
             const dayCount = programDays.length;
             const nextDay = programDays[program.currentDayIndex];
+            const isCurrent = current?.id === program.id;
             // Cursor: where the lifter is in the week × day grid.
             const cursor =
               dayCount === 0
@@ -77,7 +87,12 @@ export function ProgramList() {
                   onPress={() => openProgram(program.id)}
                   className="active:opacity-70"
                 >
-                  <Text variant="heading">{program.name}</Text>
+                  <View className="flex-row items-center gap-2">
+                    <Text variant="heading" className="flex-1">
+                      {program.name}
+                    </Text>
+                    {isCurrent ? <CurrentBadge /> : null}
+                  </View>
                   {program.description ? (
                     <Text variant="caption" className="mt-1">
                       {program.description}
@@ -91,16 +106,40 @@ export function ProgramList() {
                     {cursor}
                   </Text>
                 </Pressable>
-                <Button
-                  label="Start workout"
-                  size="md"
-                  onPress={() => openWorkout(startProgramWorkout(program.id))}
-                />
+                {isCurrent ? (
+                  <Button
+                    label="Start workout"
+                    size="md"
+                    leftIcon={<Icon icon={Play} size={16} color={colors.fg} />}
+                    onPress={() => openWorkout(startProgramWorkout(program.id))}
+                  />
+                ) : (
+                  <Button
+                    label="Use this program"
+                    variant="secondary"
+                    size="md"
+                    onPress={() => pickProgram(program.id)}
+                  />
+                )}
               </Card>
             );
           })
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+function CurrentBadge() {
+  return (
+    <View
+      className="flex-row items-center gap-1 rounded-full px-2 py-0.5"
+      style={{ backgroundColor: `${colors.gym}26` }}
+    >
+      <Icon icon={Check} size={12} color={colors.gym} />
+      <Text variant="caption" style={{ color: colors.gym }}>
+        Current
+      </Text>
+    </View>
   );
 }

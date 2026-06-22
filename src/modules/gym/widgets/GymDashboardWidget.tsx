@@ -8,12 +8,17 @@ import type { DashboardWidgetProps } from '@/core/types/module';
 import { Button, Icon, Stat, Text, colors } from '@/ui';
 
 import { formatRelativeDate, formatWeight } from '../format';
-import { useActiveSession, useGymStats } from '../queries';
+import {
+  useActiveSession,
+  useGymStats,
+  useNextProgramWorkout,
+} from '../queries';
 
 export function GymDashboardWidget(_props: DashboardWidgetProps) {
   const router = useRouter();
   const stats = useGymStats();
   const active = useActiveSession();
+  const next = useNextProgramWorkout();
   const { weightUnit } = useSettings();
 
   function startOrResume() {
@@ -44,6 +49,10 @@ export function GymDashboardWidget(_props: DashboardWidgetProps) {
             Workout in progress · {active.routineName ?? 'Freestyle'}
           </Text>
         </View>
+      ) : next?.ready ? (
+        <Text variant="muted">
+          Next: {next.dayName} · Week {next.weekIndex} of {next.lengthWeeks}
+        </Text>
       ) : stats.lastWorkout ? (
         <Text variant="muted">
           Last: {stats.lastWorkout.name} ·{' '}
