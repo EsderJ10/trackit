@@ -17,7 +17,7 @@ import {
   renderPrescribedSet,
   suggestNext,
 } from './progression-engine';
-import type { MuscleLandmarkBands } from './landmarks';
+import { DEFAULT_MUSCLE_LANDMARKS, type MuscleLandmarkBands } from './landmarks';
 import {
   exercises,
   exerciseTrainingState,
@@ -159,6 +159,17 @@ export function setDefaultRestSec(defaultRestSec: number): void {
     .run();
 }
 
+/** Live default rest length (seconds); falls back to the default pre-write. */
+export function useDefaultRestSec(): number {
+  const { data } = useLiveQuery(
+    db
+      .select({ defaultRestSec: gymSettings.defaultRestSec })
+      .from(gymSettings)
+      .where(eq(gymSettings.id, 1)),
+  );
+  return data[0]?.defaultRestSec ?? DEFAULT_REST_SEC;
+}
+
 const DEFAULT_WEEKLY_GOAL = 3;
 
 /** Live target finished-workouts-per-week; falls back to the default pre-write. */
@@ -197,6 +208,35 @@ export function useMuscleLandmarks(): Map<string, MuscleLandmarkBands> {
       ),
     [data],
   );
+}
+
+/** Persist one muscle's edited bands (upsert). Callers pass clamped bands. */
+export function setMuscleLandmark(
+  muscleGroup: string,
+  bands: MuscleLandmarkBands,
+): void {
+  db.insert(muscleLandmarks)
+    .values({ muscleGroup, ...bands })
+    .onConflictDoUpdate({
+      target: muscleLandmarks.muscleGroup,
+      set: { mv: bands.mv, mev: bands.mev, mav: bands.mav, mrv: bands.mrv },
+    })
+    .run();
+}
+
+/** Restore every muscle's bands to the RP-derived defaults (upsert). */
+export function resetMuscleLandmarks(): void {
+  db.transaction((tx) => {
+    for (const [muscleGroup, b] of Object.entries(DEFAULT_MUSCLE_LANDMARKS)) {
+      tx.insert(muscleLandmarks)
+        .values({ muscleGroup, mv: b.mv, mev: b.mev, mav: b.mav, mrv: b.mrv })
+        .onConflictDoUpdate({
+          target: muscleLandmarks.muscleGroup,
+          set: { mv: b.mv, mev: b.mev, mav: b.mav, mrv: b.mrv },
+        })
+        .run();
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
