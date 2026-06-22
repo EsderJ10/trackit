@@ -231,6 +231,19 @@ export const gymSettings = sqliteTable('gym_settings', {
   defaultRestSec: integer('default_rest_sec').notNull().default(120),
   /** Target finished workouts per week — drives the profile's weekly-goal ring. */
   weeklyWorkoutGoal: integer('weekly_workout_goal').notNull().default(3),
+  /**
+   * The single program the user is currently following ("everything revolves
+   * around it" — Train/Home surface its next workout). Null = no program picked,
+   * fall back to ad-hoc training. Distinct from `programs.active` (which means
+   * "in my library / not archived"). Set null on delete so the pointer can never
+   * dangle.
+   */
+  currentProgramId: integer('current_program_id').references(
+    () => programs.id,
+    {
+      onDelete: 'set null',
+    },
+  ),
 });
 
 /**

@@ -1,0 +1,1 @@
+ALTER TABLE `gym_settings` ADD `current_program_id` integer REFERENCES programs(id);

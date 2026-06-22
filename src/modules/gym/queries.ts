@@ -17,7 +17,10 @@ import {
   renderPrescribedSet,
   suggestNext,
 } from './progression-engine';
-import { DEFAULT_MUSCLE_LANDMARKS, type MuscleLandmarkBands } from './landmarks';
+import {
+  DEFAULT_MUSCLE_LANDMARKS,
+  type MuscleLandmarkBands,
+} from './landmarks';
 import {
   exercises,
   exerciseTrainingState,
@@ -796,6 +799,138 @@ export function useProgram(programId: number) {
   return data[0];
 }
 
+export interface CurrentProgram {
+  id: number;
+  name: string;
+  currentWeek: number;
+  currentDayIndex: number;
+  currentCycle: number;
+  lengthWeeks: number;
+}
+
+/**
+ * The single program the user is currently following (`gym_settings`'s pointer),
+ * or `undefined` when none is picked. This is the program everything on Train /
+ * Home revolves around — distinct from `useActivePrograms` (the whole library).
+ */
+export function useCurrentProgram(): CurrentProgram | undefined {
+  const { data } = useLiveQuery(
+    db
+      .select({
+        id: programs.id,
+        name: programs.name,
+        currentWeek: programs.currentWeek,
+        currentDayIndex: programs.currentDayIndex,
+        currentCycle: programs.currentCycle,
+        lengthWeeks: programs.lengthWeeks,
+      })
+      .from(gymSettings)
+      .innerJoin(programs, eq(programs.id, gymSettings.currentProgramId))
+      .where(eq(gymSettings.id, 1))
+      .limit(1),
+  );
+  return data[0];
+}
+
+/** Pick (or clear) the program to follow; upserts the singleton settings row. */
+export function setCurrentProgram(programId: number | null): void {
+  db.insert(gymSettings)
+    .values({ id: 1, currentProgramId: programId })
+    .onConflictDoUpdate({
+      target: gymSettings.id,
+      set: { currentProgramId: programId },
+    })
+    .run();
+}
+
+export interface NextProgramWorkout {
+  programId: number;
+  programName: string;
+  /** 1-based week the cursor sits in. */
+  weekIndex: number;
+  lengthWeeks: number;
+  /** 0-based day the cursor sits in. */
+  dayIndex: number;
+  dayCount: number;
+  /** Null when the program has no day at the cursor (needs setup). */
+  dayName: string | null;
+  isDeload: boolean;
+  /** Exercise names for the upcoming day, in order — a preview for the hero. */
+  exerciseNames: string[];
+  /** True when the cursor's day exists and has at least one exercise. */
+  ready: boolean;
+}
+
+/**
+ * Resolves the current program's cursor into the *next* workout to perform:
+ * which day, its exercises, and whether it's a deload — everything the Train
+ * hero needs. Mirrors the cursor → day → exercises walk in `startProgramWorkout`
+ * (read-only here). `undefined` when no program is being followed.
+ */
+export function useNextProgramWorkout(): NextProgramWorkout | undefined {
+  const current = useCurrentProgram();
+  const programId = current?.id ?? -1;
+  const weekIndex = current?.currentWeek ?? 1;
+  const dayIndex = current?.currentDayIndex ?? 0;
+
+  const { data: days } = useLiveQuery(
+    db
+      .select({
+        id: programDays.id,
+        dayIndex: programDays.dayIndex,
+        name: programDays.name,
+      })
+      .from(programDays)
+      .where(eq(programDays.programId, programId))
+      .orderBy(programDays.dayIndex),
+    [programId],
+  );
+
+  const currentDay = days.find((d) => d.dayIndex === dayIndex);
+  const dayId = currentDay?.id ?? -1;
+
+  const { data: exRows } = useLiveQuery(
+    db
+      .select({ name: exercises.name })
+      .from(programExercises)
+      .innerJoin(exercises, eq(programExercises.exerciseId, exercises.id))
+      .where(eq(programExercises.programDayId, dayId))
+      .orderBy(programExercises.position),
+    [dayId],
+  );
+
+  const { data: weekRows } = useLiveQuery(
+    db
+      .select({ isDeload: programWeeks.isDeload })
+      .from(programWeeks)
+      .where(
+        and(
+          eq(programWeeks.programId, programId),
+          eq(programWeeks.weekIndex, weekIndex),
+        ),
+      )
+      .limit(1),
+    [programId, weekIndex],
+  );
+
+  return useMemo(() => {
+    if (!current) return undefined;
+    const exerciseNames = exRows.map((r) => r.name);
+    return {
+      programId: current.id,
+      programName: current.name,
+      weekIndex: current.currentWeek,
+      lengthWeeks: current.lengthWeeks,
+      dayIndex: current.currentDayIndex,
+      dayCount: days.length,
+      dayName: currentDay?.name ?? null,
+      isDeload: weekRows[0]?.isDeload ?? false,
+      exerciseNames,
+      ready: currentDay != null && exerciseNames.length > 0,
+    };
+  }, [current, days, currentDay, exRows, weekRows]);
+}
+
 /** Every program's days (id, index, name) — for rendering each program's cursor. */
 export function useAllProgramDays() {
   return useLiveQuery(
@@ -963,6 +1098,12 @@ export function deleteProgram(programId: number): void {
     tx.update(workoutSessions)
       .set({ programId: null, programDayId: null })
       .where(eq(workoutSessions.programId, programId))
+      .run();
+    // Same ALTER-dropped-FK story for the "currently following" pointer — clear
+    // it ourselves so Train falls back to ad-hoc when the followed program goes.
+    tx.update(gymSettings)
+      .set({ currentProgramId: null })
+      .where(eq(gymSettings.currentProgramId, programId))
       .run();
     tx.delete(programs).where(eq(programs.id, programId)).run();
   });
