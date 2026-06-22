@@ -53,6 +53,7 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "test": "vitest run",
+    "dryrun:wave": "node scripts/wave-dryrun.mts",
     "db:generate": "drizzle-kit generate"
   },
   "private": true
