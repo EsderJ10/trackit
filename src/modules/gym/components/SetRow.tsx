@@ -21,7 +21,8 @@ import { NumberField } from './NumberField';
 
 export interface SetRowProps {
   set: SetLogRow;
-  index: number;
+  /** 1-based ordinal *among working sets* — shown on the badge for working sets. */
+  displayNumber: number;
   unit: WeightUnit;
   /** The matching set from the last session (canonical kg), if any. */
   previous?: { reps: number; weight: number };
@@ -62,7 +63,7 @@ const SET_TYPE_CYCLE: readonly SetType[] = [
 /** Glanceable badge per set-type: a letter + accent so the type reads at a glance. */
 function setTypeBadge(
   setType: SetType,
-  index: number,
+  workingNumber: number,
 ): { label: string; color: string } {
   switch (setType) {
     case 'warmup':
@@ -72,7 +73,7 @@ function setTypeBadge(
     case 'failure':
       return { label: 'F', color: colors.danger };
     case 'working':
-      return { label: String(index + 1), color: colors.fgMuted };
+      return { label: String(workingNumber), color: colors.fgMuted };
   }
 }
 
@@ -84,7 +85,7 @@ function setTypeBadge(
  */
 export function SetRow({
   set,
-  index,
+  displayNumber,
   unit,
   previous,
   onUpdate,
@@ -144,7 +145,7 @@ export function SetRow({
     );
   }
 
-  const badge = setTypeBadge(set.setType, index);
+  const badge = setTypeBadge(set.setType, displayNumber);
   const kind = set.measurementKind;
   const showRepsWeight = kind === 'weight_reps' || kind === 'bodyweight';
 

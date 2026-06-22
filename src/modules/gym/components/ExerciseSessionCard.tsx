@@ -63,6 +63,13 @@ export function ExerciseSessionCard({
   // Plate/warm-up tools only make sense for loaded barbell-style lifts.
   const isLoaded = sets[0]?.measurementKind === 'weight_reps';
 
+  // Badge numbers count working sets only (warmups/drops/failures show a letter),
+  // so floating warm-ups to the top doesn't renumber the working sets.
+  let workingCount = 0;
+  const workingNumbers = sets.map((set) =>
+    set.setType === 'working' ? ++workingCount : 0,
+  );
+
   return (
     <Card className="gap-3">
       <View className="flex-row items-start justify-between">
@@ -103,9 +110,15 @@ export function ExerciseSessionCard({
             <SetRow
               key={set.id}
               set={set}
-              index={index}
+              displayNumber={workingNumbers[index] ?? 0}
               unit={unit}
-              previous={previous?.[index]}
+              // Prev cue aligns to the working-set ordinal (history is working
+              // sets only) and never shows on a warm-up/drop row.
+              previous={
+                set.setType === 'working'
+                  ? previous?.[(workingNumbers[index] ?? 1) - 1]
+                  : undefined
+              }
               onUpdate={onUpdateSet}
               onToggle={onToggleSet}
               onDelete={onDeleteSet}
