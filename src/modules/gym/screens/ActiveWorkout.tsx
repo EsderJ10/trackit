@@ -1,6 +1,7 @@
+import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView } from 'react-native';
 
 import { useSettings } from '@/core/settings/use-settings';
@@ -11,14 +12,22 @@ import {
   type ExerciseTarget,
 } from '../components/ExerciseSessionCard';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
+import { PRBanner } from '../components/PRBanner';
 import { RestTimerBar } from '../components/RestTimerBar';
 import { SessionNotesField } from '../components/SessionNotesField';
+import {
+  detectPRs,
+  type ExerciseBests,
+  foldBests,
+  prMessage,
+} from '../pr-detect';
 import {
   addSet,
   deleteExerciseSets,
   deleteSetLog,
   finishWorkout,
   getDefaultRestSec,
+  getExerciseBests,
   getLastPerformance,
   seedExerciseSets,
   setSetCompleted,
@@ -76,6 +85,16 @@ export function ActiveWorkout() {
   const [extraIds, setExtraIds] = useState<number[]>([]);
   const [removedIds, setRemovedIds] = useState<number[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Live PR celebration: the current banner message (cleared on a timer) and the
+  // per-exercise all-time bests, fetched lazily and folded as sets complete.
+  const [prMsg, setPrMsg] = useState<string | null>(null);
+  const bestsRef = useRef(new Map<number, ExerciseBests>());
+
+  useEffect(() => {
+    if (prMsg == null) return;
+    const timer = setTimeout(() => setPrMsg(null), 2800);
+    return () => clearTimeout(timer);
+  }, [prMsg]);
 
   const catalogById = useMemo(
     () => new Map(catalog.map((exercise) => [exercise.id, exercise])),
@@ -225,8 +244,31 @@ export function ActiveWorkout() {
 
   function toggleSet(id: number, completed: boolean) {
     setSetCompleted(id, completed);
-    // Checking off a set kicks off the between-sets rest countdown.
-    if (completed) startRest();
+    if (!completed) return;
+    // Checking off a set kicks off the between-sets rest countdown + a tap.
+    startRest();
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Live PR check — working sets only; warmups/drops/timed-vs-load never PR.
+    const set = sets.find((s) => s.id === id);
+    if (set == null || set.setType !== 'working') return;
+    const candidate = {
+      reps: set.reps,
+      weightKg: set.weight,
+      durationSec: set.durationSec,
+      measurementKind: set.measurementKind,
+    };
+    let bests = bestsRef.current.get(set.exerciseId);
+    if (bests == null) {
+      bests = getExerciseBests(set.exerciseId);
+    }
+    const kinds = detectPRs(candidate, bests);
+    // Fold the set in so the same record can't re-fire on a repeat tap.
+    bestsRef.current.set(set.exerciseId, foldBests(bests, candidate));
+    if (kinds.length > 0) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPrMsg(prMessage(set.exerciseName, kinds));
+    }
   }
 
   return (
@@ -272,6 +314,7 @@ export function ActiveWorkout() {
       </ScrollView>
 
       <RestTimerBar />
+      <PRBanner message={prMsg} />
 
       <ExercisePickerModal
         visible={pickerOpen}

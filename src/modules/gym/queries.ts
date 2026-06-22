@@ -23,6 +23,7 @@ import {
   DEFAULT_MUSCLE_LANDMARKS,
   type MuscleLandmarkBands,
 } from './landmarks';
+import { EMPTY_BESTS, type ExerciseBests, foldBests } from './pr-detect';
 import {
   exercises,
   exerciseTrainingState,
@@ -358,6 +359,8 @@ export function getLastPerformance(
     .where(
       and(
         eq(setLogs.exerciseId, exerciseId),
+        // Seed from working sets only — never pre-fill a warmup as the work set.
+        eq(setLogs.setType, 'working'),
         isNotNull(setLogs.completedAt),
         // Only seed from a workout the user actually finished, not an
         // abandoned in-progress session.
@@ -378,11 +381,51 @@ export function getLastPerformance(
       and(
         eq(setLogs.sessionId, lastSessionId),
         eq(setLogs.exerciseId, exerciseId),
+        eq(setLogs.setType, 'working'),
         isNotNull(setLogs.completedAt),
       ),
     )
     .orderBy(setLogs.setNumber)
     .all();
+}
+
+/**
+ * An exercise's all-time bests for live PR detection — folded from working sets
+ * in *finished* sessions (the current in-progress session has no `finishedAt`,
+ * so it's excluded for free). Plain read, called once per exercise on session
+ * load; the screen folds new sets in-memory after that.
+ */
+export function getExerciseBests(exerciseId: number): ExerciseBests {
+  const rows = db
+    .select({
+      reps: setLogs.reps,
+      weight: setLogs.weight,
+      durationSec: setLogs.durationSec,
+      measurementKind: exercises.measurementKind,
+    })
+    .from(setLogs)
+    .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id))
+    .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(setLogs.exerciseId, exerciseId),
+        eq(setLogs.setType, 'working'),
+        isNotNull(setLogs.completedAt),
+        isNotNull(workoutSessions.finishedAt),
+      ),
+    )
+    .all();
+
+  return rows.reduce(
+    (bests, r) =>
+      foldBests(bests, {
+        reps: r.reps,
+        weightKg: r.weight,
+        durationSec: r.durationSec,
+        measurementKind: r.measurementKind,
+      }),
+    EMPTY_BESTS,
+  );
 }
 
 export interface ExerciseHistoryRow {
@@ -419,6 +462,8 @@ export function useExerciseSetHistory(exerciseId: number) {
       .where(
         and(
           eq(setLogs.exerciseId, exerciseId),
+          // Working sets only — the PR/e1RM history excludes warmups & drops.
+          eq(setLogs.setType, 'working'),
           isNotNull(setLogs.completedAt),
           isNotNull(workoutSessions.finishedAt),
         ),
@@ -436,6 +481,13 @@ export function useSession(sessionId: number) {
   return data[0];
 }
 
+export type SetType = 'warmup' | 'working' | 'drop' | 'failure';
+export type MeasurementKind =
+  | 'weight_reps'
+  | 'bodyweight'
+  | 'duration'
+  | 'distance_time';
+
 export interface SetLogRow {
   id: number;
   exerciseId: number;
@@ -444,6 +496,10 @@ export interface SetLogRow {
   reps: number;
   weight: number;
   rpe: number | null;
+  setType: SetType;
+  durationSec: number | null;
+  distanceM: number | null;
+  measurementKind: MeasurementKind;
   completedAt: Date | null;
 }
 
@@ -458,12 +514,17 @@ export function useSessionSets(sessionId: number) {
         reps: setLogs.reps,
         weight: setLogs.weight,
         rpe: setLogs.rpe,
+        setType: setLogs.setType,
+        durationSec: setLogs.durationSec,
+        distanceM: setLogs.distanceM,
+        measurementKind: exercises.measurementKind,
         completedAt: setLogs.completedAt,
       })
       .from(setLogs)
       .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id))
       .where(eq(setLogs.sessionId, sessionId))
       // Order by id (insertion order) — completedAt is null for planned sets.
+      // Unfiltered by setType: the active workout shows every set, warmups too.
       .orderBy(setLogs.id),
     [sessionId],
   );
@@ -500,6 +561,11 @@ export interface SetPatch {
   weight?: number;
   /** RPE 1–10 (half-steps allowed); null clears it. */
   rpe?: number | null;
+  setType?: SetType;
+  /** Seconds of timed work (duration / distance_time kinds); null clears it. */
+  durationSec?: number | null;
+  /** Metres of distance work (distance_time kind); null clears it. */
+  distanceM?: number | null;
 }
 
 export function updateSet(id: number, patch: SetPatch): void {
@@ -660,8 +726,11 @@ export function useGymStats(): GymStats {
         weight: setLogs.weight,
         reps: setLogs.reps,
         completedAt: setLogs.completedAt,
+        setType: setLogs.setType,
+        measurementKind: exercises.measurementKind,
       })
-      .from(setLogs),
+      .from(setLogs)
+      .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id)),
   );
   const { data: lastSessions } = useLiveQuery(
     db
@@ -681,11 +750,21 @@ export function useGymStats(): GymStats {
     // memo recomputes when `sets` change, which is when this value matters.
     // eslint-disable-next-line react-hooks/purity
     const cutoff = Date.now() - WEEK_MS;
-    // Only completed sets count toward volume; planned sets have null completedAt.
+    // Completed, non-warmup sets count; planned sets have null completedAt.
     const weekly = sets.filter(
-      (s) => s.completedAt != null && s.completedAt.getTime() >= cutoff,
+      (s) =>
+        s.completedAt != null &&
+        s.completedAt.getTime() >= cutoff &&
+        s.setType !== 'warmup',
     );
-    const weeklyVolume = weekly.reduce((sum, s) => sum + s.weight * s.reps, 0);
+    // Tonnage only from load-bearing kinds (timed/distance carry no weight).
+    const weeklyVolume = weekly.reduce(
+      (sum, s) =>
+        s.measurementKind === 'weight_reps' || s.measurementKind === 'bodyweight'
+          ? sum + s.weight * s.reps
+          : sum,
+      0,
+    );
     const last = lastSessions[0];
     return {
       weeklyVolume: Math.round(weeklyVolume),
@@ -721,6 +800,8 @@ export function useGymProfileStats(): GymProfileStats {
         reps: setLogs.reps,
         completedAt: setLogs.completedAt,
         muscleGroup: exercises.muscleGroup,
+        setType: setLogs.setType,
+        measurementKind: exercises.measurementKind,
       })
       .from(setLogs)
       .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id)),
@@ -761,6 +842,10 @@ export function useExercisePRs(limit = 5) {
       .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
       .where(
         and(
+          // Only working sets of load×reps lifts yield a 1RM PR — never a
+          // warmup, a drop set, or a timed/bodyweight exercise.
+          eq(setLogs.setType, 'working'),
+          eq(exercises.measurementKind, 'weight_reps'),
           isNotNull(setLogs.completedAt),
           isNotNull(workoutSessions.finishedAt),
         ),

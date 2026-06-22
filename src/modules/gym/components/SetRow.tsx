@@ -1,4 +1,11 @@
-import { ArrowDown, ArrowUp, Check, Trash2, X } from 'lucide-react-native';
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Minus,
+  Plus,
+  Trash2,
+} from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -8,7 +15,7 @@ import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { Icon, Text, cn, colors, glow } from '@/ui';
 
 import { formatWeight } from '../format';
-import type { SetLogRow, SetPatch } from '../queries';
+import type { SetLogRow, SetPatch, SetType } from '../queries';
 import { compareToPrevious } from '../set-comparison';
 import { NumberField } from './NumberField';
 
@@ -41,11 +48,39 @@ function toRpe(value: string): number | null {
   return Math.min(10, Math.max(1, parsed));
 }
 
+/** Weight stepper increment in the display unit (loadable-ish defaults). */
+const WEIGHT_STEP: Record<WeightUnit, number> = { kg: 2.5, lb: 5 };
+
+/** The set-type cycle order when tapping the badge; working is the default. */
+const SET_TYPE_CYCLE: readonly SetType[] = [
+  'working',
+  'warmup',
+  'drop',
+  'failure',
+];
+
+/** Glanceable badge per set-type: a letter + accent so the type reads at a glance. */
+function setTypeBadge(
+  setType: SetType,
+  index: number,
+): { label: string; color: string } {
+  switch (setType) {
+    case 'warmup':
+      return { label: 'W', color: colors.fgFaint };
+    case 'drop':
+      return { label: 'D', color: colors.warning };
+    case 'failure':
+      return { label: 'F', color: colors.danger };
+    case 'working':
+      return { label: String(index + 1), color: colors.fgMuted };
+  }
+}
+
 /**
- * One persistent set inside an active workout: inline-editable reps/weight, a
- * check to toggle complete, a tap-delete, and swipe-left to delete. Local input
- * state is seeded once and commits on blur so live-query re-renders don't clobber
- * mid-edit text.
+ * One persistent set inside an active workout: inline-editable fields (branched
+ * by the exercise's measurement kind), a tap-cycle set-type badge, a check to
+ * toggle complete, tap- and swipe-delete. Local input state is seeded once and
+ * commits on blur so live-query re-renders don't clobber mid-edit text.
  */
 export function SetRow({
   set,
@@ -62,6 +97,12 @@ export function SetRow({
     String(toDisplayWeight(set.weight, unit)),
   );
   const [rpe, setRpe] = useState(set.rpe != null ? String(set.rpe) : '');
+  const [duration, setDuration] = useState(
+    set.durationSec != null ? String(set.durationSec) : '',
+  );
+  const [distance, setDistance] = useState(
+    set.distanceM != null ? String(set.distanceM) : '',
+  );
   const completed = set.completedAt != null;
 
   // Compare the *logged* set against last session only once it's checked off —
@@ -74,6 +115,24 @@ export function SetRow({
         )
       : null;
 
+  function commitReps(next: number) {
+    const clamped = Math.max(0, next);
+    setReps(String(clamped));
+    onUpdate(set.id, { reps: clamped });
+  }
+
+  function commitWeightDisplay(displayValue: number) {
+    const clamped = Math.max(0, displayValue);
+    setWeight(String(clamped));
+    onUpdate(set.id, { weight: fromDisplayWeight(clamped, unit) });
+  }
+
+  function cycleSetType() {
+    const i = SET_TYPE_CYCLE.indexOf(set.setType);
+    const next = SET_TYPE_CYCLE[(i + 1) % SET_TYPE_CYCLE.length] ?? 'working';
+    onUpdate(set.id, { setType: next });
+  }
+
   function renderRightActions() {
     return (
       <Pressable
@@ -84,6 +143,10 @@ export function SetRow({
       </Pressable>
     );
   }
+
+  const badge = setTypeBadge(set.setType, index);
+  const kind = set.measurementKind;
+  const showRepsWeight = kind === 'weight_reps' || kind === 'bodyweight';
 
   return (
     <ReanimatedSwipeable
@@ -101,35 +164,76 @@ export function SetRow({
         )}
       >
         <View className="flex-row items-center gap-2">
-          <Text variant="muted" className="w-7">
-            {index + 1}
-          </Text>
+          <Pressable
+            onPress={cycleSetType}
+            hitSlop={8}
+            className="w-7 items-center active:opacity-60"
+          >
+            <Text style={{ color: badge.color }} className="font-semibold">
+              {badge.label}
+            </Text>
+          </Pressable>
 
-          <NumberField
-            value={reps}
-            onChangeText={setReps}
-            onEndEditing={() =>
-              onUpdate(set.id, { reps: toInt(reps, set.reps) })
-            }
-            className="flex-1"
-          />
-          <Text variant="muted">×</Text>
-          <NumberField
-            value={weight}
-            onChangeText={setWeight}
-            onEndEditing={() =>
-              onUpdate(set.id, {
-                weight: fromDisplayWeight(
-                  toFloat(weight, toDisplayWeight(set.weight, unit)),
-                  unit,
-                ),
-              })
-            }
-            className="flex-1"
-          />
-          <Text variant="caption" className="w-6">
-            {unit}
-          </Text>
+          {showRepsWeight ? (
+            <>
+              <StepperField
+                value={reps}
+                onChangeText={setReps}
+                onCommit={() => commitReps(toInt(reps, set.reps))}
+                onStep={(dir) => commitReps(toInt(reps, set.reps) + dir)}
+              />
+              <Text variant="muted">{kind === 'bodyweight' ? '＋' : '×'}</Text>
+              <StepperField
+                value={weight}
+                onChangeText={setWeight}
+                onCommit={() =>
+                  commitWeightDisplay(
+                    toFloat(weight, toDisplayWeight(set.weight, unit)),
+                  )
+                }
+                onStep={(dir) =>
+                  commitWeightDisplay(
+                    toFloat(weight, toDisplayWeight(set.weight, unit)) +
+                      dir * WEIGHT_STEP[unit],
+                  )
+                }
+              />
+              <Text variant="caption" className="w-6">
+                {unit}
+              </Text>
+            </>
+          ) : kind === 'duration' ? (
+            <NumberField
+              value={duration}
+              placeholder="sec"
+              onChangeText={setDuration}
+              onEndEditing={() =>
+                onUpdate(set.id, { durationSec: toInt(duration, 0) })
+              }
+              className="flex-1"
+            />
+          ) : (
+            <>
+              <NumberField
+                value={distance}
+                placeholder="m"
+                onChangeText={setDistance}
+                onEndEditing={() =>
+                  onUpdate(set.id, { distanceM: toFloat(distance, 0) })
+                }
+                className="flex-1"
+              />
+              <NumberField
+                value={duration}
+                placeholder="sec"
+                onChangeText={setDuration}
+                onEndEditing={() =>
+                  onUpdate(set.id, { durationSec: toInt(duration, 0) })
+                }
+                className="flex-1"
+              />
+            </>
+          )}
 
           <NumberField
             value={rpe}
@@ -158,17 +262,9 @@ export function SetRow({
               />
             </View>
           </Pressable>
-
-          <Pressable
-            onPress={() => onDelete(set.id)}
-            hitSlop={8}
-            className="active:opacity-60"
-          >
-            <Icon icon={X} size={16} color={colors.fgFaint} />
-          </Pressable>
         </View>
 
-        {previous ? (
+        {previous && showRepsWeight ? (
           <View className="mt-1 flex-row items-center gap-1 pl-9">
             <Text variant="caption">
               prev {previous.reps} × {formatWeight(previous.weight, unit)}
@@ -182,5 +278,43 @@ export function SetRow({
         ) : null}
       </View>
     </ReanimatedSwipeable>
+  );
+}
+
+/** A numeric field flanked by −/＋ steppers for keyboard-free entry. */
+function StepperField({
+  value,
+  onChangeText,
+  onCommit,
+  onStep,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  onCommit: () => void;
+  onStep: (direction: 1 | -1) => void;
+}) {
+  return (
+    <View className="flex-1 flex-row items-center gap-1">
+      <Pressable
+        onPress={() => onStep(-1)}
+        hitSlop={6}
+        className="h-9 w-7 items-center justify-center rounded-lg bg-surface-hi active:opacity-60"
+      >
+        <Icon icon={Minus} size={15} color={colors.fgMuted} />
+      </Pressable>
+      <NumberField
+        value={value}
+        onChangeText={onChangeText}
+        onEndEditing={onCommit}
+        className="flex-1"
+      />
+      <Pressable
+        onPress={() => onStep(1)}
+        hitSlop={6}
+        className="h-9 w-7 items-center justify-center rounded-lg bg-surface-hi active:opacity-60"
+      >
+        <Icon icon={Plus} size={15} color={colors.fgMuted} />
+      </Pressable>
+    </View>
   );
 }
