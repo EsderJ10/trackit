@@ -1684,6 +1684,7 @@ function advanceProgram(
 
       const logged = db
         .select({
+          setNumber: setLogs.setNumber,
           reps: setLogs.reps,
           weight: setLogs.weight,
           rpe: setLogs.rpe,
@@ -1693,6 +1694,9 @@ function advanceProgram(
           and(
             eq(setLogs.sessionId, sessionId),
             eq(setLogs.exerciseId, slot.exerciseId),
+            // Only working sets drive progression — warmups/drops/failures are
+            // not the prescribed effort.
+            eq(setLogs.setType, 'working'),
             isNotNull(setLogs.completedAt),
           ),
         )
@@ -1710,13 +1714,35 @@ function advanceProgram(
       // RPE autoregulates: re-anchor the estimated 1RM from the best logged set
       // via the exact inverse of the render path, so a hit-the-prescription
       // session holds the anchor flat (and beating it raises it). Pre-filled sets
-      // log no RPE, so fall back to the slot's target RPE (the load was rendered
-      // at exactly that RPE).
+      // log no RPE, so re-anchor against the RPE each set was *rendered* at — its
+      // per-week prescription — not the slot's single target. Using the target on
+      // a week whose prescribed RPE differs would drift (spiral) the anchor.
       if (slot.schemeType === 'rpe') {
         const targetRpe = slot.targetRpe ?? 8;
+        const prescribedRpe = new Map<number, number>();
+        for (const p of db
+          .select({
+            setNumber: programSets.setNumber,
+            intensityValue: programSets.intensityValue,
+          })
+          .from(programSets)
+          .where(
+            and(
+              eq(programSets.programExerciseId, slot.id),
+              eq(programSets.weekIndex, weekIndex),
+              eq(programSets.intensityKind, 'rpe'),
+            ),
+          )
+          .all()) {
+          prescribedRpe.set(p.setNumber, p.intensityValue);
+        }
         const best = Math.max(
           ...logged.map((s) =>
-            e1rmFromLoggedSet(s.weight, s.reps, s.rpe ?? targetRpe),
+            e1rmFromLoggedSet(
+              s.weight,
+              s.reps,
+              s.rpe ?? prescribedRpe.get(s.setNumber) ?? targetRpe,
+            ),
           ),
         );
         db.update(exerciseTrainingState)

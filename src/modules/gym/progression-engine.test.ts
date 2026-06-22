@@ -315,6 +315,21 @@ describe('e1rmFromLoggedSet — the RPE re-anchor (inverse of the render path)',
     // Hit the load but it ground to RPE9 — harder than prescribed.
     expect(e1rmFromLoggedSet(rendered, 5, 9)).toBeLessThan(90);
   });
+
+  it('holds flat across a per-week wave only when re-anchored at the rendered RPE', () => {
+    // A generated wave prescribes a different RPE each week (e.g. RPE 7 in wk1).
+    // Pre-filled sets log no RPE, so advanceProgram must re-anchor at the RPE the
+    // set was *rendered* at — not a fixed target — or the anchor spirals.
+    const anchor = 100;
+    for (const weekRpe of [7, 8, 9, 10]) {
+      const rendered = anchor * rpePct(weekRpe, 8);
+      // Correct: re-anchor at the week's prescribed RPE → flat.
+      expect(e1rmFromLoggedSet(rendered, 8, weekRpe)).toBeCloseTo(anchor, 6);
+    }
+    // Wrong: re-anchoring a week-1 (RPE 7) set at a fixed target RPE 8 drifts down.
+    const wk1 = anchor * rpePct(7, 8);
+    expect(e1rmFromLoggedSet(wk1, 8, 8)).toBeLessThan(anchor);
+  });
 });
 
 describe('generateWave — mesocycle periodization', () => {

@@ -58,8 +58,12 @@ export function ExerciseProgression() {
       );
     }
     // `history` is newest-first; reverse the session order for chronology.
+    // Drop sessions with no reliable estimate (all sets > 12 reps) rather than
+    // plotting a spurious zero that flat-lines the strength trend.
     const order = [...new Set(history.map((row) => row.sessionId))].reverse();
-    return order.map((id) => bySession.get(id) ?? 0);
+    return order
+      .map((id) => bySession.get(id))
+      .filter((value): value is number => value !== undefined);
   }, [history]);
 
   // Group the flat (newest-first) rows back into per-session blocks, preserving
