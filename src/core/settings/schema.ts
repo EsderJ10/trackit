@@ -11,6 +11,12 @@ export const appSettings = sqliteTable('app_settings', {
   weightUnit: text('weight_unit', { enum: ['kg', 'lb'] })
     .notNull()
     .default('kg'),
+  /**
+   * User's home-screen layout as JSON: an ordered array of
+   * `{ moduleId, hidden }`. Nullable — null means "default" (all modules
+   * visible in registry order). Parsed/reconciled by `@/core/dashboard/layout`.
+   */
+  dashboardLayout: text('dashboard_layout'),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
