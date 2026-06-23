@@ -13,6 +13,7 @@ import {
   useGymStats,
   useNextProgramWorkout,
 } from '../queries';
+import { sessionLabelLine } from '../session-label';
 
 export function GymDashboardWidget(_props: DashboardWidgetProps) {
   const router = useRouter();
@@ -46,7 +47,7 @@ export function GymDashboardWidget(_props: DashboardWidgetProps) {
             style={{ backgroundColor: colors.gym }}
           />
           <Text variant="muted">
-            Workout in progress · {active.routineName ?? 'Freestyle'}
+            Workout in progress · {sessionLabelLine(active)}
           </Text>
         </View>
       ) : next?.ready ? (

@@ -54,6 +54,7 @@
     "format:write": "prettier --write .",
     "test": "vitest run",
     "dryrun:wave": "node scripts/wave-dryrun.mts",
+    "dryrun:session-label": "node scripts/session-label-dryrun.mts",
     "db:generate": "drizzle-kit generate"
   },
   "private": true

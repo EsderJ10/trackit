@@ -8,6 +8,7 @@ import { Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
 import { formatRpe, formatWeight } from '../format';
 import { useSessionSets, useSessionSummary, type SetLogRow } from '../queries';
+import { sessionLabel } from '../session-label';
 
 interface ExerciseGroup {
   exerciseId: number;
@@ -54,14 +55,21 @@ export function SessionDetail() {
     });
   }
 
-  const title = session?.routineName ?? 'Freestyle';
+  const label = session
+    ? sessionLabel(session)
+    : { title: 'Workout', subtitle: undefined };
 
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Workout' }} />
       <ScrollView contentContainerClassName="gap-4 p-5">
         <View>
-          <Text variant="title">{title}</Text>
+          <Text variant="title">{label.title}</Text>
+          {label.subtitle ? (
+            <Text variant="muted" className="mt-1">
+              {label.subtitle}
+            </Text>
+          ) : null}
           {session?.finishedAt ? (
             <Text variant="muted" className="mt-1">
               {session.finishedAt.toLocaleString()}

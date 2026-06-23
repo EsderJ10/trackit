@@ -34,6 +34,7 @@ import {
   useRoutineExercises,
   useRoutines,
 } from '../queries';
+import { sessionLabel } from '../session-label';
 
 export function RoutineList() {
   const router = useRouter();
@@ -352,9 +353,12 @@ function ResumeHero({
             </Text>
           </View>
           <Text variant="heading" className="mt-0.5">
-            {session.routineName ?? 'Freestyle'}
+            {sessionLabel(session).title}
           </Text>
-          <Text variant="muted">Tap to resume where you left off.</Text>
+          <Text variant="muted">
+            {sessionLabel(session).subtitle ??
+              'Tap to resume where you left off.'}
+          </Text>
         </View>
       </Card>
     </Pressable>
