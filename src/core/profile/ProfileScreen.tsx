@@ -1,19 +1,22 @@
-import { UserRound } from 'lucide-react-native';
-import { ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Settings as SettingsIcon, UserRound } from 'lucide-react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { useSessionStore } from '@/core/auth/session-store';
 import { MODULES } from '@/core/module-registry';
-import { Avatar, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
-
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <Text variant="caption" className="uppercase tracking-wider">
-      {children}
-    </Text>
-  );
-}
+import {
+  Avatar,
+  Card,
+  EmptyState,
+  Icon,
+  Screen,
+  Section,
+  Text,
+  colors,
+} from '@/ui';
 
 export function ProfileScreen() {
+  const router = useRouter();
   const user = useSessionStore((state) => state.user);
 
   if (!user) {
@@ -36,7 +39,17 @@ export function ProfileScreen() {
         contentContainerClassName="gap-5 p-5"
         showsVerticalScrollIndicator={false}
       >
-        <Text variant="display">Profile</Text>
+        <View className="flex-row items-center justify-between">
+          <Text variant="display">Profile</Text>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            className="h-10 w-10 items-center justify-center rounded-full bg-surface active:opacity-70"
+          >
+            <Icon icon={SettingsIcon} size={20} color={colors.fgMuted} />
+          </Pressable>
+        </View>
 
         <Card className="flex-row items-center gap-4">
           <Avatar name={name} />
@@ -58,10 +71,9 @@ export function ProfileScreen() {
           const Widget = module.ProfileWidget;
           if (!Widget) return null;
           return (
-            <View key={module.meta.id} className="gap-2">
-              <SectionLabel>{module.meta.name}</SectionLabel>
+            <Section key={module.meta.id} title={module.meta.name}>
               <Widget moduleId={module.meta.id} />
-            </View>
+            </Section>
           );
         })}
       </ScrollView>

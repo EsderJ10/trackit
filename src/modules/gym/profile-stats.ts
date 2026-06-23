@@ -18,6 +18,10 @@ export interface ProfileSetRow {
   /** Null for planned (incomplete) sets — they don't count toward stats. */
   completedAt: Date | null;
   muscleGroup: string;
+  /** Defaults to 'working' when absent; 'warmup' sets are excluded from stats. */
+  setType?: 'warmup' | 'working' | 'drop' | 'failure';
+  /** Defaults to 'weight_reps'; only load-bearing kinds add tonnage. */
+  measurementKind?: 'weight_reps' | 'bodyweight' | 'duration' | 'distance_time';
 }
 
 export interface ProfileSessionRow {
@@ -67,9 +71,14 @@ export function aggregateProfileStats(
   const muscle = new Map<string, number>();
   for (const s of sets) {
     if (s.completedAt == null) continue; // planned sets don't count.
+    if (s.setType === 'warmup') continue; // warmups aren't training volume.
     totalSets += 1;
     totalReps += s.reps;
-    totalVolume += s.weight * s.reps;
+    // Timed/distance work carries no load — count the set, not phantom tonnage.
+    const kind = s.measurementKind ?? 'weight_reps';
+    if (kind === 'weight_reps' || kind === 'bodyweight') {
+      totalVolume += s.weight * s.reps;
+    }
     if (s.completedAt.getTime() >= cutoff) {
       muscle.set(s.muscleGroup, (muscle.get(s.muscleGroup) ?? 0) + 1);
     }

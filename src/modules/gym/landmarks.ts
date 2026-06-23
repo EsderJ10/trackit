@@ -37,6 +37,36 @@ export const DEFAULT_MUSCLE_LANDMARKS: Readonly<
   Core: { mv: 0, mev: 6, mav: 16, mrv: 25 }, // synthesized: abs, indirectly worked
 };
 
+/** The four editable bands, in ascending order. */
+export type LandmarkKey = 'mv' | 'mev' | 'mav' | 'mrv';
+
+const LANDMARK_ORDER: readonly LandmarkKey[] = ['mv', 'mev', 'mav', 'mrv'];
+
+/**
+ * Set one band to `value` (floored at 0, rounded) and re-establish the invariant
+ * MV ≤ MEV ≤ MAV ≤ MRV that `classifyVolume` relies on: higher bands are raised
+ * to at least the new value, lower bands are lowered to at most it. Pure — used
+ * by the landmark editor so a user can't cross the bands. Returns new bands.
+ */
+export function setBand(
+  bands: MuscleLandmarkBands,
+  key: LandmarkKey,
+  value: number,
+): MuscleLandmarkBands {
+  const v = Math.max(0, Math.round(value));
+  const out: MuscleLandmarkBands = { ...bands, [key]: v };
+  const idx = LANDMARK_ORDER.indexOf(key);
+  for (let i = idx + 1; i < LANDMARK_ORDER.length; i++) {
+    const k = LANDMARK_ORDER[i];
+    if (k && out[k] < v) out[k] = v;
+  }
+  for (let i = idx - 1; i >= 0; i--) {
+    const k = LANDMARK_ORDER[i];
+    if (k && out[k] > v) out[k] = v;
+  }
+  return out;
+}
+
 /** Where a muscle's weekly volume sits relative to its landmarks. */
 export type VolumeZone =
   | 'below-mv'

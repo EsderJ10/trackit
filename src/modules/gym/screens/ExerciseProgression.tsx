@@ -16,7 +16,7 @@ import {
 } from '@/ui';
 
 import { formatRpe, formatWeight, formatRelativeDate } from '../format';
-import { computePRs, estimateOneRepMax } from '../progression';
+import { computePRs, gatedOneRepMax } from '../progression';
 import {
   useExercise,
   useExerciseSetHistory,
@@ -49,15 +49,21 @@ export function ExerciseProgression() {
   const e1rmTrend = useMemo(() => {
     const bySession = new Map<number, number>();
     for (const row of history) {
-      const estimate = estimateOneRepMax(row.weight, row.reps);
+      // Skip high-rep sets — their 1RM estimate is unreliable (see gatedOneRepMax).
+      const estimate = gatedOneRepMax(row.weight, row.reps);
+      if (estimate === null) continue;
       bySession.set(
         row.sessionId,
         Math.max(bySession.get(row.sessionId) ?? 0, estimate),
       );
     }
     // `history` is newest-first; reverse the session order for chronology.
+    // Drop sessions with no reliable estimate (all sets > 12 reps) rather than
+    // plotting a spurious zero that flat-lines the strength trend.
     const order = [...new Set(history.map((row) => row.sessionId))].reverse();
-    return order.map((id) => bySession.get(id) ?? 0);
+    return order
+      .map((id) => bySession.get(id))
+      .filter((value): value is number => value !== undefined);
   }, [history]);
 
   // Group the flat (newest-first) rows back into per-session blocks, preserving

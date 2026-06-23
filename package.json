@@ -10,6 +10,7 @@
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",
     "expo-document-picker": "~14.0.8",
+    "expo-haptics": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-local-authentication": "~17.0.8",
     "expo-notifications": "~0.32.17",
@@ -52,6 +53,7 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "test": "vitest run",
+    "dryrun:wave": "node scripts/wave-dryrun.mts",
     "db:generate": "drizzle-kit generate"
   },
   "private": true

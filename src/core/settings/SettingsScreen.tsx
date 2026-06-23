@@ -1,3 +1,5 @@
+import { useRouter } from 'expo-router';
+import { X } from 'lucide-react-native';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { AccountSettings } from '@/core/auth/AccountSettings';
@@ -6,19 +8,17 @@ import { BackupSettings } from '@/core/backup/BackupSettings';
 import { MODULES } from '@/core/module-registry';
 import type { WeightUnit } from '@/core/settings/schema';
 import { setWeightUnit, useSettings } from '@/core/settings/use-settings';
-import { Card, Screen, Text, cn } from '@/ui';
+import { Card, Icon, Screen, Section, Text, cn, colors } from '@/ui';
 
 const UNITS: readonly WeightUnit[] = ['kg', 'lb'];
 
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <Text variant="caption" className="uppercase tracking-wider">
-      {children}
-    </Text>
-  );
-}
-
-export default function SettingsRoute() {
+/**
+ * The full Settings surface. Reached from the gear in Home/Profile (presented
+ * as a modal), it stays module-agnostic — module `SettingsPanel`s slot in from
+ * the registry.
+ */
+export function SettingsScreen() {
+  const router = useRouter();
   const settings = useSettings();
 
   return (
@@ -27,15 +27,24 @@ export default function SettingsRoute() {
         contentContainerClassName="gap-5 p-5"
         showsVerticalScrollIndicator={false}
       >
-        <Text variant="display">Settings</Text>
-
-        <View className="gap-2">
-          <SectionLabel>Account</SectionLabel>
-          <AccountSettings />
+        <View className="flex-row items-center justify-between">
+          <Text variant="display">Settings</Text>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Close settings"
+            className="h-10 w-10 items-center justify-center rounded-full bg-surface active:opacity-70"
+          >
+            <Icon icon={X} size={20} color={colors.fgMuted} />
+          </Pressable>
         </View>
 
-        <View className="gap-2">
-          <SectionLabel>Weight unit</SectionLabel>
+        <Section title="Account">
+          <AccountSettings />
+        </Section>
+
+        <Section title="Weight unit">
           <Card className="flex-row gap-2 p-2">
             {UNITS.map((unit) => {
               const active = settings.weightUnit === unit;
@@ -60,35 +69,31 @@ export default function SettingsRoute() {
               );
             })}
           </Card>
-        </View>
+        </Section>
 
-        <View className="gap-2">
-          <SectionLabel>Security</SectionLabel>
+        <Section title="Security">
           <SecuritySettings />
-        </View>
+        </Section>
 
-        <View className="gap-2">
-          <SectionLabel>Data</SectionLabel>
+        <Section title="Data">
           <BackupSettings />
-        </View>
+        </Section>
 
         {MODULES.map((module) => {
           const Panel = module.SettingsPanel;
           if (!Panel) return null;
           return (
-            <View key={module.meta.id} className="gap-2">
-              <SectionLabel>{module.meta.name}</SectionLabel>
+            <Section key={module.meta.id} title={module.meta.name}>
               <Panel />
-            </View>
+            </Section>
           );
         })}
 
-        <View className="gap-2">
-          <SectionLabel>About</SectionLabel>
+        <Section title="About">
           <Card>
             <Text variant="muted">TrackIt — a modular tracking app.</Text>
           </Card>
-        </View>
+        </Section>
       </ScrollView>
     </Screen>
   );

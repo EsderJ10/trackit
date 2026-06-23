@@ -5,10 +5,18 @@ import type { AppDatabase } from '@/core/db/client';
 import { DEFAULT_MUSCLE_LANDMARKS } from './landmarks';
 import { exercises, muscleLandmarks } from './schema';
 
+type MeasurementKind =
+  | 'weight_reps'
+  | 'bodyweight'
+  | 'duration'
+  | 'distance_time';
+
 interface SeedExercise {
   name: string;
   muscleGroup: string;
   equipment: string;
+  /** Defaults to 'weight_reps' when omitted. */
+  measurementKind?: MeasurementKind;
 }
 
 /**
@@ -46,6 +54,16 @@ const CATALOG: readonly SeedExercise[] = [
     muscleGroup: 'Legs',
     equipment: 'Machine',
   },
+  {
+    name: 'Bulgarian Split Squat',
+    muscleGroup: 'Legs',
+    equipment: 'Dumbbell',
+  },
+  {
+    name: 'Seated Calf Raise (Machine)',
+    muscleGroup: 'Legs',
+    equipment: 'Machine',
+  },
   // Chest
   { name: 'Bench Press (Barbell)', muscleGroup: 'Chest', equipment: 'Barbell' },
   {
@@ -70,10 +88,20 @@ const CATALOG: readonly SeedExercise[] = [
     equipment: 'Machine',
   },
   { name: 'Pec Deck Fly', muscleGroup: 'Chest', equipment: 'Machine' },
-  { name: 'Push-up', muscleGroup: 'Chest', equipment: 'Bodyweight' },
+  {
+    name: 'Push-up',
+    muscleGroup: 'Chest',
+    equipment: 'Bodyweight',
+    measurementKind: 'bodyweight',
+  },
   // Back
   { name: 'Deadlift', muscleGroup: 'Back', equipment: 'Barbell' },
-  { name: 'Pull-up', muscleGroup: 'Back', equipment: 'Bodyweight' },
+  {
+    name: 'Pull-up',
+    muscleGroup: 'Back',
+    equipment: 'Bodyweight',
+    measurementKind: 'bodyweight',
+  },
   {
     name: 'Bent-Over Row (Barbell)',
     muscleGroup: 'Back',
@@ -112,6 +140,11 @@ const CATALOG: readonly SeedExercise[] = [
     muscleGroup: 'Shoulders',
     equipment: 'Dumbbell',
   },
+  {
+    name: 'Cable Rear Delt Fly',
+    muscleGroup: 'Shoulders',
+    equipment: 'Cable',
+  },
   // Arms
   { name: 'Bicep Curl (Dumbbell)', muscleGroup: 'Arms', equipment: 'Dumbbell' },
   { name: 'Bicep Curl (EZ-Bar)', muscleGroup: 'Arms', equipment: 'Barbell' },
@@ -122,9 +155,49 @@ const CATALOG: readonly SeedExercise[] = [
     equipment: 'Dumbbell',
   },
   // Core
-  { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight' },
-  { name: 'Hanging Leg Raise', muscleGroup: 'Core', equipment: 'Bodyweight' },
-  { name: 'Crunch', muscleGroup: 'Core', equipment: 'Bodyweight' },
+  {
+    name: 'Plank',
+    muscleGroup: 'Core',
+    equipment: 'Bodyweight',
+    measurementKind: 'duration',
+  },
+  {
+    name: 'Hanging Leg Raise',
+    muscleGroup: 'Core',
+    equipment: 'Bodyweight',
+    measurementKind: 'bodyweight',
+  },
+  {
+    name: 'Crunch',
+    muscleGroup: 'Core',
+    equipment: 'Bodyweight',
+    measurementKind: 'bodyweight',
+  },
+  // Cardio — measured by distance+time or duration, not load×reps.
+  {
+    name: 'Treadmill Run',
+    muscleGroup: 'Cardio',
+    equipment: 'Machine',
+    measurementKind: 'distance_time',
+  },
+  {
+    name: 'Rowing (Machine)',
+    muscleGroup: 'Cardio',
+    equipment: 'Machine',
+    measurementKind: 'distance_time',
+  },
+  {
+    name: 'Stationary Bike',
+    muscleGroup: 'Cardio',
+    equipment: 'Machine',
+    measurementKind: 'duration',
+  },
+  {
+    name: 'Jump Rope',
+    muscleGroup: 'Cardio',
+    equipment: 'Bodyweight',
+    measurementKind: 'duration',
+  },
 ];
 
 /**
@@ -190,27 +263,43 @@ export function seedGym(db: AppDatabase): void {
     const missing = CATALOG.filter((entry) => !present.has(entry.name));
     if (missing.length > 0) {
       tx.insert(exercises)
-        .values(missing.map((entry) => ({ ...entry, isCustom: false })))
+        .values(
+          missing.map((entry) => ({
+            name: entry.name,
+            muscleGroup: entry.muscleGroup,
+            equipment: entry.equipment,
+            measurementKind: entry.measurementKind ?? 'weight_reps',
+            isCustom: false,
+          })),
+        )
+        .run();
+    }
+
+    // 3) Reconcile measurement kind onto already-seeded rows (the column was
+    // added later as 'weight_reps'); only the non-default catalog kinds need it.
+    for (const entry of CATALOG) {
+      if (entry.measurementKind == null) continue;
+      tx.update(exercises)
+        .set({ measurementKind: entry.measurementKind })
+        .where(and(eq(exercises.name, entry.name), eq(exercises.isCustom, false)))
         .run();
     }
   });
 }
 
 /**
- * Seeds the per-muscle volume landmarks. Upserts (not insert-or-ignore) so that
- * tuning `DEFAULT_MUSCLE_LANDMARKS` still reaches already-seeded devices — safe
- * while there's no editing UI to clobber. Switch to do-nothing once users can
- * edit their own landmarks. Runs on every launch (see `seedGymModule`).
+ * Seeds the per-muscle volume landmarks. Insert-or-IGNORE (not upsert): users
+ * can now edit their own bands in the landmark editor, so re-seeding on every
+ * launch must NOT clobber those edits — it only fills in muscles that have no
+ * row yet. "Reset to defaults" (`resetMuscleLandmarks`) is the explicit way to
+ * re-apply `DEFAULT_MUSCLE_LANDMARKS`. Runs on every launch (see `seedGymModule`).
  */
 export function seedMuscleLandmarks(db: AppDatabase): void {
   db.transaction((tx) => {
     for (const [muscleGroup, b] of Object.entries(DEFAULT_MUSCLE_LANDMARKS)) {
       tx.insert(muscleLandmarks)
         .values({ muscleGroup, mv: b.mv, mev: b.mev, mav: b.mav, mrv: b.mrv })
-        .onConflictDoUpdate({
-          target: muscleLandmarks.muscleGroup,
-          set: { mv: b.mv, mev: b.mev, mav: b.mav, mrv: b.mrv },
-        })
+        .onConflictDoNothing()
         .run();
     }
   });

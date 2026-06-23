@@ -71,6 +71,27 @@
       "when": 1782078979744,
       "tag": "0009_chunky_gambit",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1782082062387,
+      "tag": "0010_narrow_madame_hydra",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1782124446342,
+      "tag": "0011_oval_the_renegades",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1782127448575,
+      "tag": "0012_windy_calypso",
+      "breakpoints": true
     }
   ]
 }

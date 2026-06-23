@@ -5,6 +5,7 @@ import {
   advanceCursor,
   type DpScheme,
   e1rmFromLoggedSet,
+  generateWave,
   type LpScheme,
   type ProgramCursor,
   type ProgressionState,
@@ -12,6 +13,7 @@ import {
   roundKg,
   rpePct,
   suggestNext,
+  type WaveRules,
 } from './progression-engine';
 
 const lp: LpScheme = {
@@ -210,9 +212,20 @@ describe('rpePct — RPE → %1RM', () => {
     expect(rpePct(8, 3)).toBeGreaterThan(rpePct(8, 8));
   });
 
-  it('renders a heavy single near full 1RM and an easy set well below', () => {
-    expect(rpePct(10, 1)).toBeCloseTo(1 / (1 + 1 / 30), 5); // ~0.968
+  it('anchors a true single at exactly 1RM (the old Epley-inverse bug)', () => {
+    expect(rpePct(10, 1)).toBe(1.0); // was 0.968 — under-loaded a single by 3.2%
     expect(rpePct(8, 8)).toBeLessThan(0.8); // 8 reps @ RPE8 → 10 to failure
+  });
+
+  it('matches RTS chart anchors (transcribed grid)', () => {
+    expect(rpePct(10, 5)).toBeCloseTo(0.863, 3); // 5RM ≈ 86.3%
+    expect(rpePct(10, 10)).toBeCloseTo(0.739, 3); // 10RM ≈ 73.9%
+  });
+
+  it('honours the RIR-shift identity: r reps @9 ≈ (r+1) reps @10', () => {
+    // RPE 9 = 1 rep in reserve, so it loads like one more rep taken to failure.
+    expect(rpePct(9, 3)).toBeCloseTo(rpePct(10, 4), 6);
+    expect(rpePct(9, 6)).toBeCloseTo(rpePct(10, 7), 6);
   });
 
   it('clamps RPE to [1, 10]', () => {
@@ -301,5 +314,65 @@ describe('e1rmFromLoggedSet — the RPE re-anchor (inverse of the render path)',
     const rendered = 90 * rpePct(8, 5);
     // Hit the load but it ground to RPE9 — harder than prescribed.
     expect(e1rmFromLoggedSet(rendered, 5, 9)).toBeLessThan(90);
+  });
+
+  it('holds flat across a per-week wave only when re-anchored at the rendered RPE', () => {
+    // A generated wave prescribes a different RPE each week (e.g. RPE 7 in wk1).
+    // Pre-filled sets log no RPE, so advanceProgram must re-anchor at the RPE the
+    // set was *rendered* at — not a fixed target — or the anchor spirals.
+    const anchor = 100;
+    for (const weekRpe of [7, 8, 9, 10]) {
+      const rendered = anchor * rpePct(weekRpe, 8);
+      // Correct: re-anchor at the week's prescribed RPE → flat.
+      expect(e1rmFromLoggedSet(rendered, 8, weekRpe)).toBeCloseTo(anchor, 6);
+    }
+    // Wrong: re-anchoring a week-1 (RPE 7) set at a fixed target RPE 8 drifts down.
+    const wk1 = anchor * rpePct(7, 8);
+    expect(e1rmFromLoggedSet(wk1, 8, 8)).toBeLessThan(anchor);
+  });
+});
+
+describe('generateWave — mesocycle periodization', () => {
+  const rules: WaveRules = {
+    weekCount: 4,
+    setsStart: 3,
+    setsEnd: 6,
+    reps: 8,
+    rirStart: 3,
+    rirEnd: 0,
+    amrapLastSet: false,
+    deload: { sets: 2, reps: 8, rir: 4 },
+  };
+
+  it('ramps set count from MEV to MRV across the hard weeks', () => {
+    const wave = generateWave(rules);
+    const setsInWeek = (w: number) =>
+      wave.filter((s) => s.weekIndex === w).length;
+    expect(setsInWeek(1)).toBe(3); // MEV
+    expect(setsInWeek(4)).toBe(6); // MRV
+    expect(setsInWeek(1)).toBeLessThan(setsInWeek(4));
+  });
+
+  it('descends RIR (climbs RPE) week to week', () => {
+    const wave = generateWave(rules);
+    const rpeInWeek = (w: number) =>
+      wave.find((s) => s.weekIndex === w)?.intensityValue ?? 0;
+    expect(rpeInWeek(1)).toBe(7); // RIR 3 → RPE 7
+    expect(rpeInWeek(4)).toBe(10); // RIR 0 → RPE 10
+    expect(rpeInWeek(1)).toBeLessThan(rpeInWeek(4));
+  });
+
+  it('appends a lighter deload week after the hard weeks', () => {
+    const wave = generateWave(rules);
+    const deload = wave.filter((s) => s.weekIndex === 5);
+    expect(deload).toHaveLength(2);
+    expect(deload[0]?.intensityValue).toBe(6); // RIR 4 → RPE 6
+  });
+
+  it('every cell is an rpe prescription on 0.5 steps', () => {
+    for (const s of generateWave(rules)) {
+      expect(s.intensityKind).toBe('rpe');
+      expect((s.intensityValue * 2) % 1).toBe(0);
+    }
   });
 });

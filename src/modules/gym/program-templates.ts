@@ -129,6 +129,95 @@ function rpeLift(
   };
 }
 
+// --- 5-day PPLUL strength + hypertrophy mesocycle --------------------------
+// One block = 4 accumulation weeks + 1 deload. Each day opens with a heavy
+// compound on a percentage-of-training-max strength wave (load climbs 80→87.5%
+// as reps drop 5→3), then autoregulated (RPE) hypertrophy accessories whose
+// weekly SET COUNT ramps MEV→MRV across the block and pulls back on the deload.
+// The descending per-week RIR cue (4→3→2→1) lives in the week names + program
+// description: accessory load is anchored to a single working-week RPE so the
+// e1RM re-anchor stays drift-free (a per-week RPE wave would mis-anchor the
+// pre-filled, RPE-less sets — see `[[gym-programs-design]]`).
+
+const PPLUL_WEEKS: ProgramTemplate['weeks'] = [
+  { name: 'Week 1 — Accumulate · RIR 4' },
+  { name: 'Week 2 — Accumulate · RIR 3' },
+  { name: 'Week 3 — Accumulate · RIR 2' },
+  { name: 'Week 4 — Overreach · RIR 1' },
+  { name: 'Week 5 — Deload', isDeload: true },
+];
+
+/** N identical percentage-of-training-max sets for the heavy strength wave. */
+function pctSets(count: number, reps: number, pct: number): TemplateSet[] {
+  return Array.from({ length: count }, () => ({
+    reps,
+    intensityKind: 'pct' as const,
+    intensityValue: pct,
+  }));
+}
+
+/** The heavy compound's 5-week wave: % of TM rising as reps fall, then a deload. */
+const STRENGTH_WAVE: Record<number, TemplateSet[]> = {
+  1: pctSets(3, 5, 0.8),
+  2: pctSets(3, 5, 0.825),
+  3: pctSets(3, 4, 0.85),
+  4: pctSets(3, 3, 0.875),
+  5: pctSets(2, 5, 0.5),
+};
+
+/** A heavy compound on the strength wave; its training max bumps each cycle. */
+function strengthLift(
+  exercise: string,
+  trainingMaxKg: number,
+  tmIncrementKg: number,
+): TemplateExercise {
+  return {
+    exercise,
+    scheme: 'percent',
+    targetSets: 3,
+    trainingMaxKg,
+    tmIncrementKg,
+    sets: STRENGTH_WAVE,
+  };
+}
+
+/** Working-week accessory RPE — held constant so the e1RM re-anchor stays flat. */
+const ACCESSORY_RPE = 8;
+/** Per-week accessory set counts: ramp MEV→MRV (weeks 1–4), then deload. */
+const ACCESSORY_SET_RAMP = [3, 4, 4, 5, 2] as const;
+
+/**
+ * A hypertrophy accessory: RPE-anchored sets at a fixed rep target whose weekly
+ * SET COUNT ramps across the block (volume periodization) and drops to 2 lighter
+ * (RPE 5) sets on the deload week. Load auto-tracks the estimated 1RM via the rpe
+ * scheme; the deload week's lower RPE is safe because progression is skipped there
+ * (no re-anchor), so it never fights the constant working-week RPE.
+ */
+function accessory(
+  exercise: string,
+  e1rmKg: number,
+  reps: number,
+): TemplateExercise {
+  const sets: Record<number, TemplateSet[]> = {};
+  ACCESSORY_SET_RAMP.forEach((count, index) => {
+    const week = index + 1;
+    const isDeload = week === ACCESSORY_SET_RAMP.length;
+    sets[week] = Array.from({ length: count }, () => ({
+      reps,
+      intensityKind: 'rpe' as const,
+      intensityValue: isDeload ? 5 : ACCESSORY_RPE,
+    }));
+  });
+  return {
+    exercise,
+    scheme: 'rpe',
+    targetSets: ACCESSORY_SET_RAMP[0],
+    targetRpe: ACCESSORY_RPE,
+    e1rmKg,
+    sets,
+  };
+}
+
 const TEMPLATES: ProgramTemplate[] = [
   {
     name: 'StrongLifts 5×5',
@@ -344,6 +433,67 @@ const TEMPLATES: ProgramTemplate[] = [
           rpeLift('Back Squat (Barbell)', 110, 4, 5, 8),
           rpeLift('Deadlift', 130, 3, 4, 8),
           rpeLift('Romanian Deadlift', 90, 3, 8, 8),
+        ],
+      },
+    ],
+  },
+  {
+    name: '5-Day PPLUL — Strength + Hypertrophy',
+    description:
+      'A 5-week mesocycle (4 accumulation weeks + a deload) over a Push/Pull/Legs + Upper/Lower split — every major muscle trained 2×/week. Each day opens with a heavy compound on a percentage strength wave (load climbs 80→87.5% of training max as reps drop 5→3), then autoregulated hypertrophy accessories whose weekly set volume ramps up across the block and pulls back on the deload. Target effort descends RIR 4→3→2→1 week to week (see the week names). Note: the profile lumps quads/hams/calves under one “Legs” bar, so leg volume reads high — it’s within range per individual muscle.',
+    roundingStepKg: 2.5,
+    weeks: PPLUL_WEEKS,
+    days: [
+      {
+        name: 'Legs',
+        exercises: [
+          strengthLift('Back Squat (Barbell)', 80, 5),
+          accessory('Romanian Deadlift', 80, 8),
+          accessory('Leg Press (Machine)', 175, 12),
+          accessory('Leg Curl (Machine)', 50, 12),
+          accessory('Seated Calf Raise (Machine)', 70, 15),
+        ],
+      },
+      {
+        name: 'Push',
+        exercises: [
+          strengthLift('Bench Press (Barbell)', 60, 2.5),
+          accessory('Incline Bench Press (Dumbbell)', 34, 10),
+          accessory('Overhead Press (Barbell)', 47, 8),
+          accessory('Pec Deck Fly', 47, 15),
+          accessory('Lateral Raise (Dumbbell)', 14, 15),
+          accessory('Tricep Pushdown (Cable)', 37, 12),
+        ],
+      },
+      {
+        name: 'Pull',
+        exercises: [
+          strengthLift('Chest-Supported Row (Machine)', 50, 2.5),
+          accessory('T-Bar Row', 53, 8),
+          accessory('Lat Pulldown (Cable)', 66, 12),
+          accessory('Cable Rear Delt Fly', 19, 15),
+          accessory('Bicep Curl (EZ-Bar)', 35, 10),
+        ],
+      },
+      {
+        name: 'Lower',
+        exercises: [
+          strengthLift('Deadlift', 100, 5),
+          accessory('Leg Press (Machine)', 187, 8),
+          accessory('Bulgarian Split Squat', 25, 10),
+          accessory('Leg Extension (Machine)', 55, 15),
+          accessory('Seated Calf Raise (Machine)', 70, 15),
+        ],
+      },
+      {
+        name: 'Upper',
+        exercises: [
+          strengthLift('Overhead Press (Barbell)', 40, 2.5),
+          accessory('Incline Bench Press (Barbell)', 60, 8),
+          accessory('Chest-Supported Row (Machine)', 63, 10),
+          accessory('Lateral Raise (Dumbbell)', 13, 12),
+          accessory('Bicep Curl (Dumbbell)', 20, 12),
+          accessory('Overhead Triceps Extension (Dumbbell)', 25, 15),
         ],
       },
     ],

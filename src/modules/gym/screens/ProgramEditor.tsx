@@ -8,44 +8,63 @@ import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
 import { ProgramDaySection } from '../components/ProgramDaySection';
-import type { ProgressionScheme } from '../progression-engine';
+import { ProgramWaveEditor } from '../components/ProgramWaveEditor';
+import { ProgramWeekSection } from '../components/ProgramWeekSection';
 import {
   addProgramDay,
   addProgramExercise,
+  addProgramWeek,
   deleteProgram,
   removeProgramDay,
   removeProgramExercise,
+  removeProgramWeek,
   renameProgram,
   renameProgramDay,
+  renameProgramWeek,
   setProgramExerciseE1rm,
   setProgramExerciseTrainingMax,
   setProgramExerciseWeight,
+  setProgramWeekDeload,
   startProgramWorkout,
   useProgram,
   useProgramDays,
   useProgramExercises,
+  useProgramWeeks,
   type ProgramExerciseRow,
+  type ProgramSchemeChoice,
 } from '../queries';
 
 // Default starting weight (canonical kg) — the user adjusts it per exercise.
 const DEFAULT_START_KG = 20;
 
-const SCHEMES: { label: string; scheme: ProgressionScheme; reps?: number }[] = [
-  {
-    label: 'Linear · 3 × 5',
-    scheme: { type: 'lp', incrementKg: 2.5, failThreshold: 3, deloadPct: 0.1 },
-    reps: 5,
-  },
-  {
-    label: 'Double · 3 × 8–12',
-    scheme: { type: 'dp', incrementKg: 2.5, minReps: 8, maxReps: 12 },
-  },
-];
+const SCHEMES: { label: string; scheme: ProgramSchemeChoice; reps?: number }[] =
+  [
+    {
+      label: 'Linear · 3 × 5',
+      scheme: { type: 'lp', incrementKg: 2.5, failThreshold: 3, deloadPct: 0.1 },
+      reps: 5,
+    },
+    {
+      label: 'Double · 3 × 8–12',
+      scheme: { type: 'dp', incrementKg: 2.5, minReps: 8, maxReps: 12 },
+    },
+    {
+      label: 'Autoregulated · RPE wave',
+      scheme: { type: 'rpe', targetRpe: 8 },
+      reps: 8,
+    },
+  ];
 
 /** The exercise awaiting a scheme choice, tagged with the day it belongs to. */
 interface Pending {
   dayId: number;
   exerciseId: number;
+  name: string;
+}
+
+/** The slot whose periodization wave is being edited. */
+interface WaveTarget {
+  programExerciseId: number;
   name: string;
 }
 
@@ -57,12 +76,15 @@ export function ProgramEditor() {
   const router = useRouter();
   const program = useProgram(programId);
   const { data: days } = useProgramDays(programId);
+  const { data: weeks } = useProgramWeeks(programId);
   const { data: exercises } = useProgramExercises(programId);
   const { weightUnit } = useSettings();
 
   // Which day's picker is open, and the exercise awaiting a scheme choice.
   const [pickerDayId, setPickerDayId] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  // The slot whose periodization wave is open in the editor modal.
+  const [waveTarget, setWaveTarget] = useState<WaveTarget | null>(null);
 
   const exercisesByDay = useMemo(() => {
     const map = new Map<number, ProgramExerciseRow[]>();
@@ -125,6 +147,14 @@ export function ProgramEditor() {
           />
         </View>
 
+        <ProgramWeekSection
+          weeks={weeks}
+          onAddWeek={() => addProgramWeek(programId)}
+          onRenameWeek={renameProgramWeek}
+          onToggleDeload={setProgramWeekDeload}
+          onRemoveWeek={(weekId) => removeProgramWeek(programId, weekId)}
+        />
+
         {days.length === 0 ? (
           <EmptyState
             title="No days"
@@ -144,6 +174,9 @@ export function ProgramEditor() {
               onSetTrainingMax={setProgramExerciseTrainingMax}
               onSetE1rm={setProgramExerciseE1rm}
               onRemoveExercise={removeProgramExercise}
+              onEditWave={(programExerciseId, name) =>
+                setWaveTarget({ programExerciseId, name })
+              }
             />
           ))
         )}
@@ -197,6 +230,13 @@ export function ProgramEditor() {
           });
           setPickerDayId(null);
         }}
+      />
+
+      <ProgramWaveEditor
+        visible={waveTarget != null}
+        onClose={() => setWaveTarget(null)}
+        programExerciseId={waveTarget?.programExerciseId ?? null}
+        exerciseName={waveTarget?.name ?? ''}
       />
     </Screen>
   );

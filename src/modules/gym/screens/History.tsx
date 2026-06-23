@@ -1,6 +1,6 @@
-import { Stack, useRouter } from 'expo-router';
-import { CalendarClock } from 'lucide-react-native';
-import { Pressable, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { CalendarClock, ChevronRight } from 'lucide-react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
@@ -19,8 +19,10 @@ export function History() {
   }
 
   return (
-    <Screen>
-      <Stack.Screen options={{ title: 'History' }} />
+    <Screen edges={['top']}>
+      <View className="px-5 pt-5">
+        <Text variant="display">History</Text>
+      </View>
       {sessions.length === 0 ? (
         <EmptyState
           icon={<Icon icon={CalendarClock} size={40} color={colors.fgFaint} />}
@@ -28,22 +30,28 @@ export function History() {
           description="Finished workouts will show up here."
         />
       ) : (
-        <ScrollView contentContainerClassName="gap-3 p-5">
+        <ScrollView
+          contentContainerClassName="gap-3 p-5"
+          showsVerticalScrollIndicator={false}
+        >
           {sessions.map((session) => (
             <Pressable
               key={session.id}
               onPress={() => openSession(session.id)}
               className="active:opacity-70"
             >
-              <Card className="flex-row items-center justify-between">
-                <Text variant="heading">
-                  {session.routineName ?? 'Freestyle'}
-                </Text>
-                <Text variant="muted">
-                  {session.finishedAt
-                    ? formatRelativeDate(session.finishedAt)
-                    : ''}
-                </Text>
+              <Card className="flex-row items-center gap-3">
+                <View className="flex-1">
+                  <Text variant="heading">
+                    {session.routineName ?? 'Freestyle'}
+                  </Text>
+                  <Text variant="caption" className="mt-0.5">
+                    {session.finishedAt
+                      ? formatRelativeDate(session.finishedAt)
+                      : ''}
+                  </Text>
+                </View>
+                <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
               </Card>
             </Pressable>
           ))}

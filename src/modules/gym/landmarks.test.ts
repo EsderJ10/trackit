@@ -4,6 +4,7 @@ import {
   classifyVolume,
   DEFAULT_MUSCLE_LANDMARKS,
   type MuscleLandmarkBands,
+  setBand,
 } from './landmarks';
 
 describe('classifyVolume', () => {
@@ -49,6 +50,66 @@ describe('classifyVolume', () => {
       expect(b.mv, muscle).toBeLessThanOrEqual(b.mev);
       expect(b.mev, muscle).toBeLessThanOrEqual(b.mav);
       expect(b.mav, muscle).toBeLessThanOrEqual(b.mrv);
+    }
+  });
+});
+
+describe('setBand', () => {
+  const chest: MuscleLandmarkBands = { mv: 4, mev: 6, mav: 16, mrv: 24 };
+
+  it('sets a band without disturbing others when invariant holds', () => {
+    expect(setBand(chest, 'mav', 18)).toEqual({
+      mv: 4,
+      mev: 6,
+      mav: 18,
+      mrv: 24,
+    });
+  });
+
+  it('raising a band pushes higher bands up to keep MV ≤ MEV ≤ MAV ≤ MRV', () => {
+    expect(setBand(chest, 'mev', 20)).toEqual({
+      mv: 4,
+      mev: 20,
+      mav: 20,
+      mrv: 24,
+    });
+    expect(setBand(chest, 'mv', 30)).toEqual({
+      mv: 30,
+      mev: 30,
+      mav: 30,
+      mrv: 30,
+    });
+  });
+
+  it('lowering a band pushes lower bands down', () => {
+    expect(setBand(chest, 'mav', 5)).toEqual({
+      mv: 4,
+      mev: 5,
+      mav: 5,
+      mrv: 24,
+    });
+    expect(setBand(chest, 'mv', 0)).toEqual({ mv: 0, mev: 6, mav: 16, mrv: 24 });
+  });
+
+  it('floors at 0 and rounds', () => {
+    expect(setBand(chest, 'mev', -3)).toEqual({
+      mv: 0,
+      mev: 0,
+      mav: 16,
+      mrv: 24,
+    });
+    expect(setBand(chest, 'mav', 17.6).mav).toBe(18);
+  });
+
+  it('always returns ascending bands for arbitrary edits', () => {
+    const keys = ['mv', 'mev', 'mav', 'mrv'] as const;
+    for (const k of keys) {
+      for (const v of [0, 1, 10, 25, 100]) {
+        const b = setBand(chest, k, v);
+        expect(b.mv).toBeLessThanOrEqual(b.mev);
+        expect(b.mev).toBeLessThanOrEqual(b.mav);
+        expect(b.mav).toBeLessThanOrEqual(b.mrv);
+      }
     }
   });
 });

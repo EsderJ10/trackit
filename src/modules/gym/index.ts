@@ -1,4 +1,4 @@
-import { Dumbbell } from 'lucide-react-native';
+import { Dumbbell, History as HistoryIcon } from 'lucide-react-native';
 
 import type { TrackerModule } from '@/core/types/module';
 import { colors } from '@/ui';
@@ -32,5 +32,9 @@ export const gymModule: TrackerModule = {
   DashboardWidget: GymDashboardWidget,
   ProfileWidget: GymProfileWidget,
   SettingsPanel: GymSettingsPanel,
+  primaryTabs: [
+    { name: 'train', title: 'Train', icon: Dumbbell },
+    { name: 'history', title: 'History', icon: HistoryIcon },
+  ],
   seed: seedGymModule,
 };
