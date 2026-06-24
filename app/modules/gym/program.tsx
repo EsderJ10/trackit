@@ -1,5 +1,5 @@
-import { ProgramEditor } from '@/modules/gym/screens/ProgramEditor';
+import { ProgramRoadmap } from '@/modules/gym/screens/ProgramRoadmap';
 
 export default function GymProgramRoute() {
-  return <ProgramEditor />;
+  return <ProgramRoadmap />;
 }

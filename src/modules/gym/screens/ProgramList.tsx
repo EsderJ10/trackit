@@ -38,6 +38,14 @@ export function ProgramList() {
     });
   }
 
+  // A fresh program has no days/lifts yet — drop straight into the editor.
+  function editProgram(programId: number) {
+    router.push({
+      pathname: '/modules/gym/program-edit',
+      params: { programId: String(programId) },
+    });
+  }
+
   function openWorkout(sessionId: number) {
     router.push({
       pathname: '/modules/gym/workout',
@@ -58,7 +66,7 @@ export function ProgramList() {
         <Button
           label="New program"
           leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
-          onPress={() => openProgram(createProgram('New program'))}
+          onPress={() => editProgram(createProgram('New program'))}
         />
 
         {programs.length === 0 ? (

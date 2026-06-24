@@ -112,8 +112,8 @@ export function ProgramEditor() {
 
   function remove() {
     deleteProgram(programId);
-    if (router.canGoBack()) router.back();
-    else router.replace('/modules/gym/programs');
+    // Land on the programs list, never back on the now-deleted roadmap.
+    router.replace('/modules/gym/programs');
   }
 
   function start() {
