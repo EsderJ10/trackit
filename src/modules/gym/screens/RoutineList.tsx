@@ -4,6 +4,7 @@ import {
   Dumbbell,
   Play,
   Plus,
+  Route,
   Target,
   TrendingUp,
 } from 'lucide-react-native';
@@ -73,6 +74,13 @@ export function RoutineList() {
         <View className="flex-row items-center justify-between">
           <Text variant="display">Train</Text>
           <View className="flex-row gap-2">
+            {next ? (
+              <HeaderAction
+                icon={Route}
+                label="View program"
+                onPress={() => openProgram(next.programId)}
+              />
+            ) : null}
             <HeaderAction
               icon={Target}
               label="Programs"
