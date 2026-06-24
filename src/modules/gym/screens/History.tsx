@@ -6,6 +6,7 @@ import { Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
 import { formatRelativeDate } from '../format';
 import { useFinishedSessions } from '../queries';
+import { sessionLabel } from '../session-label';
 
 export function History() {
   const router = useRouter();
@@ -34,27 +35,33 @@ export function History() {
           contentContainerClassName="gap-3 p-5"
           showsVerticalScrollIndicator={false}
         >
-          {sessions.map((session) => (
-            <Pressable
-              key={session.id}
-              onPress={() => openSession(session.id)}
-              className="active:opacity-70"
-            >
-              <Card className="flex-row items-center gap-3">
-                <View className="flex-1">
-                  <Text variant="heading">
-                    {session.routineName ?? 'Freestyle'}
-                  </Text>
-                  <Text variant="caption" className="mt-0.5">
-                    {session.finishedAt
-                      ? formatRelativeDate(session.finishedAt)
-                      : ''}
-                  </Text>
-                </View>
-                <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
-              </Card>
-            </Pressable>
-          ))}
+          {sessions.map((session) => {
+            const label = sessionLabel(session);
+            return (
+              <Pressable
+                key={session.id}
+                onPress={() => openSession(session.id)}
+                className="active:opacity-70"
+              >
+                <Card className="flex-row items-center gap-3">
+                  <View className="flex-1">
+                    <Text variant="heading">{label.title}</Text>
+                    <Text variant="caption" className="mt-0.5">
+                      {[
+                        label.subtitle,
+                        session.finishedAt
+                          ? formatRelativeDate(session.finishedAt)
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  </View>
+                  <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+                </Card>
+              </Pressable>
+            );
+          })}
         </ScrollView>
       )}
     </Screen>

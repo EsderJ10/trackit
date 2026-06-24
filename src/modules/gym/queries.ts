@@ -25,6 +25,7 @@ import {
 } from './landmarks';
 import type { CsvSetRow } from './csv-export';
 import { EMPTY_BESTS, type ExerciseBests, foldBests } from './pr-detect';
+import { sessionLabelLine } from './session-label';
 import {
   exercises,
   exerciseTrainingState,
@@ -697,6 +698,10 @@ export function deleteSession(sessionId: number): void {
 export interface SessionSummary {
   id: number;
   routineName: string | null;
+  programName: string | null;
+  programDayName: string | null;
+  programWeekIndex: number | null;
+  programLengthWeeks: number | null;
   startedAt: Date;
   finishedAt: Date | null;
   notes: string | null;
@@ -708,12 +713,18 @@ export function useFinishedSessions() {
       .select({
         id: workoutSessions.id,
         routineName: routines.name,
+        programName: programs.name,
+        programDayName: programDays.name,
+        programWeekIndex: workoutSessions.programWeekIndex,
+        programLengthWeeks: programs.lengthWeeks,
         startedAt: workoutSessions.startedAt,
         finishedAt: workoutSessions.finishedAt,
         notes: workoutSessions.notes,
       })
       .from(workoutSessions)
       .leftJoin(routines, eq(workoutSessions.routineId, routines.id))
+      .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+      .leftJoin(programDays, eq(workoutSessions.programDayId, programDays.id))
       .where(isNotNull(workoutSessions.finishedAt))
       .orderBy(desc(workoutSessions.finishedAt)),
   );
@@ -722,6 +733,10 @@ export function useFinishedSessions() {
 export interface ActiveSession {
   id: number;
   routineName: string | null;
+  programName: string | null;
+  programDayName: string | null;
+  programWeekIndex: number | null;
+  programLengthWeeks: number | null;
   startedAt: Date;
 }
 
@@ -735,10 +750,16 @@ export function useActiveSession(): ActiveSession | undefined {
       .select({
         id: workoutSessions.id,
         routineName: routines.name,
+        programName: programs.name,
+        programDayName: programDays.name,
+        programWeekIndex: workoutSessions.programWeekIndex,
+        programLengthWeeks: programs.lengthWeeks,
         startedAt: workoutSessions.startedAt,
       })
       .from(workoutSessions)
       .leftJoin(routines, eq(workoutSessions.routineId, routines.id))
+      .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+      .leftJoin(programDays, eq(workoutSessions.programDayId, programDays.id))
       .where(isNull(workoutSessions.finishedAt))
       .orderBy(desc(workoutSessions.startedAt))
       .limit(1),
@@ -746,19 +767,27 @@ export function useActiveSession(): ActiveSession | undefined {
   return data[0];
 }
 
-/** One finished (or in-progress) session with its routine name, for detail. */
+/** One finished (or in-progress) session with its program/routine label, for detail. */
 export function useSessionSummary(sessionId: number) {
   const { data } = useLiveQuery(
     db
       .select({
         id: workoutSessions.id,
         routineName: routines.name,
+        programName: programs.name,
+        // Carried so the detail screen can deep-link to the parent program.
+        programId: workoutSessions.programId,
+        programDayName: programDays.name,
+        programWeekIndex: workoutSessions.programWeekIndex,
+        programLengthWeeks: programs.lengthWeeks,
         startedAt: workoutSessions.startedAt,
         finishedAt: workoutSessions.finishedAt,
         notes: workoutSessions.notes,
       })
       .from(workoutSessions)
       .leftJoin(routines, eq(workoutSessions.routineId, routines.id))
+      .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+      .leftJoin(programDays, eq(workoutSessions.programDayId, programDays.id))
       .where(eq(workoutSessions.id, sessionId)),
     [sessionId],
   );
@@ -788,10 +817,16 @@ export function useGymStats(): GymStats {
     db
       .select({
         routineName: routines.name,
+        programName: programs.name,
+        programDayName: programDays.name,
+        programWeekIndex: workoutSessions.programWeekIndex,
+        programLengthWeeks: programs.lengthWeeks,
         finishedAt: workoutSessions.finishedAt,
       })
       .from(workoutSessions)
       .leftJoin(routines, eq(workoutSessions.routineId, routines.id))
+      .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+      .leftJoin(programDays, eq(workoutSessions.programDayId, programDays.id))
       .where(isNotNull(workoutSessions.finishedAt))
       .orderBy(desc(workoutSessions.finishedAt))
       .limit(1),
@@ -824,7 +859,7 @@ export function useGymStats(): GymStats {
       lastWorkout:
         last && last.finishedAt
           ? {
-              name: last.routineName ?? 'Freestyle',
+              name: sessionLabelLine(last),
               finishedAt: last.finishedAt,
             }
           : null,

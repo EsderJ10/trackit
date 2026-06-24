@@ -4,6 +4,7 @@ import {
   Dumbbell,
   Play,
   Plus,
+  Route,
   Target,
   TrendingUp,
 } from 'lucide-react-native';
@@ -34,6 +35,7 @@ import {
   useRoutineExercises,
   useRoutines,
 } from '../queries';
+import { sessionLabel } from '../session-label';
 
 export function RoutineList() {
   const router = useRouter();
@@ -72,6 +74,13 @@ export function RoutineList() {
         <View className="flex-row items-center justify-between">
           <Text variant="display">Train</Text>
           <View className="flex-row gap-2">
+            {next ? (
+              <HeaderAction
+                icon={Route}
+                label="View program"
+                onPress={() => openProgram(next.programId)}
+              />
+            ) : null}
             <HeaderAction
               icon={Target}
               label="Programs"
@@ -352,9 +361,12 @@ function ResumeHero({
             </Text>
           </View>
           <Text variant="heading" className="mt-0.5">
-            {session.routineName ?? 'Freestyle'}
+            {sessionLabel(session).title}
           </Text>
-          <Text variant="muted">Tap to resume where you left off.</Text>
+          <Text variant="muted">
+            {sessionLabel(session).subtitle ??
+              'Tap to resume where you left off.'}
+          </Text>
         </View>
       </Card>
     </Pressable>
