@@ -42,6 +42,23 @@ const palette = {
   gym: '#8B7FF0',
   finance: '#43C892',
   habits: '#2DD4BF',
+
+  // ── FORGE branding layer ───────────────────────────────────────────────
+  // The Golem identity. An additive set of tokens layered on top of the core
+  // purple palette (NOT a replacement) — used by the FORGE design system
+  // (mascot, ForgeButton, celebration states). Deep iron + dark stone
+  // surfaces, glowing magma/amber for active/hot elements, and a neon
+  // cyber-blue "spark" reserved for success / PR moments.
+  forge: '#F2792B', // magma — primary hot accent (active elements)
+  forgeBright: '#FF9E3D', // brighter magma for pressed / emphasis
+  forgeGlow: '#FF8A3D', // the forge-glow halo color
+  forgeEmber: '#FFB55C', // warm ember (idle / breathing core)
+  forgeStone: '#15121C', // deep stone — darkest forge ground
+  forgeIron: '#26222F', // iron surface
+  forgeIronHi: '#332E3D', // raised iron surface
+  forgeSpark: '#3FE0FF', // cyber-blue — success / PR accent
+  forgeSparkGlow: '#7FF0FF', // cyber-blue glow halo
+  forgeLocked: '#4A4655', // grayed stone — locked / unearned states
 };
 
 module.exports = { palette };
