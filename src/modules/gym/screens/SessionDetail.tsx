@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { CalendarClock } from 'lucide-react-native';
+import { CalendarClock, ChevronRight } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
@@ -55,9 +55,17 @@ export function SessionDetail() {
     });
   }
 
+  function openProgram(programId: number) {
+    router.push({
+      pathname: '/modules/gym/program',
+      params: { programId: String(programId) },
+    });
+  }
+
   const label = session
     ? sessionLabel(session)
     : { title: 'Workout', subtitle: undefined };
+  const programId = session?.programId ?? null;
 
   return (
     <Screen>
@@ -74,6 +82,19 @@ export function SessionDetail() {
             <Text variant="muted" className="mt-1">
               {session.finishedAt.toLocaleString()}
             </Text>
+          ) : null}
+          {programId != null ? (
+            <Pressable
+              onPress={() => openProgram(programId)}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${session?.programName ?? 'program'}`}
+              className="mt-2 flex-row items-center gap-1 self-start active:opacity-70"
+            >
+              <Text variant="caption" style={{ color: colors.gym }}>
+                View program
+              </Text>
+              <Icon icon={ChevronRight} size={14} color={colors.gym} />
+            </Pressable>
           ) : null}
         </View>
 

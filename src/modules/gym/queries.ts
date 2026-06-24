@@ -775,6 +775,8 @@ export function useSessionSummary(sessionId: number) {
         id: workoutSessions.id,
         routineName: routines.name,
         programName: programs.name,
+        // Carried so the detail screen can deep-link to the parent program.
+        programId: workoutSessions.programId,
         programDayName: programDays.name,
         programWeekIndex: workoutSessions.programWeekIndex,
         programLengthWeeks: programs.lengthWeeks,
