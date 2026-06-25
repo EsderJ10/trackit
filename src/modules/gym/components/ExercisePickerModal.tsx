@@ -48,6 +48,8 @@ export function ExercisePickerModal({
             <Text variant="heading">Add exercise</Text>
             <Pressable
               onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
               hitSlop={8}
               className="active:opacity-60"
             >

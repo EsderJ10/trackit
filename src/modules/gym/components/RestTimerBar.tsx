@@ -49,6 +49,8 @@ export function RestTimerBar() {
 
       <Pressable
         onPress={() => adjust(-REST_STEP_MS)}
+        accessibilityRole="button"
+        accessibilityLabel="Subtract 30 seconds from rest"
         hitSlop={8}
         className="h-9 w-9 items-center justify-center rounded-full border border-border active:opacity-70"
       >
@@ -56,6 +58,8 @@ export function RestTimerBar() {
       </Pressable>
       <Pressable
         onPress={() => adjust(REST_STEP_MS)}
+        accessibilityRole="button"
+        accessibilityLabel="Add 30 seconds to rest"
         hitSlop={8}
         className="h-9 w-9 items-center justify-center rounded-full border border-border active:opacity-70"
       >
@@ -63,6 +67,8 @@ export function RestTimerBar() {
       </Pressable>
       <Pressable
         onPress={stop}
+        accessibilityRole="button"
+        accessibilityLabel="Skip rest"
         hitSlop={8}
         className="h-9 w-9 items-center justify-center rounded-full bg-surface-alt active:opacity-70"
       >

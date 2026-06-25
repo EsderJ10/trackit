@@ -97,6 +97,8 @@ export function ExerciseSessionCard({
         </View>
         <Pressable
           onPress={confirmRemove}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${name}`}
           hitSlop={8}
           className="active:opacity-60"
         >
