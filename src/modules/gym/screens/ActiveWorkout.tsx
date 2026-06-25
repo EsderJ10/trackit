@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { useSettings } from '@/core/settings/use-settings';
@@ -164,7 +164,11 @@ export function ActiveWorkout() {
 
   function addWarmup(exerciseId: number) {
     const barKg = fromDisplayWeight(DEFAULT_BAR[weightUnit], weightUnit);
-    addWarmupSets(sessionId, exerciseId, warmupSets(workWeightKg(exerciseId), barKg));
+    addWarmupSets(
+      sessionId,
+      exerciseId,
+      warmupSets(workWeightKg(exerciseId), barKg),
+    );
   }
 
   // Program suggestion rationale, surfaced under each exercise's target.
@@ -256,7 +260,7 @@ export function ActiveWorkout() {
     }
   }
 
-  function finish() {
+  function commitFinish() {
     // Clear any in-flight rest so its "rest over" notification can't fire after
     // the workout's done (common path: complete last set → tap Finish).
     stopRest();
@@ -265,6 +269,30 @@ export function ActiveWorkout() {
     // `navigate` pops back to the existing tab (and drops the finished workout
     // from the back stack) — `replace`/`push` would mis-stack across navigators.
     router.navigate('/history');
+  }
+
+  function finish() {
+    // Warn before finishing if any logged sets are still unchecked — finishing
+    // is irreversible from here, and incomplete sets are easy to overlook.
+    const incomplete = displayExercises.reduce(
+      (n, ex) =>
+        n +
+        (setsByExercise.get(ex.exerciseId)?.filter((s) => s.completedAt == null)
+          .length ?? 0),
+      0,
+    );
+    if (incomplete === 0) {
+      commitFinish();
+      return;
+    }
+    Alert.alert(
+      'Finish workout?',
+      `You have ${incomplete} unfinished ${incomplete === 1 ? 'set' : 'sets'}.`,
+      [
+        { text: 'Keep going', style: 'cancel' },
+        { text: 'Finish', style: 'destructive', onPress: commitFinish },
+      ],
+    );
   }
 
   function openProgression(exerciseId: number) {
