@@ -23,14 +23,18 @@ const palette = {
 
   // Primary accent (Liftosaur-inspired indigo-purple)
   primary: '#4B5694',
-  primaryBright: '#6675C4',
+  // Lightened from #6675C4 (2.6–3.5:1 as text — fails AA) to a hue-matched shade
+  // that clears AA on cards/bg; foreground-only token, never a fill, so safe.
+  primaryBright: '#8A98E8',
   primarySoft: '#4A4466',
   primaryGlow: '#7B8AE6',
 
   // Text / foreground (high contrast on the dark purple ground)
   fg: '#F4F3FB',
   fgMuted: '#ABA7CE',
-  fgFaint: '#79759E',
+  // Lightened from #79759E so caption/placeholder/"prev" text clears WCAG AA
+  // (4.5:1) on the bg/surface/surface-alt grounds it sits on (was 2.6–3.9:1).
+  fgFaint: '#A29DC4',
 
   // Feedback
   success: '#43C892',
