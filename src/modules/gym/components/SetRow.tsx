@@ -1,13 +1,6 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  Minus,
-  Plus,
-  Trash2,
-} from 'lucide-react-native';
+import { ArrowDown, ArrowUp, Check, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import type { WeightUnit } from '@/core/settings/schema';
@@ -48,9 +41,6 @@ function toRpe(value: string): number | null {
   if (Number.isNaN(parsed)) return null;
   return Math.min(10, Math.max(1, parsed));
 }
-
-/** Weight stepper increment in the display unit (loadable-ish defaults). */
-const WEIGHT_STEP: Record<WeightUnit, number> = { kg: 2.5, lb: 5 };
 
 /** The set-type cycle order when tapping the badge; working is the default. */
 const SET_TYPE_CYCLE: readonly SetType[] = [
@@ -134,13 +124,22 @@ export function SetRow({
     onUpdate(set.id, { setType: next });
   }
 
+  function confirmDelete() {
+    Alert.alert('Delete set', 'Delete this set?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => onDelete(set.id) },
+    ]);
+  }
+
   function renderRightActions() {
     return (
       <Pressable
-        onPress={() => onDelete(set.id)}
+        onPress={confirmDelete}
+        accessibilityRole="button"
+        accessibilityLabel="Delete set"
         className="my-0.5 ml-2 items-center justify-center rounded-xl bg-danger px-5 active:opacity-80"
       >
-        <Icon icon={Trash2} size={18} color={colors.fg} />
+        <Icon icon={Trash2} size={18} color={colors.bg} />
       </Pressable>
     );
   }
@@ -167,6 +166,8 @@ export function SetRow({
         <View className="flex-row items-center gap-2">
           <Pressable
             onPress={cycleSetType}
+            accessibilityRole="button"
+            accessibilityLabel={`Set type: ${set.setType}. Tap to change.`}
             hitSlop={8}
             className="w-7 items-center active:opacity-60"
           >
@@ -177,42 +178,45 @@ export function SetRow({
 
           {showRepsWeight ? (
             <>
-              <StepperField
+              <NumberField
                 value={reps}
                 onChangeText={setReps}
-                onCommit={() => commitReps(toInt(reps, set.reps))}
-                onStep={(dir) => commitReps(toInt(reps, set.reps) + dir)}
+                onEndEditing={() => commitReps(toInt(reps, set.reps))}
+                className="flex-1"
               />
               <Text variant="muted">{kind === 'bodyweight' ? '＋' : '×'}</Text>
-              <StepperField
+              <NumberField
                 value={weight}
                 onChangeText={setWeight}
-                onCommit={() =>
+                onEndEditing={() =>
                   commitWeightDisplay(
                     toFloat(weight, toDisplayWeight(set.weight, unit)),
                   )
                 }
-                onStep={(dir) =>
-                  commitWeightDisplay(
-                    toFloat(weight, toDisplayWeight(set.weight, unit)) +
-                      dir * WEIGHT_STEP[unit],
-                  )
-                }
+                className="flex-1"
               />
               <Text variant="caption" className="w-6">
                 {unit}
               </Text>
             </>
           ) : kind === 'duration' ? (
-            <NumberField
-              value={duration}
-              placeholder="sec"
-              onChangeText={setDuration}
-              onEndEditing={() =>
-                onUpdate(set.id, { durationSec: toInt(duration, 0) })
-              }
-              className="flex-1"
-            />
+            <>
+              <NumberField
+                value={duration}
+                placeholder="sec"
+                onChangeText={setDuration}
+                onEndEditing={() =>
+                  onUpdate(set.id, { durationSec: toInt(duration, 0) })
+                }
+                className="flex-1"
+              />
+              <RpeField
+                rpe={rpe}
+                setRpe={setRpe}
+                onUpdate={onUpdate}
+                setId={set.id}
+              />
+            </>
           ) : (
             <>
               <NumberField
@@ -233,19 +237,22 @@ export function SetRow({
                 }
                 className="flex-1"
               />
+              <RpeField
+                rpe={rpe}
+                setRpe={setRpe}
+                onUpdate={onUpdate}
+                setId={set.id}
+              />
             </>
           )}
 
-          <NumberField
-            value={rpe}
-            placeholder="RPE"
-            onChangeText={setRpe}
-            onEndEditing={() => onUpdate(set.id, { rpe: toRpe(rpe) })}
-            className="w-14"
-          />
-
           <Pressable
             onPress={() => onToggle(set.id, !completed)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: completed }}
+            accessibilityLabel={
+              completed ? 'Mark set incomplete' : 'Complete set'
+            }
             hitSlop={8}
             className="active:opacity-70"
             style={completed ? glow(colors.success, 0.5) : undefined}
@@ -265,16 +272,30 @@ export function SetRow({
           </Pressable>
         </View>
 
-        {previous && showRepsWeight ? (
-          <View className="mt-1 flex-row items-center gap-1 pl-9">
-            <Text variant="caption">
-              prev {previous.reps} × {formatWeight(previous.weight, unit)}
-            </Text>
-            {trend === 'up' ? (
-              <Icon icon={ArrowUp} size={13} color={colors.success} />
-            ) : trend === 'down' ? (
-              <Icon icon={ArrowDown} size={13} color={colors.fgFaint} />
-            ) : null}
+        {/* RPE + previous-set cue share a secondary row so the primary row keeps
+            full width for the reps/weight numbers. RPE always has a home here. */}
+        {showRepsWeight ? (
+          <View className="mt-1.5 flex-row items-center gap-2 pl-9">
+            {previous ? (
+              <View className="flex-1 flex-row items-center gap-1">
+                <Text variant="caption">
+                  prev {previous.reps} × {formatWeight(previous.weight, unit)}
+                </Text>
+                {trend === 'up' ? (
+                  <Icon icon={ArrowUp} size={13} color={colors.success} />
+                ) : trend === 'down' ? (
+                  <Icon icon={ArrowDown} size={13} color={colors.fgFaint} />
+                ) : null}
+              </View>
+            ) : (
+              <View className="flex-1" />
+            )}
+            <RpeField
+              rpe={rpe}
+              setRpe={setRpe}
+              onUpdate={onUpdate}
+              setId={set.id}
+            />
           </View>
         ) : null}
       </View>
@@ -282,40 +303,25 @@ export function SetRow({
   );
 }
 
-/** A numeric field flanked by −/＋ steppers for keyboard-free entry. */
-function StepperField({
-  value,
-  onChangeText,
-  onCommit,
-  onStep,
+/** The optional RPE field; lives on the secondary row to free the number row. */
+function RpeField({
+  rpe,
+  setRpe,
+  onUpdate,
+  setId,
 }: {
-  value: string;
-  onChangeText: (text: string) => void;
-  onCommit: () => void;
-  onStep: (direction: 1 | -1) => void;
+  rpe: string;
+  setRpe: (text: string) => void;
+  onUpdate: (id: number, patch: SetPatch) => void;
+  setId: number;
 }) {
   return (
-    <View className="flex-1 flex-row items-center gap-1">
-      <Pressable
-        onPress={() => onStep(-1)}
-        hitSlop={6}
-        className="h-9 w-7 items-center justify-center rounded-lg bg-surface-hi active:opacity-60"
-      >
-        <Icon icon={Minus} size={15} color={colors.fgMuted} />
-      </Pressable>
-      <NumberField
-        value={value}
-        onChangeText={onChangeText}
-        onEndEditing={onCommit}
-        className="flex-1"
-      />
-      <Pressable
-        onPress={() => onStep(1)}
-        hitSlop={6}
-        className="h-9 w-7 items-center justify-center rounded-lg bg-surface-hi active:opacity-60"
-      >
-        <Icon icon={Plus} size={15} color={colors.fgMuted} />
-      </Pressable>
-    </View>
+    <NumberField
+      value={rpe}
+      placeholder="RPE"
+      onChangeText={setRpe}
+      onEndEditing={() => onUpdate(setId, { rpe: toRpe(rpe) })}
+      className="w-16"
+    />
   );
 }
