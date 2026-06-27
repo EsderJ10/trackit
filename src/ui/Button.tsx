@@ -23,7 +23,9 @@ const LABEL: Record<ButtonVariant, string> = {
   primary: 'text-fg',
   secondary: 'text-fg',
   ghost: 'text-primary-bright',
-  danger: 'text-fg',
+  // Dark label on the light danger pink — #F4F3FB gave only 2.72:1 (fails AA);
+  // the dark ground reads at 5.71:1.
+  danger: 'text-bg',
 };
 
 const SIZE: Record<ButtonSize, string> = {

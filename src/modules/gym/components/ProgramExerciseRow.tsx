@@ -1,5 +1,5 @@
 import { CalendarRange, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { WeightUnit } from '@/core/settings/schema';
@@ -22,6 +22,8 @@ export interface ProgramExerciseRowProps {
   onRemove: () => void;
   /** Open the periodization (week × set wave) editor for this slot. */
   onEditWave: () => void;
+  /** Optional drag grip, rendered in the header when the row is reorderable. */
+  dragHandle?: ReactNode;
 }
 
 /** One-line summary of the progression rule, e.g. "Double · 3 × 8–12 · +2.5 kg". */
@@ -74,6 +76,7 @@ export function ProgramExerciseRow({
   onSetE1rm,
   onRemove,
   onEditWave,
+  dragHandle,
 }: ProgramExerciseRowProps) {
   const anchor = anchorFor(row);
   // Edits happen in the display unit; the weight is stored canonical kg.
@@ -95,7 +98,8 @@ export function ProgramExerciseRow({
 
   return (
     <Card className="gap-3">
-      <View className="flex-row items-start justify-between">
+      <View className="flex-row items-start justify-between gap-2">
+        {dragHandle ? <View className="-ml-1 pt-0.5">{dragHandle}</View> : null}
         <View className="flex-1">
           <Text variant="heading">{row.exerciseName}</Text>
           <Text variant="caption" className="mt-1">
