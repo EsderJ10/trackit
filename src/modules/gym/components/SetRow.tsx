@@ -198,6 +198,12 @@ export function SetRow({
               <Text variant="caption" className="w-6">
                 {unit}
               </Text>
+              <RpeField
+                rpe={rpe}
+                setRpe={setRpe}
+                onUpdate={onUpdate}
+                setId={set.id}
+              />
             </>
           ) : kind === 'duration' ? (
             <>
@@ -272,30 +278,18 @@ export function SetRow({
           </Pressable>
         </View>
 
-        {/* RPE + previous-set cue share a secondary row so the primary row keeps
-            full width for the reps/weight numbers. RPE always has a home here. */}
-        {showRepsWeight ? (
-          <View className="mt-1.5 flex-row items-center gap-2 pl-9">
-            {previous ? (
-              <View className="flex-1 flex-row items-center gap-1">
-                <Text variant="caption">
-                  prev {previous.reps} × {formatWeight(previous.weight, unit)}
-                </Text>
-                {trend === 'up' ? (
-                  <Icon icon={ArrowUp} size={13} color={colors.success} />
-                ) : trend === 'down' ? (
-                  <Icon icon={ArrowDown} size={13} color={colors.fgFaint} />
-                ) : null}
-              </View>
-            ) : (
-              <View className="flex-1" />
-            )}
-            <RpeField
-              rpe={rpe}
-              setRpe={setRpe}
-              onUpdate={onUpdate}
-              setId={set.id}
-            />
+        {/* Previous-set cue tucks under the number row as a quiet reference; it
+            only appears when there's a prior session to compare against. */}
+        {showRepsWeight && previous ? (
+          <View className="mt-1.5 flex-row items-center gap-1 pl-9">
+            <Text variant="caption">
+              prev {previous.reps} × {formatWeight(previous.weight, unit)}
+            </Text>
+            {trend === 'up' ? (
+              <Icon icon={ArrowUp} size={13} color={colors.success} />
+            ) : trend === 'down' ? (
+              <Icon icon={ArrowDown} size={13} color={colors.fgFaint} />
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -303,7 +297,8 @@ export function SetRow({
   );
 }
 
-/** The optional RPE field; lives on the secondary row to free the number row. */
+/** The optional RPE field; sits inline on the number row, kept narrow since the
+    scale is only 1–10 so reps/weight keep the lion's share of the width. */
 function RpeField({
   rpe,
   setRpe,
@@ -321,7 +316,7 @@ function RpeField({
       placeholder="RPE"
       onChangeText={setRpe}
       onEndEditing={() => onUpdate(setId, { rpe: toRpe(rpe) })}
-      className="w-16"
+      className="w-14"
     />
   );
 }
