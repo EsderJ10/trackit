@@ -76,9 +76,9 @@ export function ProgramDaySection({
             )
           }
           renderItem={({ item }) => (
-            // The list renders cells flush; a bottom gap restores the day's
-            // inter-card spacing (and reads as the drop gap while dragging).
-            <View className="pb-3">
+            // Full-width cells (matching the old map layout); the bottom gap
+            // restores inter-card spacing and reads as the drop gap on drag.
+            <View className="w-full pb-3">
               <ProgramExerciseRow
                 row={item}
                 unit={unit}

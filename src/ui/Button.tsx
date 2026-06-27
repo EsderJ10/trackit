@@ -80,7 +80,10 @@ export function Button({
       ) : (
         <>
           {leftIcon}
-          <Text className={cn('text-base font-semibold', LABEL[variant])}>
+          <Text
+            numberOfLines={1}
+            className={cn('text-base font-semibold', LABEL[variant])}
+          >
             {label}
           </Text>
         </>

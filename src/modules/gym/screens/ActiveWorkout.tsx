@@ -429,9 +429,10 @@ export function ActiveWorkout() {
         contentContainerStyle={{ padding: 20 }}
         onReorder={handleReorder}
         renderItem={({ item: exercise }) => (
-          // Spacing baked into the cell (not a content gap) so the drag library's
-          // offset math stays exact; reads as the drop gap while dragging.
-          <View style={{ paddingBottom: 16 }}>
+          // Full-width so the card matches the old ScrollView width; spacing is
+          // baked into the cell (not a content gap) so the drag library's offset
+          // math stays exact, and it reads as the drop gap while dragging.
+          <View className="w-full pb-4">
             <ExerciseSessionCard
               name={exercise.name}
               target={exercise.target}
