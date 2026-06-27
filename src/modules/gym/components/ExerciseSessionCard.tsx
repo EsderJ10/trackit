@@ -136,7 +136,7 @@ export function ExerciseSessionCard({
 
       <View className="flex-row gap-2">
         <Button
-          label="Add set"
+          label="Set"
           variant="secondary"
           size="md"
           className="flex-1"
