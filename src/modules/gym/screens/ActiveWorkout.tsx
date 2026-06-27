@@ -2,12 +2,17 @@ import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView } from 'react-native';
+import { Alert, View } from 'react-native';
+import ReorderableList, {
+  type ReorderableListReorderEvent,
+  reorderItems,
+} from 'react-native-reorderable-list';
 
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { useSettings } from '@/core/settings/use-settings';
 import { Button, Icon, Screen, colors } from '@/ui';
 
+import { DragHandle } from '../components/DragHandle';
 import {
   ExerciseSessionCard,
   type ExerciseTarget,
@@ -34,6 +39,8 @@ import {
   getDefaultRestSec,
   getExerciseBests,
   getLastPerformance,
+  reorderProgramExercises,
+  reorderRoutineExercises,
   seedExerciseSets,
   setSetCompleted,
   updateSessionNotes,
@@ -89,6 +96,10 @@ export function ActiveWorkout() {
 
   const [extraIds, setExtraIds] = useState<number[]>([]);
   const [removedIds, setRemovedIds] = useState<number[]>([]);
+  // A session-local exercise order (by exerciseId). Null until the user drags;
+  // once set, it overrides the plan order for this workout only — the saved
+  // program/routine is touched only if they confirm on finish.
+  const [orderOverride, setOrderOverride] = useState<number[] | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   // Live PR celebration: the current banner message (cleared on a timer) and the
   // per-exercise all-time bests, fetched lazily and folded as sets complete.
@@ -201,7 +212,15 @@ export function ActiveWorkout() {
         name: catalogById.get(id)?.name ?? 'Exercise',
       });
     }
-    return list;
+    if (orderOverride == null) return list;
+    // Apply the user's drag order; exercises added after the last drag aren't
+    // in the override, so they fall (stably) to the end of the list.
+    const rank = new Map(orderOverride.map((id, index) => [id, index]));
+    return [...list].sort(
+      (a, b) =>
+        (rank.get(a.exerciseId) ?? Number.POSITIVE_INFINITY) -
+        (rank.get(b.exerciseId) ?? Number.POSITIVE_INFINITY),
+    );
   }, [
     plan,
     programPlan,
@@ -210,6 +229,7 @@ export function ActiveWorkout() {
     removedIds,
     targetByExercise,
     catalogById,
+    orderOverride,
   ]);
 
   // Last session's sets per exercise, to show "prev 5 × 80 kg" + a beat-it cue
@@ -260,6 +280,49 @@ export function ActiveWorkout() {
     }
   }
 
+  function handleReorder({ from, to }: ReorderableListReorderEvent) {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setOrderOverride(
+      reorderItems(displayExercises, from, to).map((ex) => ex.exerciseId),
+    );
+  }
+
+  // The plan's exercises (routine or program — a session is one or the other)
+  // as {row id, exerciseId}, in their saved order. Used to offer "save the new
+  // order" on finish; extra/removed exercises aren't part of the saved plan.
+  const planSlots = useMemo(
+    () =>
+      (plan.length > 0 ? plan : programPlan).map((row) => ({
+        id: row.id,
+        exerciseId: row.exerciseId,
+      })),
+    [plan, programPlan],
+  );
+
+  // Those same plan slots, sorted into the user's current display order.
+  function planSlotsInDisplayOrder() {
+    if (orderOverride == null) return planSlots;
+    const rank = new Map(orderOverride.map((id, index) => [id, index]));
+    return [...planSlots].sort(
+      (a, b) =>
+        (rank.get(a.exerciseId) ?? Number.POSITIVE_INFINITY) -
+        (rank.get(b.exerciseId) ?? Number.POSITIVE_INFINITY),
+    );
+  }
+
+  // Has the drag actually moved a *plan* exercise (vs. only extras)?
+  function planOrderChanged(): boolean {
+    if (orderOverride == null || planSlots.length === 0) return false;
+    const reordered = planSlotsInDisplayOrder();
+    return planSlots.some((slot, index) => reordered[index]?.id !== slot.id);
+  }
+
+  function persistPlanOrder() {
+    const ids = planSlotsInDisplayOrder().map((slot) => slot.id);
+    if (session?.routineId != null) reorderRoutineExercises(ids);
+    else if (session?.programDayId != null) reorderProgramExercises(ids);
+  }
+
   function commitFinish() {
     // Clear any in-flight rest so its "rest over" notification can't fire after
     // the workout's done (common path: complete last set → tap Finish).
@@ -269,6 +332,30 @@ export function ActiveWorkout() {
     // `navigate` pops back to the existing tab (and drops the finished workout
     // from the back stack) — `replace`/`push` would mis-stack across navigators.
     router.navigate('/history');
+  }
+
+  // If the user reordered plan exercises, offer to save that order back to the
+  // program/routine before finishing; otherwise the reorder stays session-local.
+  function finishWithOrderPrompt() {
+    if (!planOrderChanged()) {
+      commitFinish();
+      return;
+    }
+    const label = session?.routineId != null ? 'routine' : 'program';
+    Alert.alert(
+      'Save new order?',
+      `You reordered exercises this workout. Update your ${label} to match?`,
+      [
+        { text: 'Keep original', onPress: commitFinish },
+        {
+          text: 'Update',
+          onPress: () => {
+            persistPlanOrder();
+            commitFinish();
+          },
+        },
+      ],
+    );
   }
 
   function finish() {
@@ -282,7 +369,7 @@ export function ActiveWorkout() {
       0,
     );
     if (incomplete === 0) {
-      commitFinish();
+      finishWithOrderPrompt();
       return;
     }
     Alert.alert(
@@ -290,7 +377,7 @@ export function ActiveWorkout() {
       `You have ${incomplete} unfinished ${incomplete === 1 ? 'set' : 'sets'}.`,
       [
         { text: 'Keep going', style: 'cancel' },
-        { text: 'Finish', style: 'destructive', onPress: commitFinish },
+        { text: 'Finish', style: 'destructive', onPress: finishWithOrderPrompt },
       ],
     );
   }
@@ -334,50 +421,60 @@ export function ActiveWorkout() {
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Workout' }} />
-      <ScrollView
-        contentContainerClassName="gap-4 p-5"
+      <ReorderableList
+        data={displayExercises}
+        keyExtractor={(exercise) => String(exercise.exerciseId)}
         keyboardShouldPersistTaps="handled"
-      >
-        {displayExercises.map((exercise) => (
-          <ExerciseSessionCard
-            key={exercise.exerciseId}
-            name={exercise.name}
-            target={exercise.target}
-            reason={reasonByExercise.get(exercise.exerciseId)}
-            sets={setsByExercise.get(exercise.exerciseId) ?? []}
-            previous={previousByExercise.get(exercise.exerciseId)}
-            unit={weightUnit}
-            onAddSet={() => addSetTo(exercise.exerciseId)}
-            onUpdateSet={updateSet}
-            onToggleSet={toggleSet}
-            onDeleteSet={deleteSetLog}
-            onRemove={() => removeExercise(exercise.exerciseId)}
-            onOpenProgression={() => openProgression(exercise.exerciseId)}
-            onAddWarmup={() => addWarmup(exercise.exerciseId)}
-            onShowPlates={() =>
-              setPlateTarget(
-                toDisplayWeight(workWeightKg(exercise.exerciseId), weightUnit),
-              )
-            }
-          />
-        ))}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20 }}
+        onReorder={handleReorder}
+        renderItem={({ item: exercise }) => (
+          // Spacing baked into the cell (not a content gap) so the drag library's
+          // offset math stays exact; reads as the drop gap while dragging.
+          <View style={{ paddingBottom: 16 }}>
+            <ExerciseSessionCard
+              name={exercise.name}
+              target={exercise.target}
+              reason={reasonByExercise.get(exercise.exerciseId)}
+              sets={setsByExercise.get(exercise.exerciseId) ?? []}
+              previous={previousByExercise.get(exercise.exerciseId)}
+              unit={weightUnit}
+              dragHandle={<DragHandle />}
+              onAddSet={() => addSetTo(exercise.exerciseId)}
+              onUpdateSet={updateSet}
+              onToggleSet={toggleSet}
+              onDeleteSet={deleteSetLog}
+              onRemove={() => removeExercise(exercise.exerciseId)}
+              onOpenProgression={() => openProgression(exercise.exerciseId)}
+              onAddWarmup={() => addWarmup(exercise.exerciseId)}
+              onShowPlates={() =>
+                setPlateTarget(
+                  toDisplayWeight(workWeightKg(exercise.exerciseId), weightUnit),
+                )
+              }
+            />
+          </View>
+        )}
+        ListFooterComponent={
+          <View style={{ gap: 16 }}>
+            <Button
+              label="Add exercise"
+              variant="secondary"
+              leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
+              onPress={() => setPickerOpen(true)}
+            />
 
-        <Button
-          label="Add exercise"
-          variant="secondary"
-          leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
-          onPress={() => setPickerOpen(true)}
-        />
+            {session ? (
+              <SessionNotesField
+                initialNotes={session.notes}
+                onCommit={(notes) => updateSessionNotes(sessionId, notes)}
+              />
+            ) : null}
 
-        {session ? (
-          <SessionNotesField
-            initialNotes={session.notes}
-            onCommit={(notes) => updateSessionNotes(sessionId, notes)}
-          />
-        ) : null}
-
-        <Button label="Finish workout" onPress={finish} />
-      </ScrollView>
+            <Button label="Finish workout" onPress={finish} />
+          </View>
+        }
+      />
 
       <RestTimerBar />
       <PRBanner message={prMsg} />

@@ -1,4 +1,5 @@
 import { Calculator, Flame, Plus, Trash2 } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 
 import type { WeightUnit } from '@/core/settings/schema';
@@ -34,6 +35,8 @@ export interface ExerciseSessionCardProps {
   onAddWarmup?: () => void;
   /** Open the plate calculator for this exercise's working weight. */
   onShowPlates?: () => void;
+  /** Optional drag grip, rendered in the header when reordering is enabled. */
+  dragHandle?: ReactNode;
 }
 
 /** One exercise inside an active workout: target, editable set rows, controls. */
@@ -52,6 +55,7 @@ export function ExerciseSessionCard({
   onOpenProgression,
   onAddWarmup,
   onShowPlates,
+  dragHandle,
 }: ExerciseSessionCardProps) {
   function confirmRemove() {
     Alert.alert('Remove exercise', `Remove ${name} from this workout?`, [
@@ -72,7 +76,8 @@ export function ExerciseSessionCard({
 
   return (
     <Card className="gap-3">
-      <View className="flex-row items-start justify-between">
+      <View className="flex-row items-start justify-between gap-2">
+        {dragHandle ? <View className="-ml-1 pt-1">{dragHandle}</View> : null}
         <View className="flex-1">
           <Pressable
             onPress={onOpenProgression}
