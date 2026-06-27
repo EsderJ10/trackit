@@ -1,8 +1,11 @@
 import { sql } from 'drizzle-orm';
 import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+import type { Muscle } from './muscles';
+
 // NOTE: relative imports only in schema files — drizzle-kit bundles them with
-// esbuild, which does not resolve tsconfig path aliases.
+// esbuild, which does not resolve tsconfig path aliases. (`Muscle` is a
+// type-only import, erased before bundling, so it adds no runtime dependency.)
 
 const now = sql`(unixepoch() * 1000)`;
 
@@ -25,6 +28,32 @@ export const exercises = sqliteTable('exercises', {
   })
     .notNull()
     .default('weight_reps'),
+  /** One-line "what is this" summary shown atop the exercise detail screen. */
+  description: text('description'),
+  /**
+   * Ordered form cues (setup → execution). Stored as a JSON string array; the
+   * detail screen renders them as a checklist. Hand-authored for seeded rows,
+   * null for user-created exercises until they add their own.
+   */
+  cues: text('cues', { mode: 'json' }).$type<string[]>(),
+  /**
+   * Fine muscles this movement trains, split by emphasis — JSON arrays of
+   * `Muscle` ids (see `./muscles`). The anatomy diagram lights `primaryMuscles`
+   * bright and `secondaryMuscles` dim. Independent of the coarse `muscleGroup`
+   * bucket, but every id rolls up to one group via `MUSCLES`.
+   */
+  primaryMuscles: text('primary_muscles', { mode: 'json' }).$type<Muscle[]>(),
+  secondaryMuscles: text('secondary_muscles', {
+    mode: 'json',
+  }).$type<Muscle[]>(),
+  /**
+   * User-pinned flag. Client state living on the catalog row (the table is
+   * local-only); the reseed reconcile never touches it, so favourites survive
+   * catalog updates.
+   */
+  isFavorite: integer('is_favorite', { mode: 'boolean' })
+    .notNull()
+    .default(false),
 });
 
 /** A reusable workout template. */
