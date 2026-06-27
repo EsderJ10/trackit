@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
@@ -301,6 +301,25 @@ export function setExerciseFavorite(
     .set({ isFavorite })
     .where(eq(exercises.id, exerciseId))
     .run();
+}
+
+/**
+ * Exercise ids used most recently, newest-used first, across finished sessions.
+ * Drives the "Recent" shortcut on the exercise list. Returns ids only — the
+ * caller already holds the full rows from `useExercises`.
+ */
+export function useRecentExerciseIds(limit = 6): number[] {
+  const { data } = useLiveQuery(
+    db
+      .select({ exerciseId: setLogs.exerciseId })
+      .from(setLogs)
+      .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+      .where(isNotNull(workoutSessions.finishedAt))
+      .groupBy(setLogs.exerciseId)
+      .orderBy(desc(sql`max(${workoutSessions.finishedAt})`))
+      .limit(limit),
+  );
+  return data.map((row) => row.exerciseId);
 }
 
 // ---------------------------------------------------------------------------
