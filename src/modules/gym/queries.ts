@@ -293,6 +293,16 @@ export function createExercise(
   return result.lastInsertRowId;
 }
 
+export function setExerciseFavorite(
+  exerciseId: number,
+  isFavorite: boolean,
+): void {
+  db.update(exercises)
+    .set({ isFavorite })
+    .where(eq(exercises.id, exerciseId))
+    .run();
+}
+
 // ---------------------------------------------------------------------------
 // Sessions + set logs
 // ---------------------------------------------------------------------------
@@ -863,7 +873,8 @@ export function useGymStats(): GymStats {
     // Tonnage only from load-bearing kinds (timed/distance carry no weight).
     const weeklyVolume = weekly.reduce(
       (sum, s) =>
-        s.measurementKind === 'weight_reps' || s.measurementKind === 'bodyweight'
+        s.measurementKind === 'weight_reps' ||
+        s.measurementKind === 'bodyweight'
           ? sum + s.weight * s.reps
           : sum,
       0,
