@@ -1,7 +1,8 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
+import { ScrollViewContainer } from 'react-native-reorderable-list';
 
 import { useSettings } from '@/core/settings/use-settings';
 import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
@@ -18,6 +19,7 @@ import {
   removeProgramDay,
   removeProgramExercise,
   removeProgramWeek,
+  reorderProgramExercises,
   renameProgram,
   renameProgramDay,
   renameProgramWeek,
@@ -127,7 +129,7 @@ export function ProgramEditor() {
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Edit program' }} />
-      <ScrollView contentContainerClassName="gap-4 p-5">
+      <ScrollViewContainer contentContainerStyle={{ gap: 16, padding: 20 }}>
         <View className="gap-1">
           <Text variant="caption" className="uppercase tracking-wider">
             Program name
@@ -177,6 +179,7 @@ export function ProgramEditor() {
               onEditWave={(programExerciseId, name) =>
                 setWaveTarget({ programExerciseId, name })
               }
+              onReorderExercises={reorderProgramExercises}
             />
           ))
         )}
@@ -216,7 +219,7 @@ export function ProgramEditor() {
           size="md"
           onPress={remove}
         />
-      </ScrollView>
+      </ScrollViewContainer>
 
       <ExercisePickerModal
         visible={pickerDayId != null}

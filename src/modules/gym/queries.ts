@@ -139,6 +139,22 @@ export function removeRoutineExercise(id: number): void {
   db.delete(routineExercises).where(eq(routineExercises.id, id)).run();
 }
 
+/**
+ * Persist a new ordering of a routine's exercises. `orderedIds` are the
+ * `routine_exercises` row ids in their desired order; each row's `position`
+ * is rewritten to its index, in one transaction.
+ */
+export function reorderRoutineExercises(orderedIds: number[]): void {
+  db.transaction((tx) => {
+    orderedIds.forEach((id, index) => {
+      tx.update(routineExercises)
+        .set({ position: index })
+        .where(eq(routineExercises.id, id))
+        .run();
+    });
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Gym settings (single row, id = 1)
 // ---------------------------------------------------------------------------
@@ -1622,6 +1638,22 @@ export function removeProgramExercise(programExerciseId: number): void {
   db.delete(programExercises)
     .where(eq(programExercises.id, programExerciseId))
     .run();
+}
+
+/**
+ * Persist a new ordering of one day's program exercises. `orderedIds` are the
+ * `program_exercises` row ids (within a single day) in their desired order;
+ * each row's day-local `position` is rewritten to its index, in one transaction.
+ */
+export function reorderProgramExercises(orderedIds: number[]): void {
+  db.transaction((tx) => {
+    orderedIds.forEach((id, index) => {
+      tx.update(programExercises)
+        .set({ position: index })
+        .where(eq(programExercises.id, id))
+        .run();
+    });
+  });
 }
 
 // --- Per-week prescriptions ---------------------------------------------

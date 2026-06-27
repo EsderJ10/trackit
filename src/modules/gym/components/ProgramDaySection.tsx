@@ -1,10 +1,16 @@
 import { Plus, Trash2 } from 'lucide-react-native';
 import { Pressable, TextInput, View } from 'react-native';
+import {
+  NestedReorderableList,
+  type ReorderableListReorderEvent,
+  reorderItems,
+} from 'react-native-reorderable-list';
 
 import type { WeightUnit } from '@/core/settings/schema';
 import { Button, Icon, Text, colors } from '@/ui';
 
 import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
+import { DragHandle } from './DragHandle';
 import { ProgramExerciseRow } from './ProgramExerciseRow';
 
 export interface ProgramDaySectionProps {
@@ -19,6 +25,8 @@ export interface ProgramDaySectionProps {
   onSetE1rm: (programExerciseId: number, weightKg: number) => void;
   onRemoveExercise: (programExerciseId: number) => void;
   onEditWave: (programExerciseId: number, name: string) => void;
+  /** Persist a new exercise order for this day (program_exercises row ids). */
+  onReorderExercises: (orderedIds: number[]) => void;
 }
 
 /** One day of a program: an editable name plus its exercises and an add button. */
@@ -34,6 +42,7 @@ export function ProgramDaySection({
   onSetE1rm,
   onRemoveExercise,
   onEditWave,
+  onReorderExercises,
 }: ProgramDaySectionProps) {
   return (
     <View className="gap-3 rounded-2xl border border-border-soft bg-surface-alt/40 p-3">
@@ -57,18 +66,32 @@ export function ProgramDaySection({
       {exercises.length === 0 ? (
         <Text variant="caption">No exercises in this day yet.</Text>
       ) : (
-        exercises.map((row) => (
-          <ProgramExerciseRow
-            key={row.id}
-            row={row}
-            unit={unit}
-            onSetWeight={(kg) => onSetWeight(row.id, kg)}
-            onSetTrainingMax={(kg) => onSetTrainingMax(row.id, kg)}
-            onSetE1rm={(kg) => onSetE1rm(row.id, kg)}
-            onRemove={() => onRemoveExercise(row.id)}
-            onEditWave={() => onEditWave(row.id, row.exerciseName)}
-          />
-        ))
+        <NestedReorderableList
+          data={exercises}
+          scrollable={false}
+          keyExtractor={(row) => String(row.id)}
+          onReorder={({ from, to }: ReorderableListReorderEvent) =>
+            onReorderExercises(
+              reorderItems(exercises, from, to).map((row) => row.id),
+            )
+          }
+          renderItem={({ item }) => (
+            // The list renders cells flush; a bottom gap restores the day's
+            // inter-card spacing (and reads as the drop gap while dragging).
+            <View className="pb-3">
+              <ProgramExerciseRow
+                row={item}
+                unit={unit}
+                dragHandle={<DragHandle />}
+                onSetWeight={(kg) => onSetWeight(item.id, kg)}
+                onSetTrainingMax={(kg) => onSetTrainingMax(item.id, kg)}
+                onSetE1rm={(kg) => onSetE1rm(item.id, kg)}
+                onRemove={() => onRemoveExercise(item.id)}
+                onEditWave={() => onEditWave(item.id, item.exerciseName)}
+              />
+            </View>
+          )}
+        />
       )}
 
       <Button
