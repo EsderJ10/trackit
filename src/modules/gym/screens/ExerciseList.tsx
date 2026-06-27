@@ -1,9 +1,9 @@
 import { Stack, useRouter } from 'expo-router';
-import { ChevronRight, Dumbbell, Search, Star } from 'lucide-react-native';
+import { ChevronRight, Dumbbell, Search, Star, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { Card, Icon, Screen, Text, colors } from '@/ui';
+import { Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
 import { muscleLabel } from '../muscles';
 import { useExercises, useRecentExerciseIds } from '../queries';
@@ -155,6 +155,12 @@ export function ExerciseList() {
     });
   }
 
+  function clearFilters() {
+    setQuery('');
+    setMuscleFilter(null);
+    setEquipmentFilter(null);
+  }
+
   const renderSection = (title: string, items: Exercise[]) => (
     <View key={title} className="gap-2">
       <Text variant="caption" className="uppercase tracking-wider">
@@ -169,6 +175,21 @@ export function ExerciseList() {
       ))}
     </View>
   );
+
+  // An empty catalog has nothing to search or filter — show the plain prompt
+  // rather than an empty search bar over empty filter rows.
+  if (exercises.length === 0) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: 'Exercises' }} />
+        <EmptyState
+          icon={<Icon icon={Dumbbell} size={40} color={colors.fgFaint} />}
+          title="No exercises"
+          description="Add exercises from a routine or workout to see them here."
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -189,6 +210,16 @@ export function ExerciseList() {
             autoCorrect={false}
             autoCapitalize="none"
           />
+          {query.length > 0 ? (
+            <Pressable
+              onPress={() => setQuery('')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Icon icon={X} size={18} color={colors.fgFaint} />
+            </Pressable>
+          ) : null}
         </View>
 
         {/* Muscle-group filter */}
@@ -239,16 +270,16 @@ export function ExerciseList() {
           ))}
         </ScrollView>
 
-        {exercises.length === 0 ? (
-          <Text variant="muted" className="px-1 pt-2">
-            No exercises yet. Add some from a routine or workout to see them
-            here.
-          </Text>
-        ) : isFiltering ? (
+        {isFiltering ? (
           filtered.length === 0 ? (
-            <Text variant="muted" className="px-1 pt-2">
-              No exercises match your filters.
-            </Text>
+            <View className="gap-3 px-1 pt-2">
+              <Text variant="muted">No exercises match your filters.</Text>
+              <Pressable onPress={clearFilters} className="active:opacity-70">
+                <Text variant="label" style={{ color: colors.gym }}>
+                  Clear filters
+                </Text>
+              </Pressable>
+            </View>
           ) : (
             filteredGroups.map((group) =>
               renderSection(group.name, group.exercises),
