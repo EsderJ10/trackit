@@ -23,7 +23,9 @@ export { TextField, type TextFieldProps } from './TextField';
 export {
   colors,
   glow,
+  moduleStackScreenOptions,
   navigationTheme,
+  tint,
   typography,
   type AppColors,
   type TypographyStep,

@@ -43,6 +43,31 @@ export function glow(
 }
 
 /**
+ * A 6-digit hex `color` at the given `alpha` (0–1) as an 8-digit hex string —
+ * for soft accent fills (selected rows, badges, calendar marks) without
+ * hand-writing opaque hex-alpha suffixes like `${colors.gym}22`.
+ */
+export function tint(color: string, alpha: number): string {
+  const clamped = Math.max(0, Math.min(1, alpha));
+  const suffix = Math.round(clamped * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `${color}${suffix}`;
+}
+
+/**
+ * Shared header/content chrome for every module's navigation stack, so each
+ * module's `_layout.tsx` stays a one-line delegation instead of copying the
+ * same options (and the same dark-bg white-flash guard) per module.
+ */
+export const moduleStackScreenOptions = {
+  headerStyle: { backgroundColor: colors.surface },
+  headerTintColor: colors.fg,
+  headerShadowVisible: false,
+  contentStyle: { backgroundColor: colors.bg },
+};
+
+/**
  * Rigid typography scale — the single source of truth for type sizing/weight.
  * Numbers/metrics use `tabular-nums` so digits don't jitter as values change
  * (critical for the logger). Keys are stable; screens pick a step, they don't
