@@ -22,6 +22,11 @@ interface SessionBlock {
   sets: ExerciseHistoryRow[];
 }
 
+/** Capitalize an enum value for display (e.g. `compound` → `Compound`). */
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 /** A small bordered pill for a single attribute (muscle group, equipment). */
 function Chip({ label }: { label: string }) {
   return (
@@ -110,6 +115,7 @@ export function ExerciseDetail() {
   const primaryMuscles = exercise?.primaryMuscles ?? [];
   const secondaryMuscles = exercise?.secondaryMuscles ?? [];
   const cues = exercise?.cues ?? [];
+  const mistakes = exercise?.commonMistakes ?? [];
   // Tonnage/1RM only make sense for loaded lifts; cardio/timed kinds skip them.
   const showLoadRecords =
     exercise?.measurementKind === 'weight_reps' ||
@@ -156,6 +162,10 @@ export function ExerciseDetail() {
               <Chip label={exercise.muscleGroup} />
             ) : null}
             {exercise?.equipment ? <Chip label={exercise.equipment} /> : null}
+            {exercise?.mechanic ? <Chip label={titleCase(exercise.mechanic)} /> : null}
+            {exercise?.forceType ? (
+              <Chip label={titleCase(exercise.forceType)} />
+            ) : null}
           </View>
           {primaryMuscles.length > 0 || secondaryMuscles.length > 0 ? (
             <MuscleMap primary={primaryMuscles} secondary={secondaryMuscles} />
@@ -178,6 +188,29 @@ export function ExerciseDetail() {
                   </Text>
                   <Text variant="body" className="flex-1">
                     {cue}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        ) : null}
+
+        {/* Common mistakes — what to avoid */}
+        {mistakes.length > 0 ? (
+          <Card className="gap-3">
+            <Text variant="label">Common mistakes</Text>
+            <View className="gap-2">
+              {mistakes.map((mistake, index) => (
+                <View key={index} className="flex-row gap-3">
+                  <Text
+                    variant="label"
+                    className="w-5"
+                    style={{ color: colors.warning }}
+                  >
+                    ✕
+                  </Text>
+                  <Text variant="body" className="flex-1">
+                    {mistake}
                   </Text>
                 </View>
               ))}

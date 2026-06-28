@@ -31,11 +31,29 @@ export const exercises = sqliteTable('exercises', {
   /** One-line "what is this" summary shown atop the exercise detail screen. */
   description: text('description'),
   /**
+   * Whether the movement crosses multiple joints (`compound`) or one
+   * (`isolation`). Shown as a chip; helps a beginner understand what a lift is
+   * for. Null for user-created exercises until they classify their own.
+   */
+  mechanic: text('mechanic', { enum: ['compound', 'isolation'] }),
+  /**
+   * The resistance direction: `push`, `pull`, or `static` (isometric). Drives a
+   * chip today and enables future push/pull/legs auto-categorization. Null where
+   * it doesn't cleanly apply (e.g. rotational core work) or for custom rows.
+   */
+  forceType: text('force_type', { enum: ['push', 'pull', 'static'] }),
+  /**
    * Ordered form cues (setup → execution). Stored as a JSON string array; the
    * detail screen renders them as a checklist. Hand-authored for seeded rows,
    * null for user-created exercises until they add their own.
    */
   cues: text('cues', { mode: 'json' }).$type<string[]>(),
+  /**
+   * Common mistakes to avoid, as a JSON string array — rendered as a cautionary
+   * checklist under the form cues. Hand-authored for seeded rows; the highest-
+   * value teaching content for the mid-to-zero-knowledge audience. Null until set.
+   */
+  commonMistakes: text('common_mistakes', { mode: 'json' }).$type<string[]>(),
   /**
    * Fine muscles this movement trains, split by emphasis — JSON arrays of
    * `Muscle` ids (see `./muscles`). The anatomy diagram lights `primaryMuscles`
