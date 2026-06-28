@@ -13,6 +13,14 @@ export interface BodyPart {
   slug: string;
   color?: string;
   path: { left?: string[]; right?: string[]; common?: string[] };
+  /**
+   * An overlay region carved out of a parent region (e.g. the side-deltoid out
+   * of the deltoid cap). Rendered ON TOP of its parent and ONLY when explicitly
+   * highlighted — when not lit it paints nothing, letting the parent show through
+   * (so tagging the parent's main head never leaves a grey hole). Must appear
+   * AFTER its parent in the array so it draws over it.
+   */
+  overlay?: boolean;
 }
 
 export const bodyFront: BodyPart[] = [
@@ -330,6 +338,30 @@ export const bodyFront: BodyPart[] = [
       ],
     },
   },
+
+  // Side deltoid — overlay carved from the outer cap of the deltoid, so a
+  // lateral raise lights only the side head (not the whole front shoulder).
+  {
+    slug: 'side-deltoid',
+    color: '#3f3f3f',
+    overlay: true,
+    path: {
+      left: ['M196 343 a 20 28 0 1 0 40 0 a 20 28 0 1 0 -40 0'],
+      right: ['M490 345 a 20 28 0 1 0 40 0 a 20 28 0 1 0 -40 0'],
+    },
+  },
+
+  // Hip flexors — overlay at the hip crease / upper-inner thigh (iliopsoas),
+  // the prime mover a straight-leg raise trains.
+  {
+    slug: 'hip-flexor',
+    color: '#3f3f3f',
+    overlay: true,
+    path: {
+      left: ['M305 666 a 15 22 0 1 0 30 0 a 15 22 0 1 0 -30 0'],
+      right: ['M385 666 a 15 22 0 1 0 30 0 a 15 22 0 1 0 -30 0'],
+    },
+  },
 ];
 
 export const bodyBack: BodyPart[] = [
@@ -588,6 +620,18 @@ export const bodyBack: BodyPart[] = [
       common: [
         'M1138.38 168.39q-.49 4.68-3.37 8.55-.31.41-.81.56c-9.91 3.11-15.97 9.67-20.28 18.94-2.21 4.75-5.25 12.39-11.48 12.3q-18.46-.25-36.94.25-5.35.14-7.43-3.53c-6.78-11.97-10.46-22.53-23.52-27.48-5.05-1.92-5.38-6.47-6.41-11.53q-6.64-26.16 4.43-48.88c8.13-16.7 34.61-21.41 51.58-21.04 4.89.11 9.69-.11 14.42.85 18.79 3.8 33.17 8.5 39.34 28.66q6.38 20.88.47 42.35z',
       ],
+    },
+  },
+
+  // Glute medius — overlay on the upper-outer glute (the abductor the
+  // hip-abduction machine trains), distinct from the main gluteus maximus mass.
+  {
+    slug: 'glute-medius',
+    color: '#3f3f3f',
+    overlay: true,
+    path: {
+      left: ['M982 662 a 20 18 0 1 0 40 0 a 20 18 0 1 0 -40 0'],
+      right: ['M1150 662 a 20 18 0 1 0 40 0 a 20 18 0 1 0 -40 0'],
     },
   },
 ];

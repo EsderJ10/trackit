@@ -59,6 +59,9 @@ function BodyView({ parts, view, highlight, height }: BodyViewProps) {
   return (
     <Svg width={height * ASPECT} height={height} viewBox={VIEW_BOX[view]}>
       {parts.map((part) => {
+        // Overlay regions (e.g. side-deltoid) only paint when explicitly lit;
+        // otherwise they render nothing so the parent region shows through.
+        if (part.overlay && !highlight.has(part.slug)) return null;
         const { fill, opacity } = FILL[highlight.get(part.slug) ?? 'base'];
         const subpaths = [
           ...(part.path.left ?? []),
