@@ -171,7 +171,7 @@ export function SetRow({
             hitSlop={8}
             className="w-7 items-center active:opacity-60"
           >
-            <Text style={{ color: badge.color }} className="font-semibold">
+            <Text style={{ color: badge.color, fontWeight: '600' }}>
               {badge.label}
             </Text>
           </Pressable>

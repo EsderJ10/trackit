@@ -43,7 +43,7 @@ export function RestTimerBar() {
       style={glow(colors.gym, 0.4)}
     >
       <Icon icon={Timer} size={20} color={colors.gym} />
-      <Text variant="heading" className="flex-1">
+      <Text variant="heading" className="flex-1" style={{ fontVariant: ['tabular-nums'] }}>
         {formatDuration(remaining)}
       </Text>
 
