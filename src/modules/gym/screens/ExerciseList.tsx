@@ -1,7 +1,13 @@
 import { Stack, useRouter } from 'expo-router';
 import { ChevronRight, Dumbbell, Search, Star, X } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { memo, useCallback, useMemo, useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  SectionList,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Card, EmptyState, Icon, Screen, Text, colors, tint } from '@/ui';
 
@@ -12,6 +18,18 @@ import type { Exercise } from '../schema';
 interface MuscleSection {
   name: string;
   exercises: Exercise[];
+}
+
+/** A flattened section row; the key namespaces the exercise by its section so the
+    same exercise can appear under Favorites/Recent and its muscle group. */
+interface ExerciseRowItem {
+  key: string;
+  exercise: Exercise;
+}
+
+interface ExerciseSection {
+  title: string;
+  data: ExerciseRowItem[];
 }
 
 /** Bucket a (muscle-group, name)-ordered list into per-group sections. */
@@ -28,6 +46,17 @@ function groupByMuscle(list: Exercise[]): MuscleSection[] {
     group.exercises.push(exercise);
   }
   return order.map((name) => byName.get(name)!);
+}
+
+/** Wrap a group's exercises as section rows with section-namespaced keys. */
+function toSection(title: string, exercises: Exercise[]): ExerciseSection {
+  return {
+    title,
+    data: exercises.map((exercise) => ({
+      key: `${title}-${exercise.id}`,
+      exercise,
+    })),
+  };
 }
 
 /** A selectable pill for the muscle-group / equipment filter bars. */
@@ -63,12 +92,12 @@ function FilterChip({
 }
 
 /** A single exercise row: accent medallion, name, worked-muscle subtitle. */
-function ExerciseRow({
+const ExerciseRow = memo(function ExerciseRow({
   exercise,
   onPress,
 }: {
   exercise: Exercise;
-  onPress: () => void;
+  onPress: (exerciseId: number) => void;
 }) {
   const subtitle =
     exercise.primaryMuscles && exercise.primaryMuscles.length > 0
@@ -76,7 +105,10 @@ function ExerciseRow({
       : (exercise.equipment ?? exercise.muscleGroup);
 
   return (
-    <Pressable onPress={onPress} className="active:opacity-70">
+    <Pressable
+      onPress={() => onPress(exercise.id)}
+      className="active:opacity-70"
+    >
       <Card className="flex-row items-center gap-3">
         <View
           className="h-9 w-9 items-center justify-center rounded-full"
@@ -97,7 +129,7 @@ function ExerciseRow({
       </Card>
     </Pressable>
   );
-}
+});
 
 export function ExerciseList() {
   const router = useRouter();
@@ -136,9 +168,6 @@ export function ExerciseList() {
     [exercises, trimmedQuery, muscleFilter, equipmentFilter],
   );
 
-  const filteredGroups = useMemo(() => groupByMuscle(filtered), [filtered]);
-  const allGroups = useMemo(() => groupByMuscle(exercises), [exercises]);
-
   const favorites = useMemo(
     () => exercises.filter((e) => e.isFavorite),
     [exercises],
@@ -150,33 +179,36 @@ export function ExerciseList() {
       .filter((e): e is Exercise => e !== undefined);
   }, [recentIds, exercises]);
 
-  function openExercise(exerciseId: number) {
-    router.push({
-      pathname: '/modules/gym/exercise',
-      params: { exerciseId: String(exerciseId) },
-    });
-  }
+  // Sections feed the SectionList: when filtering, just the matching groups;
+  // otherwise Favorites + Recent pinned above the full muscle-grouped catalog.
+  const sections = useMemo<ExerciseSection[]>(() => {
+    if (isFiltering) {
+      return groupByMuscle(filtered).map((g) => toSection(g.name, g.exercises));
+    }
+    const result: ExerciseSection[] = [];
+    if (favorites.length > 0) result.push(toSection('Favorites', favorites));
+    if (recents.length > 0) result.push(toSection('Recent', recents));
+    for (const g of groupByMuscle(exercises)) {
+      result.push(toSection(g.name, g.exercises));
+    }
+    return result;
+  }, [isFiltering, filtered, favorites, recents, exercises]);
+
+  const openExercise = useCallback(
+    (exerciseId: number) => {
+      router.push({
+        pathname: '/modules/gym/exercise',
+        params: { exerciseId: String(exerciseId) },
+      });
+    },
+    [router],
+  );
 
   function clearFilters() {
     setQuery('');
     setMuscleFilter(null);
     setEquipmentFilter(null);
   }
-
-  const renderSection = (title: string, items: Exercise[]) => (
-    <View key={title} className="gap-2">
-      <Text variant="caption" className="uppercase tracking-wider">
-        {title}
-      </Text>
-      {items.map((exercise) => (
-        <ExerciseRow
-          key={exercise.id}
-          exercise={exercise}
-          onPress={() => openExercise(exercise.id)}
-        />
-      ))}
-    </View>
-  );
 
   // An empty catalog has nothing to search or filter — show the plain prompt
   // rather than an empty search bar over empty filter rows.
@@ -193,112 +225,115 @@ export function ExerciseList() {
     );
   }
 
+  const listHeader = (
+    <View className="gap-4 pb-2">
+      {/* Search */}
+      <View className="flex-row items-center gap-3 rounded-xl border border-border bg-surface-hi px-4 py-3.5">
+        <Icon icon={Search} size={18} color={colors.fgFaint} />
+        <TextInput
+          className="flex-1 text-base text-fg"
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search exercises"
+          placeholderTextColor={colors.fgFaint}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+        />
+        {query.length > 0 ? (
+          <Pressable
+            onPress={() => setQuery('')}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
+            <Icon icon={X} size={18} color={colors.fgFaint} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      {/* Muscle-group filter */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerClassName="gap-2 pr-2"
+      >
+        <FilterChip
+          label="All"
+          active={muscleFilter === null}
+          onPress={() => setMuscleFilter(null)}
+        />
+        {muscleGroups.map((group) => (
+          <FilterChip
+            key={group}
+            label={group}
+            active={muscleFilter === group}
+            onPress={() =>
+              setMuscleFilter((current) => (current === group ? null : group))
+            }
+          />
+        ))}
+      </ScrollView>
+
+      {/* Equipment filter */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerClassName="gap-2 pr-2"
+      >
+        <FilterChip
+          label="Any gear"
+          active={equipmentFilter === null}
+          onPress={() => setEquipmentFilter(null)}
+        />
+        {equipmentOptions.map((item) => (
+          <FilterChip
+            key={item}
+            label={item}
+            active={equipmentFilter === item}
+            onPress={() =>
+              setEquipmentFilter((current) => (current === item ? null : item))
+            }
+          />
+        ))}
+      </ScrollView>
+    </View>
+  );
+
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Exercises' }} />
-      <ScrollView
-        contentContainerClassName="gap-4 p-5"
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.key}
         keyboardShouldPersistTaps="handled"
-      >
-        {/* Search */}
-        <View className="flex-row items-center gap-3 rounded-xl border border-border bg-surface-hi px-4 py-3.5">
-          <Icon icon={Search} size={18} color={colors.fgFaint} />
-          <TextInput
-            className="flex-1 text-base text-fg"
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search exercises"
-            placeholderTextColor={colors.fgFaint}
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-          {query.length > 0 ? (
-            <Pressable
-              onPress={() => setQuery('')}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Clear search"
-            >
-              <Icon icon={X} size={18} color={colors.fgFaint} />
-            </Pressable>
-          ) : null}
-        </View>
-
-        {/* Muscle-group filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-2 pr-2"
-        >
-          <FilterChip
-            label="All"
-            active={muscleFilter === null}
-            onPress={() => setMuscleFilter(null)}
-          />
-          {muscleGroups.map((group) => (
-            <FilterChip
-              key={group}
-              label={group}
-              active={muscleFilter === group}
-              onPress={() =>
-                setMuscleFilter((current) => (current === group ? null : group))
-              }
-            />
-          ))}
-        </ScrollView>
-
-        {/* Equipment filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-2 pr-2"
-        >
-          <FilterChip
-            label="Any gear"
-            active={equipmentFilter === null}
-            onPress={() => setEquipmentFilter(null)}
-          />
-          {equipmentOptions.map((item) => (
-            <FilterChip
-              key={item}
-              label={item}
-              active={equipmentFilter === item}
-              onPress={() =>
-                setEquipmentFilter((current) =>
-                  current === item ? null : item,
-                )
-              }
-            />
-          ))}
-        </ScrollView>
-
-        {isFiltering ? (
-          filtered.length === 0 ? (
-            <View className="gap-3 px-1 pt-2">
-              <Text variant="muted">No exercises match your filters.</Text>
-              <Pressable onPress={clearFilters} className="active:opacity-70">
-                <Text variant="label" style={{ color: colors.gym }}>
-                  Clear filters
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
-            filteredGroups.map((group) =>
-              renderSection(group.name, group.exercises),
-            )
-          )
-        ) : (
-          <>
-            {favorites.length > 0
-              ? renderSection('Favorites', favorites)
-              : null}
-            {recents.length > 0 ? renderSection('Recent', recents) : null}
-            {allGroups.map((group) =>
-              renderSection(group.name, group.exercises),
-            )}
-          </>
+        keyboardDismissMode="on-drag"
+        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 20 }}
+        ListHeaderComponent={listHeader}
+        ItemSeparatorComponent={() => <View className="h-2" />}
+        renderSectionHeader={({ section }) => (
+          <View className="bg-bg pb-2 pt-4">
+            <Text variant="caption" className="uppercase tracking-wider">
+              {section.title}
+            </Text>
+          </View>
         )}
-      </ScrollView>
+        renderItem={({ item }) => (
+          <ExerciseRow exercise={item.exercise} onPress={openExercise} />
+        )}
+        ListEmptyComponent={
+          <View className="gap-3 px-1 pt-2">
+            <Text variant="muted">No exercises match your filters.</Text>
+            <Pressable onPress={clearFilters} className="active:opacity-70">
+              <Text variant="label" style={{ color: colors.gym }}>
+                Clear filters
+              </Text>
+            </Pressable>
+          </View>
+        }
+      />
     </Screen>
   );
 }
