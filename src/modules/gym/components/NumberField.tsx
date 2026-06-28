@@ -15,6 +15,8 @@ export interface NumberFieldProps {
    * unlabeled input — always pass a semantic label for the logger controls.
    */
   accessibilityLabel?: string;
+  /** Reddens the border to flag an out-of-range / unparseable value. */
+  invalid?: boolean;
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: TextInputProps['onSubmitEditing'];
 }
@@ -28,6 +30,7 @@ export function NumberField({
   onEndEditing,
   className,
   accessibilityLabel,
+  invalid = false,
   returnKeyType,
   onSubmitEditing,
 }: NumberFieldProps) {
@@ -52,7 +55,10 @@ export function NumberField({
         // Tabular numerals so digits keep a fixed width and don't jitter as the
         // value changes (the logger's core readability requirement).
         style={{ fontVariant: ['tabular-nums'] }}
-        className="rounded-xl border border-border bg-surface-hi px-3 py-3 text-center text-base text-fg"
+        className={cn(
+          'rounded-xl border bg-surface-hi px-3 py-3 text-center text-base text-fg',
+          invalid ? 'border-danger' : 'border-border',
+        )}
       />
     </View>
   );

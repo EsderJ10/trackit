@@ -352,12 +352,26 @@ function RpeField({
   onUpdate: (id: number, patch: SetPatch) => void;
   setId: number;
 }) {
+  const parsed = Number.parseFloat(rpe);
+  // Flag anything outside the 1–10 scale so the user sees it before it's
+  // silently clamped on blur.
+  const invalid =
+    rpe.trim() !== '' && (Number.isNaN(parsed) || parsed < 1 || parsed > 10);
+
+  function commit() {
+    const value = toRpe(rpe);
+    // Reflect the clamped value (e.g. 15 → 10) so the field shows what was kept.
+    setRpe(value == null ? '' : String(value));
+    onUpdate(setId, { rpe: value });
+  }
+
   return (
     <NumberField
       value={rpe}
       placeholder="RPE"
       onChangeText={setRpe}
-      onEndEditing={() => onUpdate(setId, { rpe: toRpe(rpe) })}
+      onEndEditing={commit}
+      invalid={invalid}
       accessibilityLabel="RPE, rate of perceived exertion"
       className="w-14"
     />
