@@ -111,8 +111,12 @@ export function ActiveWorkout() {
   // Latest live sets, read by the stable `toggleSet` below without closing over
   // `sets` (which changes identity every commit) — so the handler passed down to
   // every memoized SetRow stays referentially stable and rows don't all re-render.
+  // Synced in an effect (not during render) so the ref write is commit-safe; the
+  // ref is only read later from the toggle handler, well after commit.
   const setsRef = useRef(sets);
-  setsRef.current = sets;
+  useEffect(() => {
+    setsRef.current = sets;
+  }, [sets]);
 
   useEffect(() => {
     if (prMsg == null) return;
