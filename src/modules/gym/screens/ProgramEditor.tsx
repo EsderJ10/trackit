@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
 import { ScrollViewContainer } from 'react-native-reorderable-list';
 
@@ -112,6 +112,15 @@ export function ProgramEditor() {
     return map;
   }, [exercises]);
 
+  // Stable so the memoized program-exercise rows don't re-render when an
+  // unrelated slot is edited (setWaveTarget is a stable state setter).
+  const openWaveEditor = useCallback(
+    (programExerciseId: number, name: string) => {
+      setWaveTarget({ programExerciseId, name });
+    },
+    [],
+  );
+
   function chooseScheme(option: (typeof SCHEMES)[number]) {
     if (pending == null) return;
     addProgramExercise({
@@ -189,9 +198,7 @@ export function ProgramEditor() {
                 onSetTrainingMax={setProgramExerciseTrainingMax}
                 onSetE1rm={setProgramExerciseE1rm}
                 onRemoveExercise={removeProgramExercise}
-                onEditWave={(programExerciseId, name) =>
-                  setWaveTarget({ programExerciseId, name })
-                }
+                onEditWave={openWaveEditor}
                 onReorderExercises={reorderProgramExercises}
               />
             ))

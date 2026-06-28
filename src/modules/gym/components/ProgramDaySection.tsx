@@ -10,7 +10,6 @@ import type { WeightUnit } from '@/core/settings/schema';
 import { Button, Icon, Text, colors } from '@/ui';
 
 import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
-import { DragHandle } from './DragHandle';
 import { ProgramExerciseRow } from './ProgramExerciseRow';
 
 export interface ProgramDaySectionProps {
@@ -81,15 +80,17 @@ export function ProgramDaySection({
             // The list renders cells flush; a bottom gap restores the day's
             // inter-card spacing (and reads as the drop gap while dragging).
             <View className="pb-3">
+              {/* Stable id-based handlers (passed straight through) keep the
+                  memoized row from re-rendering when a sibling commits. */}
               <ProgramExerciseRow
                 row={item}
                 unit={unit}
-                dragHandle={<DragHandle />}
-                onSetWeight={(kg) => onSetWeight(item.id, kg)}
-                onSetTrainingMax={(kg) => onSetTrainingMax(item.id, kg)}
-                onSetE1rm={(kg) => onSetE1rm(item.id, kg)}
-                onRemove={() => onRemoveExercise(item.id)}
-                onEditWave={() => onEditWave(item.id, item.exerciseName)}
+                reorderable
+                onSetWeight={onSetWeight}
+                onSetTrainingMax={onSetTrainingMax}
+                onSetE1rm={onSetE1rm}
+                onRemove={onRemoveExercise}
+                onEditWave={onEditWave}
               />
             </View>
           )}

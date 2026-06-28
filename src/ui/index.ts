@@ -11,6 +11,7 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { Icon, type IconProps } from './Icon';
 export { LineChart, type LineChartProps } from './LineChart';
 export { Screen, type ScreenProps } from './Screen';
+export { shallowEqual } from './shallow-equal';
 export {
   Section,
   SectionHeader,

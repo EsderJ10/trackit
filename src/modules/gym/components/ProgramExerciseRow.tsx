@@ -1,29 +1,30 @@
 import { CalendarRange, Trash2 } from 'lucide-react-native';
-import { type ReactNode, useState } from 'react';
+import { memo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { WeightUnit } from '@/core/settings/schema';
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
-import { Button, Card, Icon, Text, colors } from '@/ui';
+import { Button, Card, Icon, Text, colors, shallowEqual } from '@/ui';
 
 import { formatWeight } from '../format';
 import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
+import { DragHandle } from './DragHandle';
 import { NumberField } from './NumberField';
 
 export interface ProgramExerciseRowProps {
   row: ProgramExerciseRowData;
   unit: WeightUnit;
   /** Commit a new working weight (lp/dp), already converted to canonical kg. */
-  onSetWeight: (weightKg: number) => void;
+  onSetWeight: (programExerciseId: number, weightKg: number) => void;
   /** Commit a new training max (percent), already converted to canonical kg. */
-  onSetTrainingMax: (weightKg: number) => void;
+  onSetTrainingMax: (programExerciseId: number, weightKg: number) => void;
   /** Commit a new estimated 1RM (rpe), already converted to canonical kg. */
-  onSetE1rm: (weightKg: number) => void;
-  onRemove: () => void;
+  onSetE1rm: (programExerciseId: number, weightKg: number) => void;
+  onRemove: (programExerciseId: number) => void;
   /** Open the periodization (week × set wave) editor for this slot. */
-  onEditWave: () => void;
-  /** Optional drag grip, rendered in the header when the row is reorderable. */
-  dragHandle?: ReactNode;
+  onEditWave: (programExerciseId: number, name: string) => void;
+  /** Render the drag grip (only valid inside a reorderable list item). */
+  reorderable?: boolean;
 }
 
 /** One-line summary of the progression rule, e.g. "Double · 3 × 8–12 · +2.5 kg". */
@@ -68,7 +69,7 @@ function anchorFor(row: ProgramExerciseRowData): {
 }
 
 /** Editable program-template row: scheme summary, anchor weight, next-up hint. */
-export function ProgramExerciseRow({
+function ProgramExerciseRowComponent({
   row,
   unit,
   onSetWeight,
@@ -76,30 +77,37 @@ export function ProgramExerciseRow({
   onSetE1rm,
   onRemove,
   onEditWave,
-  dragHandle,
+  reorderable,
 }: ProgramExerciseRowProps) {
   const anchor = anchorFor(row);
   // Edits happen in the display unit; the weight is stored canonical kg.
   const [weight, setWeight] = useState(
     String(toDisplayWeight(anchor.valueKg, unit)),
   );
+  const invalid =
+    weight.trim() !== '' && Number.isNaN(Number.parseFloat(weight));
 
   function commit() {
     const parsed = Number.parseFloat(weight);
     if (Number.isNaN(parsed)) {
+      // Reflect the revert so the field shows the value actually kept.
       setWeight(String(toDisplayWeight(anchor.valueKg, unit)));
       return;
     }
     const kg = fromDisplayWeight(parsed, unit);
-    if (anchor.commit === 'tm') onSetTrainingMax(kg);
-    else if (anchor.commit === 'e1rm') onSetE1rm(kg);
-    else onSetWeight(kg);
+    if (anchor.commit === 'tm') onSetTrainingMax(row.id, kg);
+    else if (anchor.commit === 'e1rm') onSetE1rm(row.id, kg);
+    else onSetWeight(row.id, kg);
   }
 
   return (
     <Card className="gap-3">
       <View className="flex-row items-start justify-between gap-2">
-        {dragHandle ? <View className="-ml-1 pt-0.5">{dragHandle}</View> : null}
+        {reorderable ? (
+          <View className="-ml-1 pt-0.5">
+            <DragHandle />
+          </View>
+        ) : null}
         <View className="flex-1">
           <Text variant="heading">{row.exerciseName}</Text>
           <Text variant="caption" className="mt-1">
@@ -107,7 +115,7 @@ export function ProgramExerciseRow({
           </Text>
         </View>
         <Pressable
-          onPress={onRemove}
+          onPress={() => onRemove(row.id)}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={`Remove ${row.exerciseName}`}
@@ -123,6 +131,7 @@ export function ProgramExerciseRow({
           value={weight}
           onChangeText={setWeight}
           onEndEditing={commit}
+          invalid={invalid}
           className="flex-1"
         />
         {row.lastReason ? (
@@ -147,9 +156,29 @@ export function ProgramExerciseRow({
           leftIcon={
             <Icon icon={CalendarRange} size={16} color={colors.primaryBright} />
           }
-          onPress={onEditWave}
+          onPress={() => onEditWave(row.id, row.exerciseName)}
         />
       ) : null}
     </Card>
   );
 }
+
+/** Memoized so editing one slot's weight doesn't re-render its sibling rows;
+    relies on the parent passing stable id-based handlers. */
+function propsEqual(
+  prev: ProgramExerciseRowProps,
+  next: ProgramExerciseRowProps,
+): boolean {
+  return (
+    prev.unit === next.unit &&
+    prev.reorderable === next.reorderable &&
+    prev.onSetWeight === next.onSetWeight &&
+    prev.onSetTrainingMax === next.onSetTrainingMax &&
+    prev.onSetE1rm === next.onSetE1rm &&
+    prev.onRemove === next.onRemove &&
+    prev.onEditWave === next.onEditWave &&
+    shallowEqual(prev.row, next.row)
+  );
+}
+
+export const ProgramExerciseRow = memo(ProgramExerciseRowComponent, propsEqual);

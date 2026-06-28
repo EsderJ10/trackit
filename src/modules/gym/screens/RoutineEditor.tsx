@@ -80,8 +80,8 @@ export function RoutineEditor() {
                 key={row.id}
                 row={row}
                 unit={weightUnit}
-                onUpdate={(patch) => updateRoutineExercise(row.id, patch)}
-                onRemove={() => removeRoutineExercise(row.id)}
+                onUpdate={updateRoutineExercise}
+                onRemove={removeRoutineExercise}
               />
             ))
           )}
