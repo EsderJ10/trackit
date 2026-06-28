@@ -230,6 +230,8 @@ function CalendarCard({ workoutDays }: { workoutDays: string[] }) {
             setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
           }
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month"
         >
           <Icon icon={ChevronLeft} size={20} color={colors.fgMuted} />
         </Pressable>
@@ -246,6 +248,8 @@ function CalendarCard({ workoutDays }: { workoutDays: string[] }) {
           }
           disabled={!canGoNext}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Next month"
         >
           <Icon
             icon={ChevronRight}

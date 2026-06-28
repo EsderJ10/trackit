@@ -50,7 +50,13 @@ export function RoutineExerciseRow({
             {row.muscleGroup}
           </Text>
         </View>
-        <Pressable onPress={onRemove} hitSlop={8} className="active:opacity-60">
+        <Pressable
+          onPress={onRemove}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${row.exerciseName}`}
+          className="active:opacity-60"
+        >
           <Icon icon={Trash2} size={18} color={colors.fgFaint} />
         </Pressable>
       </View>

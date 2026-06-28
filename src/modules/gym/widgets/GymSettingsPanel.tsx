@@ -34,16 +34,20 @@ function StepButton({
   icon,
   onPress,
   disabled,
+  accessibilityLabel,
 }: {
   icon: LucideIcon;
   onPress: () => void;
   disabled: boolean;
+  accessibilityLabel: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       className="h-9 w-9 items-center justify-center rounded-xl bg-surface-hi"
       style={disabled ? { opacity: 0.4 } : undefined}
     >
@@ -76,11 +80,21 @@ function StepperRow({
         <Text variant="muted">{subtitle}</Text>
       </View>
       <View className="flex-row items-center gap-3">
-        <StepButton icon={Minus} onPress={onDec} disabled={!canDec} />
+        <StepButton
+          icon={Minus}
+          onPress={onDec}
+          disabled={!canDec}
+          accessibilityLabel={`Decrease ${title}`}
+        />
         <Text variant="heading" className="min-w-12 text-center">
           {value}
         </Text>
-        <StepButton icon={Plus} onPress={onInc} disabled={!canInc} />
+        <StepButton
+          icon={Plus}
+          onPress={onInc}
+          disabled={!canInc}
+          accessibilityLabel={`Increase ${title}`}
+        />
       </View>
     </Card>
   );
@@ -155,6 +169,8 @@ export function GymSettingsPanel() {
 
       <Pressable
         onPress={() => router.push('/modules/gym/landmarks')}
+        accessibilityRole="button"
+        accessibilityLabel="Volume landmarks"
         className="active:opacity-70"
       >
         <Card className="flex-row items-center gap-3">

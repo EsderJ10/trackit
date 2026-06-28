@@ -124,7 +124,13 @@ export function ProgramWaveEditor({
                 {exerciseName}
               </Text>
             </View>
-            <Pressable onPress={onClose} hitSlop={8} className="active:opacity-60">
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              className="active:opacity-60"
+            >
               <Icon icon={X} size={22} color={colors.fgMuted} />
             </Pressable>
           </View>
@@ -196,6 +202,8 @@ export function ProgramWaveEditor({
                       <Pressable
                         onPress={() => removeProgramSet(set.id)}
                         hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove set"
                         className="active:opacity-60"
                       >
                         <Icon icon={Trash2} size={16} color={colors.fgFaint} />
@@ -225,6 +233,8 @@ function TogglePill({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
       className="flex-1 rounded-xl border px-3 py-2.5 active:opacity-70"
       style={{
         borderColor: active ? colors.primary : colors.border,

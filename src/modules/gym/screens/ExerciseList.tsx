@@ -43,6 +43,8 @@ function FilterChip({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
       className="rounded-full border px-3 py-1.5 active:opacity-70"
       style={{
         backgroundColor: active ? colors.gym : 'transparent',

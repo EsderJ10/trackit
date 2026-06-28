@@ -118,6 +118,8 @@ export function SessionDetail() {
             <Card key={group.exerciseId} className="gap-2">
               <Pressable
                 onPress={() => openProgression(group.exerciseId)}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${group.name} progression`}
                 className="active:opacity-70"
               >
                 <Text variant="heading">{group.name}</Text>

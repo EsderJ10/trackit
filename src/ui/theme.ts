@@ -58,12 +58,37 @@ export type TypographyStep =
   | 'metric';
 
 export const typography: Record<TypographyStep, TextStyle> = {
-  display: { fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -0.5 },
-  title: { fontSize: 26, lineHeight: 32, fontWeight: '800', letterSpacing: -0.3 },
-  heading: { fontSize: 20, lineHeight: 26, fontWeight: '700', letterSpacing: -0.2 },
+  display: {
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  title: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  heading: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
   body: { fontSize: 16, lineHeight: 24, fontWeight: '400' },
-  label: { fontSize: 14, lineHeight: 18, fontWeight: '600', letterSpacing: 0.2 },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '500', letterSpacing: 0.4 },
+  label: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  caption: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+    letterSpacing: 0.4,
+  },
   // Chiseled, tabular numerals for weights/reps/timers.
   metric: {
     fontSize: 32,

@@ -1,4 +1,4 @@
-import { TextInput, View } from 'react-native';
+import { TextInput, View, type TextInputProps } from 'react-native';
 
 import { Text, cn, colors } from '@/ui';
 
@@ -9,6 +9,14 @@ export interface NumberFieldProps {
   onChangeText: (text: string) => void;
   onEndEditing?: () => void;
   className?: string;
+  /**
+   * Spoken label for screen readers. Mid-workout the visual `label` is usually
+   * omitted to save width, so without this the field is announced as an
+   * unlabeled input — always pass a semantic label for the logger controls.
+   */
+  accessibilityLabel?: string;
+  returnKeyType?: TextInputProps['returnKeyType'];
+  onSubmitEditing?: TextInputProps['onSubmitEditing'];
 }
 
 /** Compact numeric input used across the gym module; label is optional. */
@@ -19,6 +27,9 @@ export function NumberField({
   onChangeText,
   onEndEditing,
   className,
+  accessibilityLabel,
+  returnKeyType,
+  onSubmitEditing,
 }: NumberFieldProps) {
   return (
     <View className={cn('gap-1', className)}>
@@ -34,7 +45,13 @@ export function NumberField({
         onEndEditing={onEndEditing}
         keyboardType="numeric"
         selectTextOnFocus
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        accessibilityLabel={accessibilityLabel ?? label}
         placeholderTextColor={colors.fgFaint}
+        // Tabular numerals so digits keep a fixed width and don't jitter as the
+        // value changes (the logger's core readability requirement).
+        style={{ fontVariant: ['tabular-nums'] }}
         className="rounded-xl border border-border bg-surface-hi px-3 py-3 text-center text-base text-fg"
       />
     </View>

@@ -57,6 +57,8 @@ export function ProgramDaySection({
         <Pressable
           onPress={onRemoveDay}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Remove day"
           className="active:opacity-60"
         >
           <Icon icon={Trash2} size={18} color={colors.fgFaint} />

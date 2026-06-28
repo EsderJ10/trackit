@@ -62,7 +62,13 @@ export function PlateCalculatorModal({
                 </Text>
               ) : null}
             </View>
-            <Pressable onPress={onClose} hitSlop={8} className="active:opacity-60">
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              className="active:opacity-60"
+            >
               <Icon icon={X} size={22} color={colors.fgMuted} />
             </Pressable>
           </View>

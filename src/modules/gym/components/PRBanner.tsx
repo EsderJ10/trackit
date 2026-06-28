@@ -24,7 +24,10 @@ export function PRBanner({ message }: PRBannerProps) {
     >
       <View
         className="mt-1 flex-row items-center gap-2 rounded-full border bg-surface-hi px-4 py-2.5"
-        style={[{ borderColor: colors.primaryBright }, glow(colors.primaryGlow, 0.7)]}
+        style={[
+          { borderColor: colors.primaryBright },
+          glow(colors.primaryGlow, 0.7),
+        ]}
       >
         <Icon icon={Trophy} size={18} color={colors.primaryBright} />
         <Text variant="label" style={{ color: colors.primaryBright }}>
