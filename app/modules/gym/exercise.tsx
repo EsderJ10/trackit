@@ -1,5 +1,5 @@
-import { ExerciseProgression } from '@/modules/gym/screens/ExerciseProgression';
+import { ExerciseDetail } from '@/modules/gym/screens/ExerciseDetail';
 
 export default function GymExerciseRoute() {
-  return <ExerciseProgression />;
+  return <ExerciseDetail />;
 }
