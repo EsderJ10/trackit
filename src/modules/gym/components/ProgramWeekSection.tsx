@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react-native';
 import { Pressable, TextInput, View } from 'react-native';
 
-import { Button, Icon, Text, colors } from '@/ui';
+import { Button, Icon, Text, colors, tint } from '@/ui';
 
 import type { ProgramWeekRow } from '../queries';
 
@@ -50,7 +50,7 @@ export function ProgramWeekSection({
             style={{
               borderColor: week.isDeload ? colors.warning : colors.border,
               backgroundColor: week.isDeload
-                ? `${colors.warning}22`
+                ? tint(colors.warning, 0.13)
                 : 'transparent',
             }}
           >

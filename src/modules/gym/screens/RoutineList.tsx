@@ -19,6 +19,7 @@ import {
   Text,
   colors,
   glow,
+  tint,
 } from '@/ui';
 
 import { MuscleVolumeBars } from '../components/MuscleVolumeBars';
@@ -207,7 +208,7 @@ function NextWorkoutHero({
         <View className="flex-row items-start gap-4">
           <View
             className="h-14 w-14 items-center justify-center rounded-2xl"
-            style={{ backgroundColor: `${colors.gym}22` }}
+            style={{ backgroundColor: tint(colors.gym, 0.13) }}
           >
             <Icon icon={Play} size={26} color={colors.gym} />
           </View>
@@ -266,7 +267,7 @@ function SetupProgramHero({
       <Card className="flex-row items-center gap-4">
         <View
           className="h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${colors.gym}22` }}
+          style={{ backgroundColor: tint(colors.gym, 0.13) }}
         >
           <Icon icon={Target} size={26} color={colors.gym} />
         </View>
@@ -293,7 +294,7 @@ function ChooseProgramHero({ onPress }: { onPress: () => void }) {
       <Card className="flex-row items-center gap-4 bg-surface-hi">
         <View
           className="h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${colors.gym}22` }}
+          style={{ backgroundColor: tint(colors.gym, 0.13) }}
         >
           <Icon icon={Target} size={26} color={colors.gym} />
         </View>
@@ -316,7 +317,7 @@ function EmptyWorkoutCard({ onPress }: { onPress: () => void }) {
       <Card className="flex-row items-center gap-3">
         <View
           className="h-10 w-10 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${colors.gym}1a` }}
+          style={{ backgroundColor: tint(colors.gym, 0.1) }}
         >
           <Icon icon={Play} size={18} color={colors.gym} />
         </View>
@@ -346,7 +347,7 @@ function ResumeHero({
       <Card className="flex-row items-center gap-4 bg-surface-hi">
         <View
           className="h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${colors.gym}22` }}
+          style={{ backgroundColor: tint(colors.gym, 0.13) }}
         >
           <Icon icon={Play} size={26} color={colors.gym} />
         </View>

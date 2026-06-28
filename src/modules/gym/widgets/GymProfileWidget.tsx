@@ -12,7 +12,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { useSettings } from '@/core/settings/use-settings';
 import type { DashboardWidgetProps } from '@/core/types/module';
-import { Card, EmptyState, Icon, Stat, Text, cn, colors } from '@/ui';
+import { Card, EmptyState, Icon, Stat, Text, cn, colors, tint } from '@/ui';
 
 import { MuscleVolumeBars } from '../components/MuscleVolumeBars';
 import { formatWeight } from '../format';
@@ -282,7 +282,7 @@ function CalendarCard({ workoutDays }: { workoutDays: string[] }) {
                   )}
                   style={
                     logged
-                      ? { backgroundColor: `${colors.gym}40` }
+                      ? { backgroundColor: tint(colors.gym, 0.25) }
                       : isToday
                         ? { borderWidth: 1, borderColor: colors.border }
                         : undefined

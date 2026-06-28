@@ -3,7 +3,7 @@ import { ChevronRight, Dumbbell, Search, Star, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import { Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
+import { Card, EmptyState, Icon, Screen, Text, colors, tint } from '@/ui';
 
 import { muscleLabel } from '../muscles';
 import { useExercises, useRecentExerciseIds } from '../queries';
@@ -80,7 +80,7 @@ function ExerciseRow({
       <Card className="flex-row items-center gap-3">
         <View
           className="h-9 w-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: `${colors.gym}22` }}
+          style={{ backgroundColor: tint(colors.gym, 0.13) }}
         >
           <Icon icon={Dumbbell} size={18} color={colors.gym} />
         </View>

@@ -13,6 +13,7 @@ import {
   Text,
   colors,
   glow,
+  tint,
 } from '@/ui';
 
 import {
@@ -179,7 +180,7 @@ function WeekPill({
     <View
       className="min-w-16 items-center rounded-2xl border px-3 py-2"
       style={{
-        backgroundColor: isCurrent ? `${colors.gym}22` : colors.surfaceAlt,
+        backgroundColor: isCurrent ? tint(colors.gym, 0.13) : colors.surfaceAlt,
         borderColor: isCurrent ? colors.gym : colors.borderSoft,
         ...(isCurrent ? glow(colors.gym, 0.4) : null),
       }}

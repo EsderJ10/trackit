@@ -12,7 +12,7 @@ import {
 import { useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 
-import { Button, Card, Icon, Text, colors } from '@/ui';
+import { Button, Card, Icon, Text, colors, tint } from '@/ui';
 
 import { toWorkoutCsv } from '../csv-export';
 import {
@@ -176,7 +176,7 @@ export function GymSettingsPanel() {
         <Card className="flex-row items-center gap-3">
           <View
             className="h-9 w-9 items-center justify-center rounded-xl"
-            style={{ backgroundColor: `${colors.gym}26` }}
+            style={{ backgroundColor: tint(colors.gym, 0.15) }}
           >
             <Icon icon={SlidersHorizontal} size={18} color={colors.gym} />
           </View>
