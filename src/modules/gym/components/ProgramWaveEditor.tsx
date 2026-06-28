@@ -1,6 +1,14 @@
 import { Sparkles, Trash2, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Card, Icon, Text, colors } from '@/ui';
@@ -112,7 +120,10 @@ export function ProgramWaveEditor({
       transparent
       onRequestClose={onClose}
     >
-      <View className="flex-1 justify-end bg-black/60">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-end bg-black/60"
+      >
         <SafeAreaView
           edges={['bottom']}
           style={{ backgroundColor: colors.surface, maxHeight: '90%' }}
@@ -139,13 +150,16 @@ export function ProgramWaveEditor({
             <Card className="gap-3">
               <Text variant="label">Generate wave</Text>
               <Text variant="caption">
-                Sets ramp MEV→MRV and RIR descends across the weeks; intensity is
-                stored as a target RPE per set.
+                Sets ramp MEV→MRV and RIR descends across the weeks; intensity
+                is stored as a target RPE per set.
               </Text>
               <View className="flex-row flex-wrap gap-3">
                 {FIELDS.map((field) => (
                   <View key={field.key} className="min-w-[28%] flex-1 gap-1">
-                    <Text variant="caption" className="uppercase tracking-wider">
+                    <Text
+                      variant="caption"
+                      className="uppercase tracking-wider"
+                    >
                       {field.label}
                     </Text>
                     <TextInput
@@ -155,6 +169,9 @@ export function ProgramWaveEditor({
                       }
                       keyboardType="numeric"
                       selectTextOnFocus
+                      returnKeyType="done"
+                      accessibilityLabel={field.label}
+                      style={{ fontVariant: ['tabular-nums'] }}
                       className="rounded-xl border border-border bg-surface-hi px-3 py-2.5 text-center text-base text-fg"
                     />
                   </View>
@@ -174,9 +191,7 @@ export function ProgramWaveEditor({
               </View>
               <Button
                 label="Generate wave"
-                leftIcon={
-                  <Icon icon={Sparkles} size={18} color={colors.bg} />
-                }
+                leftIcon={<Icon icon={Sparkles} size={18} color={colors.bg} />}
                 onPress={generate}
               />
             </Card>
@@ -215,7 +230,7 @@ export function ProgramWaveEditor({
             )}
           </ScrollView>
         </SafeAreaView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

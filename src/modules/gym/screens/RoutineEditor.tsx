@@ -1,10 +1,10 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 
 import { useSettings } from '@/core/settings/use-settings';
-import { Button, EmptyState, Icon, Screen, Text, colors } from '@/ui';
+import { Button, EmptyState, Icon, Screen, TextField, colors } from '@/ui';
 
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
 import { RoutineExerciseRow } from '../components/RoutineExerciseRow';
@@ -47,58 +47,61 @@ export function RoutineEditor() {
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Edit routine' }} />
-      <ScrollView contentContainerClassName="gap-4 p-5">
-        <View className="gap-1">
-          <Text variant="caption" className="uppercase tracking-wider">
-            Routine name
-          </Text>
-          <TextInput
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerClassName="gap-4 p-5"
+          keyboardShouldPersistTaps="handled"
+        >
+          <TextField
             key={routine?.id ?? 'loading'}
+            label="Routine name"
             defaultValue={routine?.name}
             placeholder="Routine name"
-            placeholderTextColor={colors.fgFaint}
+            returnKeyType="done"
             onEndEditing={(event) =>
               renameRoutine(
                 routineId,
                 event.nativeEvent.text.trim() || 'Routine',
               )
             }
-            className="rounded-xl border border-border bg-surface px-4 py-3 text-lg font-semibold text-fg"
           />
-        </View>
 
-        {exercises.length === 0 ? (
-          <EmptyState
-            title="No exercises"
-            description="Add exercises to build out this routine."
-          />
-        ) : (
-          exercises.map((row) => (
-            <RoutineExerciseRow
-              key={row.id}
-              row={row}
-              unit={weightUnit}
-              onUpdate={(patch) => updateRoutineExercise(row.id, patch)}
-              onRemove={() => removeRoutineExercise(row.id)}
+          {exercises.length === 0 ? (
+            <EmptyState
+              title="No exercises"
+              description="Add exercises to build out this routine."
             />
-          ))
-        )}
+          ) : (
+            exercises.map((row) => (
+              <RoutineExerciseRow
+                key={row.id}
+                row={row}
+                unit={weightUnit}
+                onUpdate={(patch) => updateRoutineExercise(row.id, patch)}
+                onRemove={() => removeRoutineExercise(row.id)}
+              />
+            ))
+          )}
 
-        <Button
-          label="Add exercise"
-          variant="secondary"
-          leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
-          onPress={() => setPickerOpen(true)}
-        />
+          <Button
+            label="Add exercise"
+            variant="secondary"
+            leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
+            onPress={() => setPickerOpen(true)}
+          />
 
-        <Button label="Start workout" onPress={start} />
-        <Button
-          label="Delete routine"
-          variant="danger"
-          size="md"
-          onPress={remove}
-        />
-      </ScrollView>
+          <Button label="Start workout" onPress={start} />
+          <Button
+            label="Delete routine"
+            variant="danger"
+            size="md"
+            onPress={remove}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <ExercisePickerModal
         visible={pickerOpen}
