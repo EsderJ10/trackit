@@ -43,25 +43,6 @@ export function glow(
 }
 
 /**
- * Hotter, wider glow for FORGE elements (ForgeButton, mascot core). Defaults to
- * the magma/amber forge-glow; pass `colors.forgeSpark` for success / PR glows.
- * Same shape as `glow()` — a static shadow; animated pulsing layers a separate
- * View on top (see ForgeButton / Mascot) so the pulse uses the RN native driver.
- */
-export function forgeGlow(
-  color: string = colors.forgeGlow,
-  opacity = 0.6,
-): ViewStyle {
-  return {
-    shadowColor: color,
-    shadowOpacity: opacity,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 14,
-  };
-}
-
-/**
  * Rigid typography scale — the single source of truth for type sizing/weight.
  * Numbers/metrics use `tabular-nums` so digits don't jitter as values change
  * (critical for the logger). Keys are stable; screens pick a step, they don't
@@ -92,55 +73,3 @@ export const typography: Record<TypographyStep, TextStyle> = {
     fontVariant: ['tabular-nums'],
   },
 };
-
-/**
- * Theme extensibility seam.
- *
- * `ThemeTokens` is the fixed, semantic key set for a FORGE-family theme. Every
- * alternate theme (a future "Cyberpunk", "Classic Iron", …) MUST provide the
- * SAME keys with different values — so consumers reference `forgeTokens.magma`
- * and a theme swap at the root (`activeTheme`) re-skins everything without
- * touching component code. This is intentionally a plain object map (not a
- * provider) for v1; lifting it into Context is a later, non-breaking step.
- */
-export interface ThemeTokens {
-  stone: string; // darkest ground
-  iron: string; // surface
-  ironHi: string; // raised surface
-  magma: string; // primary hot accent
-  magmaBright: string; // pressed / emphasis
-  ember: string; // warm idle glow
-  glow: string; // glow halo color
-  spark: string; // success / PR accent
-  sparkGlow: string; // success / PR glow halo
-  warning: string; // coaching / missed-target accent
-  fg: string; // text on iron
-  fgMuted: string; // secondary text
-  locked: string; // grayed / unearned
-}
-
-const forge: ThemeTokens = {
-  stone: palette.forgeStone,
-  iron: palette.forgeIron,
-  ironHi: palette.forgeIronHi,
-  magma: palette.forge,
-  magmaBright: palette.forgeBright,
-  ember: palette.forgeEmber,
-  glow: palette.forgeGlow,
-  spark: palette.forgeSpark,
-  sparkGlow: palette.forgeSparkGlow,
-  warning: palette.warning,
-  fg: palette.fg,
-  fgMuted: palette.fgMuted,
-  locked: palette.forgeLocked,
-};
-
-// Future themes plug in here with IDENTICAL keys, e.g.:
-//   const cyberpunk: ThemeTokens = { stone: '#0A0E14', magma: '#FF2E97', ... };
-// then add to `themes` below and flip `activeTheme`.
-export const themes = { forge } satisfies Record<string, ThemeTokens>;
-export type ThemeName = keyof typeof themes;
-
-/** The active FORGE-family theme. Swap this one key to re-skin the system. */
-export const activeTheme: ThemeName = 'forge';
-export const forgeTokens: ThemeTokens = themes[activeTheme];

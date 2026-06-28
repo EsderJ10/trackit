@@ -89,11 +89,6 @@ export default function RootLayout() {
                     name="set-pin"
                     options={{ presentation: 'modal' }}
                   />
-                  {/* FORGE design-system preview — parallel QA surface. */}
-                  <Stack.Screen
-                    name="styleguide"
-                    options={{ presentation: 'modal' }}
-                  />
                 </Stack.Protected>
                 <Stack.Protected guard={!isAuthed}>
                   <Stack.Screen name="(auth)" />

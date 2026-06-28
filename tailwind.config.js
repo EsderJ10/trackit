@@ -35,19 +35,6 @@ module.exports = {
         gym: palette.gym,
         finance: palette.finance,
         habits: palette.habits,
-        // FORGE branding layer — additive (see src/ui/tokens.js).
-        forge: {
-          DEFAULT: palette.forge,
-          bright: palette.forgeBright,
-          glow: palette.forgeGlow,
-          ember: palette.forgeEmber,
-          stone: palette.forgeStone,
-          iron: palette.forgeIron,
-          'iron-hi': palette.forgeIronHi,
-          spark: palette.forgeSpark,
-          'spark-glow': palette.forgeSparkGlow,
-          locked: palette.forgeLocked,
-        },
       },
       borderRadius: {
         xl: '16px',
