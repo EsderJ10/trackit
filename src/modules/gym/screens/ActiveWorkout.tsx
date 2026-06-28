@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, View } from 'react-native';
 import ReorderableList, {
   type ReorderableListReorderEvent,
@@ -107,6 +107,16 @@ export function ActiveWorkout() {
   const bestsRef = useRef(new Map<number, ExerciseBests>());
   // Plate calculator target, in the display unit (null = closed).
   const [plateTarget, setPlateTarget] = useState<number | null>(null);
+
+  // Latest live sets, read by the stable `toggleSet` below without closing over
+  // `sets` (which changes identity every commit) — so the handler passed down to
+  // every memoized SetRow stays referentially stable and rows don't all re-render.
+  // Synced in an effect (not during render) so the ref write is commit-safe; the
+  // ref is only read later from the toggle handler, well after commit.
+  const setsRef = useRef(sets);
+  useEffect(() => {
+    setsRef.current = sets;
+  }, [sets]);
 
   useEffect(() => {
     if (prMsg == null) return;
@@ -377,7 +387,11 @@ export function ActiveWorkout() {
       `You have ${incomplete} unfinished ${incomplete === 1 ? 'set' : 'sets'}.`,
       [
         { text: 'Keep going', style: 'cancel' },
-        { text: 'Finish', style: 'destructive', onPress: finishWithOrderPrompt },
+        {
+          text: 'Finish',
+          style: 'destructive',
+          onPress: finishWithOrderPrompt,
+        },
       ],
     );
   }
@@ -389,34 +403,39 @@ export function ActiveWorkout() {
     });
   }
 
-  function toggleSet(id: number, completed: boolean) {
-    setSetCompleted(id, completed);
-    if (!completed) return;
-    // Checking off a set kicks off the between-sets rest countdown + a tap.
-    startRest();
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const toggleSet = useCallback(
+    (id: number, completed: boolean) => {
+      setSetCompleted(id, completed);
+      if (!completed) return;
+      // Checking off a set kicks off the between-sets rest countdown + a tap.
+      startRest();
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Live PR check — working sets only; warmups/drops/timed-vs-load never PR.
-    const set = sets.find((s) => s.id === id);
-    if (set == null || set.setType !== 'working') return;
-    const candidate = {
-      reps: set.reps,
-      weightKg: set.weight,
-      durationSec: set.durationSec,
-      measurementKind: set.measurementKind,
-    };
-    let bests = bestsRef.current.get(set.exerciseId);
-    if (bests == null) {
-      bests = getExerciseBests(set.exerciseId);
-    }
-    const kinds = detectPRs(candidate, bests);
-    // Fold the set in so the same record can't re-fire on a repeat tap.
-    bestsRef.current.set(set.exerciseId, foldBests(bests, candidate));
-    if (kinds.length > 0) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setPrMsg(prMessage(set.exerciseName, kinds));
-    }
-  }
+      // Live PR check — working sets only; warmups/drops/timed-vs-load never PR.
+      const set = setsRef.current.find((s) => s.id === id);
+      if (set == null || set.setType !== 'working') return;
+      const candidate = {
+        reps: set.reps,
+        weightKg: set.weight,
+        durationSec: set.durationSec,
+        measurementKind: set.measurementKind,
+      };
+      let bests = bestsRef.current.get(set.exerciseId);
+      if (bests == null) {
+        bests = getExerciseBests(set.exerciseId);
+      }
+      const kinds = detectPRs(candidate, bests);
+      // Fold the set in so the same record can't re-fire on a repeat tap.
+      bestsRef.current.set(set.exerciseId, foldBests(bests, candidate));
+      if (kinds.length > 0) {
+        void Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        );
+        setPrMsg(prMessage(set.exerciseName, kinds));
+      }
+    },
+    [startRest],
+  );
 
   return (
     <Screen>
@@ -449,7 +468,10 @@ export function ActiveWorkout() {
               onAddWarmup={() => addWarmup(exercise.exerciseId)}
               onShowPlates={() =>
                 setPlateTarget(
-                  toDisplayWeight(workWeightKg(exercise.exerciseId), weightUnit),
+                  toDisplayWeight(
+                    workWeightKg(exercise.exerciseId),
+                    weightUnit,
+                  ),
                 )
               }
             />

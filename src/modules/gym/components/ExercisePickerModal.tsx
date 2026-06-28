@@ -1,6 +1,6 @@
 import { X } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { Modal, Pressable, SectionList, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, Text, colors } from '@/ui';
@@ -14,6 +14,11 @@ export interface ExercisePickerModalProps {
   onSelect: (exercise: Exercise) => void;
 }
 
+interface ExerciseSection {
+  title: string;
+  data: Exercise[];
+}
+
 /** Bottom-sheet-style catalog picker, grouped by muscle group. */
 export function ExercisePickerModal({
   visible,
@@ -22,14 +27,22 @@ export function ExercisePickerModal({
 }: ExercisePickerModalProps) {
   const { data: exercises } = useExercises();
 
-  const groups = useMemo(() => {
+  const sections = useMemo<ExerciseSection[]>(() => {
     const byMuscle = new Map<string, Exercise[]>();
+    const order: string[] = [];
     for (const exercise of exercises) {
-      const list = byMuscle.get(exercise.muscleGroup) ?? [];
+      let list = byMuscle.get(exercise.muscleGroup);
+      if (!list) {
+        list = [];
+        byMuscle.set(exercise.muscleGroup, list);
+        order.push(exercise.muscleGroup);
+      }
       list.push(exercise);
-      byMuscle.set(exercise.muscleGroup, list);
     }
-    return [...byMuscle.entries()];
+    return order.map((muscle) => ({
+      title: muscle,
+      data: byMuscle.get(muscle)!,
+    }));
   }, [exercises]);
 
   return (
@@ -57,32 +70,37 @@ export function ExercisePickerModal({
             </Pressable>
           </View>
 
-          <ScrollView contentContainerClassName="p-4 gap-4">
-            {groups.map(([muscle, list]) => (
-              <View key={muscle} className="gap-2">
+          <SectionList
+            sections={sections}
+            keyExtractor={(exercise) => String(exercise.id)}
+            keyboardShouldPersistTaps="handled"
+            stickySectionHeadersEnabled={false}
+            contentContainerStyle={{ padding: 16 }}
+            ItemSeparatorComponent={() => <View className="h-2" />}
+            renderSectionHeader={({ section }) => (
+              <View className="bg-surface pb-2 pt-4">
                 <Text variant="caption" className="uppercase tracking-wider">
-                  {muscle}
+                  {section.title}
                 </Text>
-                {list.map((exercise) => (
-                  <Pressable
-                    key={exercise.id}
-                    onPress={() => {
-                      onSelect(exercise);
-                      onClose();
-                    }}
-                    className="rounded-xl bg-surface-hi px-4 py-3 active:opacity-70"
-                  >
-                    <Text variant="label">{exercise.name}</Text>
-                    {exercise.equipment ? (
-                      <Text variant="caption" className="mt-0.5">
-                        {exercise.equipment}
-                      </Text>
-                    ) : null}
-                  </Pressable>
-                ))}
               </View>
-            ))}
-          </ScrollView>
+            )}
+            renderItem={({ item: exercise }) => (
+              <Pressable
+                onPress={() => {
+                  onSelect(exercise);
+                  onClose();
+                }}
+                className="rounded-xl bg-surface-hi px-4 py-3 active:opacity-70"
+              >
+                <Text variant="label">{exercise.name}</Text>
+                {exercise.equipment ? (
+                  <Text variant="caption" className="mt-0.5">
+                    {exercise.equipment}
+                  </Text>
+                ) : null}
+              </Pressable>
+            )}
+          />
         </SafeAreaView>
       </View>
     </Modal>

@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, Check, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
@@ -73,7 +73,7 @@ function setTypeBadge(
  * toggle complete, tap- and swipe-delete. Local input state is seeded once and
  * commits on blur so live-query re-renders don't clobber mid-edit text.
  */
-export function SetRow({
+function SetRowComponent({
   set,
   displayNumber,
   unit,
@@ -171,7 +171,7 @@ export function SetRow({
             hitSlop={8}
             className="w-7 items-center active:opacity-60"
           >
-            <Text style={{ color: badge.color }} className="font-semibold">
+            <Text style={{ color: badge.color, fontWeight: '600' }}>
               {badge.label}
             </Text>
           </Pressable>
@@ -182,6 +182,7 @@ export function SetRow({
                 value={reps}
                 onChangeText={setReps}
                 onEndEditing={() => commitReps(toInt(reps, set.reps))}
+                accessibilityLabel="Reps"
                 className="flex-1"
               />
               <Text variant="muted">{kind === 'bodyweight' ? '＋' : '×'}</Text>
@@ -193,6 +194,7 @@ export function SetRow({
                     toFloat(weight, toDisplayWeight(set.weight, unit)),
                   )
                 }
+                accessibilityLabel={`Weight in ${unit}`}
                 className="flex-1"
               />
               <Text variant="caption" className="w-6">
@@ -214,6 +216,7 @@ export function SetRow({
                 onEndEditing={() =>
                   onUpdate(set.id, { durationSec: toInt(duration, 0) })
                 }
+                accessibilityLabel="Duration in seconds"
                 className="flex-1"
               />
               <RpeField
@@ -232,6 +235,7 @@ export function SetRow({
                 onEndEditing={() =>
                   onUpdate(set.id, { distanceM: toFloat(distance, 0) })
                 }
+                accessibilityLabel="Distance in meters"
                 className="flex-1"
               />
               <NumberField
@@ -241,6 +245,7 @@ export function SetRow({
                 onEndEditing={() =>
                   onUpdate(set.id, { durationSec: toInt(duration, 0) })
                 }
+                accessibilityLabel="Duration in seconds"
                 className="flex-1"
               />
               <RpeField
@@ -297,6 +302,43 @@ export function SetRow({
   );
 }
 
+/**
+ * The live query hands a fresh `set` object to every row on each set commit, so
+ * a plain `React.memo` would never skip. Compare the scalar fields that drive
+ * this row's render instead, so only the row whose set actually changed
+ * re-renders — the rest stay put mid-workout. Relies on the handlers being
+ * referentially stable (see `ActiveWorkout`).
+ */
+function setRowPropsEqual(prev: SetRowProps, next: SetRowProps): boolean {
+  if (
+    prev.displayNumber !== next.displayNumber ||
+    prev.unit !== next.unit ||
+    prev.onUpdate !== next.onUpdate ||
+    prev.onToggle !== next.onToggle ||
+    prev.onDelete !== next.onDelete ||
+    prev.previous?.reps !== next.previous?.reps ||
+    prev.previous?.weight !== next.previous?.weight
+  ) {
+    return false;
+  }
+  const a = prev.set;
+  const b = next.set;
+  return (
+    a.id === b.id &&
+    a.reps === b.reps &&
+    a.weight === b.weight &&
+    a.rpe === b.rpe &&
+    a.durationSec === b.durationSec &&
+    a.distanceM === b.distanceM &&
+    a.setType === b.setType &&
+    a.measurementKind === b.measurementKind &&
+    a.completedAt === b.completedAt
+  );
+}
+
+/** Memoized so a commit re-renders only the changed row (see comparator). */
+export const SetRow = memo(SetRowComponent, setRowPropsEqual);
+
 /** The optional RPE field; sits inline on the number row, kept narrow since the
     scale is only 1–10 so reps/weight keep the lion's share of the width. */
 function RpeField({
@@ -310,12 +352,27 @@ function RpeField({
   onUpdate: (id: number, patch: SetPatch) => void;
   setId: number;
 }) {
+  const parsed = Number.parseFloat(rpe);
+  // Flag anything outside the 1–10 scale so the user sees it before it's
+  // silently clamped on blur.
+  const invalid =
+    rpe.trim() !== '' && (Number.isNaN(parsed) || parsed < 1 || parsed > 10);
+
+  function commit() {
+    const value = toRpe(rpe);
+    // Reflect the clamped value (e.g. 15 → 10) so the field shows what was kept.
+    setRpe(value == null ? '' : String(value));
+    onUpdate(setId, { rpe: value });
+  }
+
   return (
     <NumberField
       value={rpe}
       placeholder="RPE"
       onChangeText={setRpe}
-      onEndEditing={() => onUpdate(setId, { rpe: toRpe(rpe) })}
+      onEndEditing={commit}
+      invalid={invalid}
+      accessibilityLabel="RPE, rate of perceived exertion"
       className="w-14"
     />
   );

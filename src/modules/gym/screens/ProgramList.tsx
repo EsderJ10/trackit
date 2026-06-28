@@ -3,7 +3,16 @@ import { Check, Play, Plus, TrendingUp } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  Icon,
+  Screen,
+  Text,
+  colors,
+  tint,
+} from '@/ui';
 
 import {
   createProgram,
@@ -142,7 +151,7 @@ function CurrentBadge() {
   return (
     <View
       className="flex-row items-center gap-1 rounded-full px-2 py-0.5"
-      style={{ backgroundColor: `${colors.gym}26` }}
+      style={{ backgroundColor: tint(colors.gym, 0.15) }}
     >
       <Icon icon={Check} size={12} color={colors.gym} />
       <Text variant="caption" style={{ color: colors.gym }}>

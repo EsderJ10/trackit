@@ -1,11 +1,20 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 import { ScrollViewContainer } from 'react-native-reorderable-list';
 
 import { useSettings } from '@/core/settings/use-settings';
-import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  Icon,
+  Screen,
+  Text,
+  TextField,
+  colors,
+} from '@/ui';
 
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
 import { ProgramDaySection } from '../components/ProgramDaySection';
@@ -43,7 +52,12 @@ const SCHEMES: { label: string; scheme: ProgramSchemeChoice; reps?: number }[] =
   [
     {
       label: 'Linear · 3 × 5',
-      scheme: { type: 'lp', incrementKg: 2.5, failThreshold: 3, deloadPct: 0.1 },
+      scheme: {
+        type: 'lp',
+        incrementKg: 2.5,
+        failThreshold: 3,
+        deloadPct: 0.1,
+      },
       reps: 5,
     },
     {
@@ -98,6 +112,15 @@ export function ProgramEditor() {
     return map;
   }, [exercises]);
 
+  // Stable so the memoized program-exercise rows don't re-render when an
+  // unrelated slot is edited (setWaveTarget is a stable state setter).
+  const openWaveEditor = useCallback(
+    (programExerciseId: number, name: string) => {
+      setWaveTarget({ programExerciseId, name });
+    },
+    [],
+  );
+
   function chooseScheme(option: (typeof SCHEMES)[number]) {
     if (pending == null) return;
     addProgramExercise({
@@ -129,97 +152,95 @@ export function ProgramEditor() {
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Edit program' }} />
-      <ScrollViewContainer contentContainerStyle={{ gap: 16, padding: 20 }}>
-        <View className="gap-1">
-          <Text variant="caption" className="uppercase tracking-wider">
-            Program name
-          </Text>
-          <TextInput
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollViewContainer contentContainerStyle={{ gap: 16, padding: 20 }}>
+          <TextField
             key={program?.id ?? 'loading'}
+            label="Program name"
             defaultValue={program?.name}
             placeholder="Program name"
-            placeholderTextColor={colors.fgFaint}
+            returnKeyType="done"
             onEndEditing={(event) =>
               renameProgram(
                 programId,
                 event.nativeEvent.text.trim() || 'Program',
               )
             }
-            className="rounded-xl border border-border bg-surface px-4 py-3 text-lg font-semibold text-fg"
           />
-        </View>
 
-        <ProgramWeekSection
-          weeks={weeks}
-          onAddWeek={() => addProgramWeek(programId)}
-          onRenameWeek={renameProgramWeek}
-          onToggleDeload={setProgramWeekDeload}
-          onRemoveWeek={(weekId) => removeProgramWeek(programId, weekId)}
-        />
-
-        {days.length === 0 ? (
-          <EmptyState
-            title="No days"
-            description="Add a training day, then fill it with lifts and how each progresses."
+          <ProgramWeekSection
+            weeks={weeks}
+            onAddWeek={() => addProgramWeek(programId)}
+            onRenameWeek={renameProgramWeek}
+            onToggleDeload={setProgramWeekDeload}
+            onRemoveWeek={(weekId) => removeProgramWeek(programId, weekId)}
           />
-        ) : (
-          days.map((day) => (
-            <ProgramDaySection
-              key={day.id}
-              day={day}
-              exercises={exercisesByDay.get(day.id) ?? []}
-              unit={weightUnit}
-              onRenameDay={(name) => renameProgramDay(day.id, name)}
-              onRemoveDay={() => removeProgramDay(programId, day.id)}
-              onAddExercise={() => setPickerDayId(day.id)}
-              onSetWeight={setProgramExerciseWeight}
-              onSetTrainingMax={setProgramExerciseTrainingMax}
-              onSetE1rm={setProgramExerciseE1rm}
-              onRemoveExercise={removeProgramExercise}
-              onEditWave={(programExerciseId, name) =>
-                setWaveTarget({ programExerciseId, name })
-              }
-              onReorderExercises={reorderProgramExercises}
+
+          {days.length === 0 ? (
+            <EmptyState
+              title="No days"
+              description="Add a training day, then fill it with lifts and how each progresses."
             />
-          ))
-        )}
-
-        {pending ? (
-          <Card className="gap-3">
-            <Text variant="heading">How should {pending.name} progress?</Text>
-            {SCHEMES.map((option) => (
-              <Button
-                key={option.label}
-                label={option.label}
-                variant="secondary"
-                size="md"
-                onPress={() => chooseScheme(option)}
+          ) : (
+            days.map((day) => (
+              <ProgramDaySection
+                key={day.id}
+                day={day}
+                exercises={exercisesByDay.get(day.id) ?? []}
+                unit={weightUnit}
+                onRenameDay={(name) => renameProgramDay(day.id, name)}
+                onRemoveDay={() => removeProgramDay(programId, day.id)}
+                onAddExercise={() => setPickerDayId(day.id)}
+                onSetWeight={setProgramExerciseWeight}
+                onSetTrainingMax={setProgramExerciseTrainingMax}
+                onSetE1rm={setProgramExerciseE1rm}
+                onRemoveExercise={removeProgramExercise}
+                onEditWave={openWaveEditor}
+                onReorderExercises={reorderProgramExercises}
               />
-            ))}
-            <Button
-              label="Cancel"
-              variant="ghost"
-              size="md"
-              onPress={() => setPending(null)}
-            />
-          </Card>
-        ) : null}
+            ))
+          )}
 
-        <Button
-          label="Add day"
-          variant="secondary"
-          leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
-          onPress={() => addProgramDay(programId)}
-        />
+          {pending ? (
+            <Card className="gap-3">
+              <Text variant="heading">How should {pending.name} progress?</Text>
+              {SCHEMES.map((option) => (
+                <Button
+                  key={option.label}
+                  label={option.label}
+                  variant="secondary"
+                  size="md"
+                  onPress={() => chooseScheme(option)}
+                />
+              ))}
+              <Button
+                label="Cancel"
+                variant="ghost"
+                size="md"
+                onPress={() => setPending(null)}
+              />
+            </Card>
+          ) : null}
 
-        <Button label="Start workout" onPress={start} />
-        <Button
-          label="Delete program"
-          variant="danger"
-          size="md"
-          onPress={remove}
-        />
-      </ScrollViewContainer>
+          <Button
+            label="Add day"
+            variant="secondary"
+            leftIcon={<Icon icon={Plus} size={18} color={colors.fg} />}
+            onPress={() => addProgramDay(programId)}
+          />
+
+          <Button label="Start workout" onPress={start} />
+          <Button
+            label="Delete program"
+            variant="danger"
+            size="md"
+            onPress={remove}
+          />
+        </ScrollViewContainer>
+      </KeyboardAvoidingView>
 
       <ExercisePickerModal
         visible={pickerDayId != null}

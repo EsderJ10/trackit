@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react-native';
 import { Pressable, TextInput, View } from 'react-native';
 
-import { Button, Icon, Text, colors } from '@/ui';
+import { Button, Icon, Text, colors, tint } from '@/ui';
 
 import type { ProgramWeekRow } from '../queries';
 
@@ -44,11 +44,13 @@ export function ProgramWeekSection({
           />
           <Pressable
             onPress={() => onToggleDeload(week.id, !week.isDeload)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: week.isDeload }}
             className="rounded-lg border px-3 py-1.5 active:opacity-70"
             style={{
               borderColor: week.isDeload ? colors.warning : colors.border,
               backgroundColor: week.isDeload
-                ? `${colors.warning}22`
+                ? tint(colors.warning, 0.13)
                 : 'transparent',
             }}
           >
@@ -64,6 +66,8 @@ export function ProgramWeekSection({
           <Pressable
             onPress={() => onRemoveWeek(week.id)}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Remove week"
             className="active:opacity-60"
           >
             <Icon icon={Trash2} size={18} color={colors.fgFaint} />

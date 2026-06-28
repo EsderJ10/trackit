@@ -29,16 +29,20 @@ function StepButton({
   icon,
   onPress,
   disabled,
+  accessibilityLabel,
 }: {
   icon: LucideIcon;
   onPress: () => void;
   disabled?: boolean;
+  accessibilityLabel: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       className="h-9 w-9 items-center justify-center rounded-xl bg-surface-hi"
       style={disabled ? { opacity: 0.4 } : undefined}
     >
@@ -64,11 +68,16 @@ function BandStepper({
           icon={Minus}
           onPress={() => onChange(value - 1)}
           disabled={value <= 0}
+          accessibilityLabel={`Decrease ${label}`}
         />
         <Text variant="label" className="w-8 text-center">
           {value}
         </Text>
-        <StepButton icon={Plus} onPress={() => onChange(value + 1)} />
+        <StepButton
+          icon={Plus}
+          onPress={() => onChange(value + 1)}
+          accessibilityLabel={`Increase ${label}`}
+        />
       </View>
     </View>
   );

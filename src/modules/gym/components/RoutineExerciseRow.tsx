@@ -1,10 +1,10 @@
 import { Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { WeightUnit } from '@/core/settings/schema';
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
-import { Card, Icon, Text, colors } from '@/ui';
+import { Card, Icon, Text, colors, shallowEqual } from '@/ui';
 
 import type { RoutineExerciseRow as RoutineExerciseRowData } from '../queries';
 import { NumberField } from './NumberField';
@@ -12,12 +12,15 @@ import { NumberField } from './NumberField';
 export interface RoutineExerciseRowProps {
   row: RoutineExerciseRowData;
   unit: WeightUnit;
-  onUpdate: (patch: {
-    targetSets?: number;
-    targetReps?: number;
-    targetWeight?: number | null;
-  }) => void;
-  onRemove: () => void;
+  onUpdate: (
+    id: number,
+    patch: {
+      targetSets?: number;
+      targetReps?: number;
+      targetWeight?: number | null;
+    },
+  ) => void;
+  onRemove: (id: number) => void;
 }
 
 function toInt(value: string, fallback: number): number {
@@ -26,7 +29,7 @@ function toInt(value: string, fallback: number): number {
 }
 
 /** Editable routine-template row: targets commit on blur. */
-export function RoutineExerciseRow({
+function RoutineExerciseRowComponent({
   row,
   unit,
   onUpdate,
@@ -40,6 +43,31 @@ export function RoutineExerciseRow({
       ? String(toDisplayWeight(row.targetWeight, unit))
       : '',
   );
+  const weightInvalid =
+    weight.trim() !== '' && Number.isNaN(Number.parseFloat(weight));
+
+  function commitSets() {
+    const value = toInt(sets, row.targetSets);
+    setSets(String(value));
+    onUpdate(row.id, { targetSets: value });
+  }
+
+  function commitReps() {
+    const value = toInt(reps, row.targetReps);
+    setReps(String(value));
+    onUpdate(row.id, { targetReps: value });
+  }
+
+  function commitWeight() {
+    const parsed = Number.parseFloat(weight);
+    if (Number.isNaN(parsed)) {
+      // An empty/invalid field means "no target weight"; reflect that.
+      setWeight('');
+      onUpdate(row.id, { targetWeight: null });
+      return;
+    }
+    onUpdate(row.id, { targetWeight: fromDisplayWeight(parsed, unit) });
+  }
 
   return (
     <Card className="gap-3">
@@ -50,7 +78,13 @@ export function RoutineExerciseRow({
             {row.muscleGroup}
           </Text>
         </View>
-        <Pressable onPress={onRemove} hitSlop={8} className="active:opacity-60">
+        <Pressable
+          onPress={() => onRemove(row.id)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${row.exerciseName}`}
+          className="active:opacity-60"
+        >
           <Icon icon={Trash2} size={18} color={colors.fgFaint} />
         </Pressable>
       </View>
@@ -60,35 +94,44 @@ export function RoutineExerciseRow({
           label="Sets"
           value={sets}
           onChangeText={setSets}
-          onEndEditing={() =>
-            onUpdate({ targetSets: toInt(sets, row.targetSets) })
-          }
+          onEndEditing={commitSets}
+          accessibilityLabel={`Sets for ${row.exerciseName}`}
           className="flex-1"
         />
         <NumberField
           label="Reps"
           value={reps}
           onChangeText={setReps}
-          onEndEditing={() =>
-            onUpdate({ targetReps: toInt(reps, row.targetReps) })
-          }
+          onEndEditing={commitReps}
+          accessibilityLabel={`Reps for ${row.exerciseName}`}
           className="flex-1"
         />
         <NumberField
           label={`Wt (${unit})`}
           value={weight}
           onChangeText={setWeight}
-          onEndEditing={() => {
-            const parsed = Number.parseFloat(weight);
-            onUpdate({
-              targetWeight: Number.isNaN(parsed)
-                ? null
-                : fromDisplayWeight(parsed, unit),
-            });
-          }}
+          onEndEditing={commitWeight}
+          invalid={weightInvalid}
+          accessibilityLabel={`Target weight for ${row.exerciseName}`}
           className="flex-1"
         />
       </View>
     </Card>
   );
 }
+
+/** Memoized so editing one routine row leaves its siblings untouched; relies on
+    the parent passing stable id-based handlers. */
+function propsEqual(
+  prev: RoutineExerciseRowProps,
+  next: RoutineExerciseRowProps,
+): boolean {
+  return (
+    prev.unit === next.unit &&
+    prev.onUpdate === next.onUpdate &&
+    prev.onRemove === next.onRemove &&
+    shallowEqual(prev.row, next.row)
+  );
+}
+
+export const RoutineExerciseRow = memo(RoutineExerciseRowComponent, propsEqual);

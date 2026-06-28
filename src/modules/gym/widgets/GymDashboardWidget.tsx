@@ -5,7 +5,7 @@ import { Pressable, View } from 'react-native';
 import { ModuleWidgetShell } from '@/core/dashboard/ModuleWidgetShell';
 import { useSettings } from '@/core/settings/use-settings';
 import type { DashboardWidgetProps } from '@/core/types/module';
-import { Button, Icon, Stat, Text, colors, glow } from '@/ui';
+import { Button, Icon, Stat, Text, colors, glow, tint } from '@/ui';
 
 import { formatWeight } from '../format';
 import {
@@ -129,7 +129,7 @@ function ReadyProgramHero({
       <View className="flex-row items-start gap-3">
         <View
           className="h-12 w-12 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${colors.gym}22` }}
+          style={{ backgroundColor: tint(colors.gym, 0.13) }}
         >
           <Icon icon={Play} size={24} color={colors.gym} />
         </View>
@@ -194,7 +194,7 @@ function SetupProgramHero({
       <View className="flex-row items-center gap-3">
         <View
           className="h-12 w-12 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${colors.gym}22` }}
+          style={{ backgroundColor: tint(colors.gym, 0.13) }}
         >
           <Icon icon={Target} size={24} color={colors.gym} />
         </View>
@@ -222,7 +222,7 @@ function ChooseProgramHero({ onPress }: { onPress: () => void }) {
       <View className="flex-row items-center gap-3">
         <View
           className="h-12 w-12 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${colors.gym}22` }}
+          style={{ backgroundColor: tint(colors.gym, 0.13) }}
         >
           <Icon icon={Target} size={24} color={colors.gym} />
         </View>
