@@ -4,12 +4,10 @@ import { moduleSeedState } from '@/core/settings/schema';
 import { db } from './client';
 
 /**
- * Runs each registered module's `seed()` on every launch. Module seeds MUST be
- * idempotent (insert-missing / reconcile, never blind bulk-insert) so they can
- * safely re-run — this lets a module's reference data (e.g. the exercise
- * catalog) grow over time and reach already-seeded devices without a reset.
- * The `module_seed_state` row records the first-seed timestamp for audit only
- * (`.onConflictDoNothing()` keeps re-runs harmless). Call after migrations.
+ * Runs each module's `seed()` on every launch (call AFTER migrations). Seeds MUST
+ * be idempotent (insert-missing/reconcile, never blind bulk-insert) so reference
+ * data can grow and reach already-seeded devices. `module_seed_state` records the
+ * first-seed timestamp for audit only; the runner does not guard re-runs.
  */
 export async function runModuleSeeds(): Promise<void> {
   for (const module of MODULES) {

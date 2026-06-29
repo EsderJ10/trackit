@@ -37,7 +37,6 @@ function toInt(value: string, fallback: number): number {
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 
-/** Editable routine-template row: targets commit on blur. */
 function RoutineExerciseRowComponent({
   row,
   unit,

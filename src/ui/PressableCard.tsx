@@ -17,13 +17,7 @@ export interface PressableCardProps extends Omit<
   className?: string;
 }
 
-/**
- * A tappable `Card` surface. Mirrors `Card`'s elevated styling but is itself the
- * `Pressable`, baking in `accessibilityRole="button"`, the spoken label, and a
- * pressed state — so the many "Pressable wrapping a Card" navigation surfaces
- * share one accessible primitive instead of each re-deriving it (and forgetting
- * the a11y). Pass `className` to override the surface (bg, border, padding).
- */
+/** Tappable `Card`: itself the `Pressable` with baked-in a11y, so navigation surfaces share one accessible primitive. Override surface via `className`. */
 export function PressableCard({
   children,
   accessibilityLabel,

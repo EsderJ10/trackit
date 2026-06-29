@@ -9,7 +9,6 @@ import { AccountError } from './types';
 
 const MIN_PASSWORD = 6;
 
-/** Core "Account" settings section: profile, change password, and logout. */
 export function AccountSettings() {
   const user = useSessionStore((state) => state.user);
   const logout = useSessionStore((state) => state.logout);

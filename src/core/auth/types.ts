@@ -1,8 +1,4 @@
-/**
- * The authenticated account, as the app consumes it. A plain projection of the
- * `users` table profile — never carries the password credential (that lives in
- * SecureStore via the account backend).
- */
+// Projection of the `users` profile; never carries the password credential.
 export interface User {
   id: string;
   username: string;

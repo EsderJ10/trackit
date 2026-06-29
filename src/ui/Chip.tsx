@@ -21,12 +21,7 @@ export interface ChipProps extends Omit<PressableProps, 'children'> {
   className?: string;
 }
 
-/**
- * A selectable chip — the shared container behind the filter pills and range
- * tabs that were re-implemented across screens. Owns the shape, accent fill, and
- * accessibility (`role=button` + `selected` state); the label stays a `children`
- * slot because call sites legitimately differ in their text treatment.
- */
+/** Shared selectable chip behind filter pills and range tabs; owns shape, accent fill, and a11y (label stays a `children` slot). */
 export function Chip({
   active,
   accent = colors.primary,

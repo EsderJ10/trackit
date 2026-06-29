@@ -5,27 +5,19 @@ import * as schema from './schema';
 
 export const DB_NAME = 'trackit.db';
 
-/**
- * `enableChangeListener` is required for Drizzle's `useLiveQuery` to react to
- * writes — keep it on. The database is opened synchronously at module load so
- * `db` is ready before the first query.
- */
+// `enableChangeListener` required for `useLiveQuery` to react to writes — keep on.
+// Opened synchronously at module load so `db` is ready before the first query.
 const expoDb = openDatabaseSync(DB_NAME, { enableChangeListener: true });
 
-// expo-sqlite opens connections with foreign keys OFF — enable enforcement so
-// our onDelete cascade / set-null rules actually fire (e.g. deleting a session
-// removes its set logs instead of orphaning them).
+// expo-sqlite opens with foreign keys OFF — enable so onDelete cascade/set-null fire.
 expoDb.execSync('PRAGMA foreign_keys = ON;');
 
 export const db = drizzle(expoDb, { schema });
 
 /**
- * The raw expo-sqlite handle, for the rare low-level need the Drizzle layer
- * doesn't model — e.g. module-agnostic backup/restore that introspects
- * `sqlite_master` to dump every table. Writes here still fire the change
- * listener, so `useLiveQuery` stays reactive. Prefer `db` for everything else.
+ * Raw expo-sqlite handle for low-level needs Drizzle doesn't model (e.g. backup
+ * introspecting `sqlite_master`). Writes still fire the change listener. Prefer `db`.
  */
 export const sqlite = expoDb;
 
-/** The fully-typed Drizzle database, including every module's tables. */
 export type AppDatabase = typeof db;

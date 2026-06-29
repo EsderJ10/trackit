@@ -46,10 +46,7 @@ function IconButton({
   );
 }
 
-/**
- * Customize which module widgets show on Home and in what order. Operates
- * directly on the persisted layout (live query re-renders after each change).
- */
+/** Reorder/show-hide Home widgets; mutates the persisted layout directly (live query re-renders). */
 export function DashboardEditor() {
   const router = useRouter();
   const layout = useDashboardLayout();

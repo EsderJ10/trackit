@@ -6,7 +6,6 @@ import { Button, Card, Text } from '@/ui';
 import { authBackend } from './backend';
 import { useAuthStore } from './auth-store';
 
-/** Core "Security" settings section: enable / change / disable the app lock. */
 export function SecuritySettings() {
   const router = useRouter();
   const lockEnabled = useAuthStore((state) => state.lockEnabled);

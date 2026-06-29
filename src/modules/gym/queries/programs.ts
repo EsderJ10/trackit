@@ -28,18 +28,10 @@ import {
 
 import { addSet } from './sessions';
 
-// ---------------------------------------------------------------------------
-// Programs + progression (M5)
-//
-// A program is a roadmap, not a flat list: it owns DAYS (the split) and WEEKS
-// (the periodization), and a cursor (`currentWeek` + `currentDayIndex`) walks
-// the lifter through the week × day grid, advancing on each finished session.
-// Each exercise drives the next session's suggested sets (`suggestNext`) and
-// advances its own per-slot state (`advance`) when a session is finished. State
-// is keyed per program-exercise slot, so a lift may appear on more than one day.
-// The decision logic lives in the unit-tested `progression-engine`; everything
-// here is mechanical glue.
-// ---------------------------------------------------------------------------
+// Programs + progression (M5). A program owns days (split) and weeks
+// (periodization); a cursor (currentWeek + currentDayIndex) walks the week × day
+// grid, advancing per finished session. State is keyed per program-exercise slot
+// (a lift may appear on >1 day). Decision logic lives in `progression-engine`.
 
 export function useActivePrograms() {
   return useLiveQuery(
@@ -68,11 +60,7 @@ export interface CurrentProgram {
   lengthWeeks: number;
 }
 
-/**
- * The single program the user is currently following (`gym_settings`'s pointer),
- * or `undefined` when none is picked. This is the program everything on Train /
- * Home revolves around — distinct from `useActivePrograms` (the whole library).
- */
+/** The single program being followed (`gym_settings` pointer); distinct from `useActivePrograms` (the whole library). */
 export function useCurrentProgram(): CurrentProgram | undefined {
   const { data } = useLiveQuery(
     db
@@ -122,10 +110,9 @@ export interface NextProgramWorkout {
 }
 
 /**
- * Resolves the current program's cursor into the *next* workout to perform:
- * which day, its exercises, and whether it's a deload — everything the Train
- * hero needs. Mirrors the cursor → day → exercises walk in `startProgramWorkout`
- * (read-only here). `undefined` when no program is being followed.
+ * Resolves the current program's cursor into the next workout (day, exercises,
+ * deload) for the Train hero — a read-only mirror of `startProgramWorkout`'s
+ * cursor → day → exercises walk. `undefined` when no program is followed.
  */
 export function useNextProgramWorkout(): NextProgramWorkout | undefined {
   const current = useCurrentProgram();
@@ -205,8 +192,6 @@ export function useAllProgramDays() {
   );
 }
 
-// --- Days ----------------------------------------------------------------
-
 export interface ProgramDayRow {
   id: number;
   dayIndex: number;
@@ -269,8 +254,6 @@ export function removeProgramDay(programId: number, dayId: number): void {
   });
 }
 
-// --- Weeks ---------------------------------------------------------------
-
 export interface ProgramWeekRow {
   id: number;
   weekIndex: number;
@@ -330,9 +313,9 @@ export function renameProgramWeek(weekId: number, name: string): void {
 }
 
 /**
- * Remove a week: drop its prescriptions across every slot, then shift the higher
- * weeks (and their `program_sets`, joined by integer `weekIndex` — no FK cascade)
- * down in lockstep so indices stay contiguous, and resync `programs.lengthWeeks`.
+ * Remove a week, then shift higher weeks (and their `program_sets`, joined by
+ * integer `weekIndex` — no FK cascade) down in lockstep to keep indices
+ * contiguous, and resync `programs.lengthWeeks`.
  */
 export function removeProgramWeek(programId: number, weekId: number): void {
   db.transaction((tx) => {
@@ -398,11 +381,9 @@ export function removeProgramWeek(programId: number, weekId: number): void {
 }
 
 /**
- * Author a full periodized wave for one slot from mesocycle rules: ensure the
- * program has enough weeks (creating any missing, flagging the deload week),
- * wipe the slot's existing prescriptions, and write `generateWave`'s grid as
- * `program_sets`. This is the "don't hand-enter every cell" path; manual
- * `upsertProgramSet` remains the escape hatch.
+ * Author a full periodized wave for one slot from mesocycle rules: ensure enough
+ * weeks (creating missing, flagging the deload), wipe the slot's prescriptions,
+ * and write `generateWave`'s grid as `program_sets`.
  */
 export function generateProgramWave(
   programExerciseId: number,
@@ -470,8 +451,6 @@ export function generateProgramWave(
   });
 }
 
-// --- Program lifecycle ---------------------------------------------------
-
 /** Create a program seeded with one week and one day so it's usable at once. */
 export function createProgram(name: string, description?: string): number {
   return db.transaction((tx) => {
@@ -492,16 +471,15 @@ export function renameProgram(programId: number, name: string): void {
 }
 
 export function deleteProgram(programId: number): void {
-  // `workout_sessions.program_id` was added via ALTER (migration 0005), so
-  // SQLite dropped its ON DELETE clause — clear the references ourselves so
-  // history survives. Days/weeks/exercises (and their state/sets) cascade.
+  // `workout_sessions.program_id` was added via ALTER (migration 0005), so SQLite
+  // dropped its ON DELETE — clear the refs ourselves so history survives.
+  // Days/weeks/exercises (and their state/sets) cascade.
   db.transaction((tx) => {
     tx.update(workoutSessions)
       .set({ programId: null, programDayId: null })
       .where(eq(workoutSessions.programId, programId))
       .run();
-    // Same ALTER-dropped-FK story for the "currently following" pointer — clear
-    // it ourselves so Train falls back to ad-hoc when the followed program goes.
+    // Same ALTER-dropped-FK story for the currently-following pointer.
     tx.update(gymSettings)
       .set({ currentProgramId: null })
       .where(eq(gymSettings.currentProgramId, programId))
@@ -509,8 +487,6 @@ export function deleteProgram(programId: number): void {
     tx.delete(programs).where(eq(programs.id, programId)).run();
   });
 }
-
-// --- Exercises -----------------------------------------------------------
 
 export interface ProgramExerciseRow {
   id: number;
@@ -599,8 +575,7 @@ export function useProgramDayExercises(programDayId: number) {
 
 /**
  * The progression rule chosen when adding a slot. lp/dp carry their own params
- * (see `ProgressionScheme`); `rpe` autoregulates against an estimated-1RM anchor
- * and is the natural target for a periodized wave (see `generateProgramWave`).
+ * (see `ProgressionScheme`); `rpe` autoregulates against an estimated-1RM anchor.
  */
 export type ProgramSchemeChoice =
   | ProgressionScheme
@@ -619,9 +594,8 @@ export interface AddProgramExerciseInput {
 }
 
 /**
- * Add an exercise to a program day with its progression rule and seed its 1:1
- * training-state row. Duplicate lifts are refused within the same day only.
- * Returns the new program-exercise id.
+ * Add an exercise to a program day and seed its 1:1 training-state row. Duplicate
+ * lifts are refused within the same day only. Returns the new program-exercise id.
  */
 export function addProgramExercise(input: AddProgramExerciseInput): number {
   const { programId, programDayId, exerciseId, scheme, targetSets } = input;
@@ -663,8 +637,8 @@ export function addProgramExercise(input: AddProgramExerciseInput): number {
         currentWeightKg: input.startingWeightKg,
         currentReps:
           scheme.type === 'dp' ? scheme.minReps : (input.startingReps ?? 5),
-        // rpe renders loads off the e1RM anchor — seed it from the starting
-        // weight so the first session isn't zeroed; the user refines it.
+        // rpe renders off the e1RM anchor — seed from starting weight so the
+        // first session isn't zeroed.
         e1rmKg: scheme.type === 'rpe' ? input.startingWeightKg : null,
         lastReason: 'Starting weight',
       })
@@ -713,11 +687,7 @@ export function removeProgramExercise(programExerciseId: number): void {
     .run();
 }
 
-/**
- * Persist a new ordering of one day's program exercises. `orderedIds` are the
- * `program_exercises` row ids (within a single day) in their desired order;
- * each row's day-local `position` is rewritten to its index, in one transaction.
- */
+/** Rewrite each program_exercises row's day-local `position` to its index in `orderedIds` (single day), in one transaction. */
 export function reorderProgramExercises(orderedIds: number[]): void {
   db.transaction((tx) => {
     orderedIds.forEach((id, index) => {
@@ -729,11 +699,7 @@ export function reorderProgramExercises(orderedIds: number[]): void {
   });
 }
 
-/**
- * Apply superset group changes for a program day's exercises in one transaction
- * (null clears a row's group). Grouping is decided by the pure `supersets`
- * helpers; mirrors `updateRoutineSupersets` for the program side.
- */
+/** Apply superset_group changes (null clears) for a program day's exercises in one transaction. */
 export function updateProgramSupersets(
   updates: { id: number; supersetGroup: number | null }[],
 ): void {
@@ -746,8 +712,6 @@ export function updateProgramSupersets(
     }
   });
 }
-
-// --- Per-week prescriptions ---------------------------------------------
 
 export interface ProgramSetRow {
   id: number;
@@ -784,13 +748,9 @@ export function removeProgramSet(id: number): void {
   db.delete(programSets).where(eq(programSets.id, id)).run();
 }
 
-// --- Start a session from the cursor ------------------------------------
-
 /**
  * Start a session from a program's cursor: the current week + day decide which
- * exercises and prescriptions to pre-fill. Each lp/dp slot is rendered from its
- * state via `suggestNext` (percentage/rpe rendering lands in later phases).
- * Returns the new session id.
+ * exercises and prescriptions to pre-fill. Returns the new session id.
  */
 export function startProgramWorkout(programId: number): number {
   const program = db
@@ -907,8 +867,8 @@ export function startProgramWorkout(programId: number): number {
 }
 
 /**
- * After a program session is finished, fold each exercise's completed sets into
- * its progression state, then advance the cursor one day (wrapping week/cycle).
+ * After a finished program session, fold each exercise's completed sets into its
+ * progression state, then advance the cursor one day (wrapping week/cycle).
  * Exercises with no completed set are left untouched (a skip is not a failure);
  * a deload week advances the cursor but applies no progression.
  */
@@ -938,8 +898,7 @@ export function advanceProgram(
 
   if (!isDeload) {
     for (const slot of slots) {
-      // Percentage schemes don't move per session — their training max bumps on
-      // the cycle wrap (see `bumpTrainingMaxes`).
+      // Percent schemes don't move per session — TM bumps on the cycle wrap (`bumpTrainingMaxes`).
       if (slot.schemeType === 'percent') continue;
 
       const logged = db
@@ -954,8 +913,7 @@ export function advanceProgram(
           and(
             eq(setLogs.sessionId, sessionId),
             eq(setLogs.exerciseId, slot.exerciseId),
-            // Only working sets drive progression — warmups/drops/failures are
-            // not the prescribed effort.
+            // Only working sets drive progression.
             eq(setLogs.setType, 'working'),
             isNotNull(setLogs.completedAt),
           ),
@@ -972,8 +930,7 @@ export function advanceProgram(
       if (stateRow == null) continue;
 
       // The rpe re-anchor needs each set's *prescribed* RPE (pre-filled sets log
-      // none), so load this week's rpe prescriptions keyed by set number. The
-      // decision itself — re-anchor vs lp/dp advance — lives in `advanceSlot`.
+      // none), so load this week's rpe prescriptions keyed by set number.
       const prescribedRpe = new Map<number, number>();
       if (slot.schemeType === 'rpe') {
         for (const p of db
@@ -1040,7 +997,6 @@ export function advanceProgram(
   advanceProgramCursor(programId);
 }
 
-/** Move the program's cursor forward one day (wrapping week, then cycle). */
 function advanceProgramCursor(programId: number): void {
   const program = db
     .select({
@@ -1083,15 +1039,13 @@ function advanceProgramCursor(programId: number): void {
     .where(eq(programs.id, programId))
     .run();
 
-  // A completed cycle (a full pass through every week) bumps each percentage
-  // exercise's training max — the 5/3/1 wave. This fires on the cycle wrap
-  // itself, independent of whether the final week was a deload.
+  // A completed cycle bumps each percent slot's training max (the 5/3/1 wave),
+  // independent of whether the final week was a deload.
   if (next.currentCycle > program.currentCycle) {
     bumpTrainingMaxes(programId);
   }
 }
 
-/** Raise every percent-scheme slot's training max by its per-cycle increment. */
 function bumpTrainingMaxes(programId: number): void {
   const slots = db
     .select({

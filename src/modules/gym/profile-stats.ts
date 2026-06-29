@@ -1,6 +1,5 @@
 // Pure aggregation for the profile screen — lifetime totals, muscle breakdown,
-// streaks, and personal-record ranking. DB/native-free so it is unit-tested
-// directly (see `profile-stats.test.ts`); the `queries` hooks feed it live rows.
+// streaks, and personal-record ranking. The `queries` hooks feed it live rows.
 
 import { computePRs } from './progression';
 import {
@@ -51,10 +50,7 @@ export interface GymProfileStats {
   muscleBreakdown: MuscleGroupCount[];
 }
 
-/**
- * Fold completed sets + finished sessions into the profile's stats. `now` is
- * passed in (not read here) so the function stays pure and testable.
- */
+/** Fold completed sets + finished sessions into the profile's stats (`now` injected for purity). */
 export function aggregateProfileStats(
   sets: ProfileSetRow[],
   finished: ProfileSessionRow[],

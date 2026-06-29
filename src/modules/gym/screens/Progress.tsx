@@ -48,12 +48,11 @@ const RANGES = [
 
 type RangeKey = (typeof RANGES)[number]['key'];
 
-/** The lower bound (ms) for a range relative to now; 0 days means all-time. */
+// 0 days means all-time.
 function rangeFrom(days: number, now: number): number {
   return days === 0 ? 0 : now - days * DAY_MS;
 }
 
-/** Segmented range selector — same shape as the gym settings toggles. */
 function RangeTabs({
   value,
   onChange,
@@ -89,7 +88,6 @@ function RangeTabs({
   );
 }
 
-/** A titled chart card with a fallback when there aren't enough points yet. */
 function ChartCard({
   title,
   series,
@@ -116,7 +114,6 @@ function ChartCard({
   );
 }
 
-/** Wrapping pills to choose which muscle group's weekly-sets trend to show. */
 function GroupChips({
   groups,
   selected,
@@ -153,7 +150,6 @@ function GroupChips({
   );
 }
 
-/** Dashed-swatch legend for the MEV/MAV/MRV reference bands. */
 function BandLegend({
   bands,
 }: {
@@ -206,8 +202,7 @@ export function Progress() {
   const { data: history } = useExerciseSetHistory(selectedId);
 
   const volumeTrends = useMemo(() => {
-    // Intentional current-time read for the rolling range; the memo recomputes
-    // when the data or range changes, which is when it matters.
+    // Intentional current-time read for the rolling range; recomputes on data/range change.
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const from = rangeFrom(range.days, now);

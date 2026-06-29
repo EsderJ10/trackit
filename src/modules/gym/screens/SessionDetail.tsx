@@ -34,7 +34,7 @@ export function SessionDetail() {
   const { weightUnit } = useSettings();
   const effortScale = useEffortScale();
 
-  // Group the actually-completed sets by exercise, preserving insertion order.
+  // Only completed sets, grouped by exercise in insertion order.
   const groups = useMemo<ExerciseGroup[]>(() => {
     const byId = new Map<number, ExerciseGroup>();
     const order: number[] = [];

@@ -1,11 +1,7 @@
 import type { WeightUnit } from './schema';
 
-/**
- * Weights are stored canonically in **kilograms** everywhere in the database and
- * query layer. The user's chosen display unit (`app_settings.weightUnit`) is a
- * presentation concern only — convert at the UI boundary with these helpers, so
- * switching units re-renders existing history correctly instead of relabeling it.
- */
+// Weights are stored canonically in KILOGRAMS in the DB/query layer; the display
+// unit is presentation only — convert at the UI boundary with these helpers.
 const LB_PER_KG = 2.2046226218;
 
 function round(value: number, decimals: number): number {

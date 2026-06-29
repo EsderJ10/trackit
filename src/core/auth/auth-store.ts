@@ -3,9 +3,7 @@ import { create } from 'zustand';
 import { authBackend } from './backend';
 
 interface AuthState {
-  /** True once the initial lock status has been read. */
   initialized: boolean;
-  /** Whether an app lock is configured. */
   lockEnabled: boolean;
   /** Whether the app is currently locked (only meaningful when enabled). */
   locked: boolean;
@@ -15,10 +13,7 @@ interface AuthState {
   lock: () => void;
 }
 
-/**
- * Ephemeral auth/session state. Lives in Zustand (not the DB) because it is
- * runtime-only — the durable credential lives in SecureStore via `authBackend`.
- */
+// Ephemeral lock state; durable credential lives in SecureStore via `authBackend`.
 export const useAuthStore = create<AuthState>((set) => ({
   initialized: false,
   lockEnabled: false,
@@ -28,8 +23,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const lockEnabled = await authBackend.isLockEnabled();
       set({ initialized: true, lockEnabled, locked: lockEnabled });
     } catch (err) {
-      // Degrade to "no lock" rather than hang the bootstrap gate on a
-      // SecureStore read failure (`initialized` must always reach true).
+      // Degrade to "no lock" rather than hang the gate: `initialized` must reach true.
       console.error('[auth-store] init failed', err);
       set({ initialized: true, lockEnabled: false, locked: false });
     }

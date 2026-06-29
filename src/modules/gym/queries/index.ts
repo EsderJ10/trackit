@@ -1,17 +1,12 @@
-// Barrel for the gym query layer. Existing consumers import from
-// `'../queries'` / `'./queries'`, which now resolve to this directory; this
-// file re-exports the entire public surface so those paths keep working.
-//
-// `advanceProgram` is intentionally NOT re-exported: it is an internal
-// progression hook shared between `sessions` (finishWorkout) and `programs`,
-// and was never part of the public surface.
+// Barrel for the gym query layer. `advanceProgram` is intentionally NOT
+// re-exported — it's an internal progression hook shared between `sessions` and
+// `programs`, never public.
 
 export * from './routines';
 export * from './settings';
 export * from './exercises';
 export * from './sessions';
 export {
-  // Hooks
   useActivePrograms,
   useProgram,
   useCurrentProgram,
@@ -22,7 +17,6 @@ export {
   useProgramExercises,
   useProgramDayExercises,
   useProgramSets,
-  // Mutations
   setCurrentProgram,
   addProgramDay,
   renameProgramDay,
@@ -44,7 +38,6 @@ export {
   updateProgramSupersets,
   removeProgramSet,
   startProgramWorkout,
-  // Types
   type CurrentProgram,
   type NextProgramWorkout,
   type ProgramDayRow,

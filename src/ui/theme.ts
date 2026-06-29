@@ -7,10 +7,7 @@ import { palette } from './tokens';
 export const colors = palette;
 export type AppColors = typeof colors;
 
-/**
- * Navigation theme so native containers and gesture backgrounds match the dark
- * purple ground (avoids white flashes between screens).
- */
+/** Navigation theme matching the dark purple ground (avoids white flashes between screens). */
 export const navigationTheme: Theme = {
   ...DarkTheme,
   colors: {
@@ -24,11 +21,7 @@ export const navigationTheme: Theme = {
   },
 };
 
-/**
- * Soft glow for interactive / primary elements. Defaults to the primary accent;
- * pass a module accent to recolor. iOS renders the colored shadow directly;
- * Android approximates it via elevation (colored on API 28+).
- */
+/** Soft glow for interactive/primary elements. iOS renders the colored shadow; Android approximates via elevation (colored on API 28+). */
 export function glow(
   color: string = colors.primaryGlow,
   opacity = 0.5,
@@ -42,11 +35,7 @@ export function glow(
   };
 }
 
-/**
- * A 6-digit hex `color` at the given `alpha` (0–1) as an 8-digit hex string —
- * for soft accent fills (selected rows, badges, calendar marks) without
- * hand-writing opaque hex-alpha suffixes like `${colors.gym}22`.
- */
+/** 6-digit hex `color` at `alpha` (0–1) as 8-digit hex — for soft accent fills without hand-writing hex-alpha suffixes. */
 export function tint(color: string, alpha: number): string {
   const clamped = Math.max(0, Math.min(1, alpha));
   const suffix = Math.round(clamped * 255)
@@ -55,11 +44,7 @@ export function tint(color: string, alpha: number): string {
   return `${color}${suffix}`;
 }
 
-/**
- * Shared header/content chrome for every module's navigation stack, so each
- * module's `_layout.tsx` stays a one-line delegation instead of copying the
- * same options (and the same dark-bg white-flash guard) per module.
- */
+/** Shared header/content chrome for module nav stacks (incl. the dark-bg white-flash guard), so each `_layout.tsx` is a one-line delegation. */
 export const moduleStackScreenOptions = {
   headerStyle: { backgroundColor: colors.surface },
   headerTintColor: colors.fg,
@@ -67,12 +52,7 @@ export const moduleStackScreenOptions = {
   contentStyle: { backgroundColor: colors.bg },
 };
 
-/**
- * Rigid typography scale — the single source of truth for type sizing/weight.
- * Numbers/metrics use `tabular-nums` so digits don't jitter as values change
- * (critical for the logger). Keys are stable; screens pick a step, they don't
- * hand-roll font sizes.
- */
+/** Single source of truth for type sizing/weight. `metric` uses `tabular-nums` so digits don't jitter as values change (critical for the logger). */
 export type TypographyStep =
   | 'display'
   | 'title'
@@ -114,7 +94,6 @@ export const typography: Record<TypographyStep, TextStyle> = {
     fontWeight: '500',
     letterSpacing: 0.4,
   },
-  // Chiseled, tabular numerals for weights/reps/timers.
   metric: {
     fontSize: 32,
     lineHeight: 34,

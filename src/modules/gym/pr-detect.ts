@@ -1,16 +1,10 @@
-// Personal-record detection at the moment a set is completed — the data behind
-// the live PR celebration (Hevy's "Live PR"). Pure and DB/native-free so it is
-// unit-tested directly; the active-workout screen feeds it the just-logged set
-// and the exercise's all-time bests (excluding the current session).
+// Personal-record detection when a set is completed — the live PR celebration.
+// Fed the just-logged set + the exercise's all-time bests (excluding this session).
 
 import { gatedOneRepMax } from './progression';
 import type { MeasurementKind } from './queries';
 
-/**
- * The record types we celebrate. "Most reps at a given weight" (Hevy's fifth
- * kind) needs weight-keyed history and is deferred — these four are single-number
- * all-time bests, which keeps detection cheap and non-spammy.
- */
+// Single-number all-time bests; "most reps at a weight" (weight-keyed) deferred.
 export type PRKind = '1rm' | 'weight' | 'volume' | 'duration';
 
 /** A just-completed set, in canonical units. */
@@ -41,9 +35,8 @@ export const EMPTY_BESTS: ExerciseBests = {
 };
 
 /**
- * Which records the candidate set beats. Only load×reps lifts can set
- * weight/1RM/volume PRs; timed work sets duration PRs. A set ties (not beats) at
- * equality, so re-logging the same numbers won't re-fire.
+ * Which records the candidate set beats. Load×reps lifts set weight/1RM/volume;
+ * timed work sets duration. Equality ties (doesn't beat), so re-logging won't re-fire.
  */
 export function detectPRs(set: PrCandidate, bests: ExerciseBests): PRKind[] {
   const kinds: PRKind[] = [];

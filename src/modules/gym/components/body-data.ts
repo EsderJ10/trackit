@@ -1,12 +1,9 @@
-// Body silhouette path geometry for the anatomy diagram (`MuscleMap`).
-//
-// Vendored from `react-native-body-highlighter` (MIT © 2022 ELABBASSI Hicham),
-// https://github.com/HichamELBSI/react-native-body-highlighter — only the raw
-// SVG path data is reused; all styling/highlighting is ours. Front and back are
-// authored in one shared 1448-wide canvas: front occupies x 0–724 (viewBox
-// `0 0 724 1448`), back occupies x 724–1448 (viewBox `724 0 724 1448`). Parts
-// with no muscle mapping (head, hair, neck, hands, feet, ankles, knees,
-// tibialis) are still rendered as the base silhouette.
+// SVG path geometry for the anatomy diagram, vendored from react-native-body-highlighter
+// (MIT © 2022 ELABBASSI Hicham), https://github.com/HichamELBSI/react-native-body-highlighter
+// — only the raw paths are reused; styling is ours. Front and back share one
+// 1448-wide canvas: front x 0–724 (viewBox `0 0 724 1448`), back x 724–1448
+// (viewBox `724 0 724 1448`). Parts with no muscle mapping (head, neck, hands…)
+// still render as the base silhouette.
 
 /** One body region: a slug plus its left/right/centre SVG sub-paths. */
 export interface BodyPart {
@@ -24,7 +21,6 @@ export interface BodyPart {
 }
 
 export const bodyFront: BodyPart[] = [
-  // Chest
   {
     slug: 'chest',
     color: '#3f3f3f',
@@ -38,7 +34,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Obliques
   {
     slug: 'obliques',
     color: '#3f3f3f',
@@ -66,7 +61,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // abs
   {
     slug: 'abs',
     color: '#3f3f3f',
@@ -86,7 +80,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Biceps
   {
     slug: 'biceps',
     color: '#3f3f3f',
@@ -100,7 +93,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Triceps
   {
     slug: 'triceps',
     color: '#3f3f3f',
@@ -114,7 +106,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // neck
   {
     slug: 'neck',
     color: '#3f3f3f',
@@ -133,7 +124,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Trapezius
   {
     slug: 'trapezius',
     color: '#3f3f3f',
@@ -147,7 +137,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Deltoids
   {
     slug: 'deltoids',
     color: '#3f3f3f',
@@ -161,7 +150,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Adductors
   {
     slug: 'adductors',
     color: '#3f3f3f',
@@ -179,7 +167,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Quadriceps
   {
     slug: 'quadriceps',
     color: '#3f3f3f',
@@ -197,7 +184,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Knees
   {
     slug: 'knees',
     color: '#3f3f3f',
@@ -213,7 +199,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Tibialis
   {
     slug: 'tibialis',
     color: '#3f3f3f',
@@ -227,7 +212,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Calves
   {
     slug: 'calves',
     color: '#3f3f3f',
@@ -243,7 +227,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Forearm
   {
     slug: 'forearm',
     color: '#3f3f3f',
@@ -261,7 +244,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Hand
   {
     slug: 'hands',
     color: '#3f3f3f',
@@ -285,7 +267,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Ankle
   {
     slug: 'ankles',
     color: '#3f3f3f',
@@ -301,7 +282,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Feet
   {
     slug: 'feet',
     color: '#3f3f3f',
@@ -317,7 +297,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Head
   {
     slug: 'head',
     color: '#bebebe',
@@ -328,7 +307,6 @@ export const bodyFront: BodyPart[] = [
     },
   },
 
-  // Hair
   {
     slug: 'hair',
     color: '#3f3f3f',
@@ -365,7 +343,6 @@ export const bodyFront: BodyPart[] = [
 ];
 
 export const bodyBack: BodyPart[] = [
-  // Neck
   {
     slug: 'neck',
     color: '#3f3f3f',
@@ -379,7 +356,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Trapezius
   {
     slug: 'trapezius',
     color: '#3f3f3f',
@@ -393,7 +369,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Deltoids
   {
     slug: 'deltoids',
     color: '#3f3f3f',
@@ -407,7 +382,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Upper Back
   {
     slug: 'upper-back',
     color: '#3f3f3f',
@@ -425,7 +399,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Triceps
   {
     slug: 'triceps',
     color: '#3f3f3f',
@@ -443,7 +416,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Lower back
   {
     slug: 'lower-back',
     color: '#3f3f3f',
@@ -459,7 +431,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Forearm
   {
     slug: 'forearm',
     color: '#3f3f3f',
@@ -479,7 +450,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Gluteal
   {
     slug: 'gluteal',
     color: '#3f3f3f',
@@ -495,7 +465,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Adductors
   {
     slug: 'adductors',
     color: '#3f3f3f',
@@ -509,7 +478,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // Hamstring
   {
     slug: 'hamstring',
     color: '#3f3f3f',
@@ -529,7 +497,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // calves
   {
     slug: 'calves',
     color: '#3f3f3f',
@@ -549,7 +516,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // ankle
   {
     slug: 'ankles',
     color: '#3f3f3f',
@@ -563,7 +529,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // feet
   {
     slug: 'feet',
     color: '#3f3f3f',
@@ -577,7 +542,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // hands
   {
     slug: 'hands',
     color: '#3f3f3f',
@@ -601,7 +565,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // head
   {
     slug: 'head',
     color: '#bebebe',
@@ -612,7 +575,6 @@ export const bodyBack: BodyPart[] = [
     },
   },
 
-  // hair
   {
     slug: 'hair',
     color: '#3f3f3f',

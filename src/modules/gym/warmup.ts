@@ -1,8 +1,6 @@
-// Warm-up calculator — ramp sets leading into a working weight. Following
-// Liftosaur's model, the percentages are relative to the FIRST WORKING SET's
-// weight (not 1RM). Pure and unit-tested; the active workout inserts the result
-// as `setType: 'warmup'` rows so they're excluded from volume/PRs. Weights are in
-// canonical kg; the caller supplies the bar and a rounding step.
+// Warm-up calculator — ramp sets into a working weight. Following Liftosaur,
+// percentages are relative to the FIRST WORKING SET's weight (not 1RM). Inserted
+// as `setType: 'warmup'` rows (excluded from volume/PRs). Weights in canonical kg.
 
 import { roundKg } from './progression-engine';
 
@@ -26,10 +24,9 @@ export interface WarmupSet {
 }
 
 /**
- * Warm-up sets ramping to `workWeightKg`. A rung at 0% loads the bare bar; each
- * rung is rounded to a loadable weight and clamped to at least the bar. Rungs
- * that round to the full working weight (or beyond) are dropped — you don't
- * "warm up" at your work weight. Returns [] for bodyweight/very light work.
+ * Warm-up sets ramping to `workWeightKg`. A 0% rung loads the bare bar; each rung
+ * is rounded loadable and clamped to ≥ the bar. Rungs that round to ≥ the work
+ * weight are dropped. Returns [] for bodyweight/very light work.
  */
 export function warmupSets(
   workWeightKg: number,

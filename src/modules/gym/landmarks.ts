@@ -1,7 +1,6 @@
-// Per-muscle weekly volume landmarks (MV ≤ MEV ≤ MAV ≤ MRV, in working sets per
-// week) and zone classification — Renaissance Periodization's framework. See
-// research.txt Part 2 §A1. DB/native-free so it unit-tests directly; the
-// `useMuscleLandmarks` hook feeds live (editable) rows into `classifyVolume`.
+// Per-muscle weekly volume landmarks (MV ≤ MEV ≤ MAV ≤ MRV, working sets/week)
+// and zone classification — Renaissance Periodization's framework. See
+// research.txt Part 2 §A1. `useMuscleLandmarks` feeds live editable rows in.
 
 export interface MuscleLandmarkBands {
   /** Maintenance Volume — least that retains the muscle. */
@@ -15,15 +14,10 @@ export interface MuscleLandmarkBands {
 }
 
 /**
- * Coarse-group defaults keyed by `exercises.muscle_group`. Weekly-set heuristics
- * meant as editable starting points, not law — `seedMuscleLandmarks` upserts
- * these so tuning them later still reaches already-seeded devices.
- *
- * `Chest` maps 1:1 to RP's muscle and uses their VERIFIED landmark row
- * (MV 2–4 / MEV 4–6 / MAV 6–16 / MRV 16–24, taken at each range's top). The
- * other five are SYNTHESIZED AGGREGATES: RP publishes landmarks per FINE muscle
- * (quads/hams/glutes; biceps/triceps; the three delt heads) and we collapse them
- * onto our coarse groups — these approximate, RP did not publish group numbers.
+ * Coarse-group defaults keyed by `exercises.muscle_group` — editable starting
+ * points (`seedMuscleLandmarks` upserts, so later tuning still reaches devices).
+ * `Chest` is RP's VERIFIED row; the other five are SYNTHESIZED AGGREGATES of RP's
+ * per-fine-muscle numbers (RP published no coarse-group figures).
  * Source: https://rpstrength.com/blogs/articles/training-volume-landmarks-muscle-growth
  */
 export const DEFAULT_MUSCLE_LANDMARKS: Readonly<
@@ -44,9 +38,7 @@ const LANDMARK_ORDER: readonly LandmarkKey[] = ['mv', 'mev', 'mav', 'mrv'];
 
 /**
  * Set one band to `value` (floored at 0, rounded) and re-establish the invariant
- * MV ≤ MEV ≤ MAV ≤ MRV that `classifyVolume` relies on: higher bands are raised
- * to at least the new value, lower bands are lowered to at most it. Pure — used
- * by the landmark editor so a user can't cross the bands. Returns new bands.
+ * MV ≤ MEV ≤ MAV ≤ MRV: higher bands raised to ≥ value, lower bands lowered to ≤ it.
  */
 export function setBand(
   bands: MuscleLandmarkBands,
@@ -85,13 +77,10 @@ export const ZONE_LABEL: Readonly<Record<VolumeZone, string>> = {
 };
 
 /**
- * Place a muscle's weekly set count into its volume zone. Pure — pass the bands
- * in. Boundaries are inclusive at the lower landmark: exactly MEV is already
- * 'productive', exactly MRV is still 'maximal' (only above MRV is overreaching).
- *
- * NOTE: callers currently pass ALL completed sets, warmups included — the schema
- * has no set-type column yet (see research.txt Part 1 #3). Until set typing
- * lands this nudges muscles a zone high, so treat the bands as indicative.
+ * Place a muscle's weekly set count into its volume zone. Boundaries inclusive at
+ * the lower landmark: exactly MEV is 'productive', exactly MRV still 'maximal'.
+ * NOTE: callers pass ALL completed sets incl. warmups (no set-type filter), which
+ * nudges muscles a zone high — treat bands as indicative. See research.txt Part 1 #3.
  */
 export function classifyVolume(
   sets: number,

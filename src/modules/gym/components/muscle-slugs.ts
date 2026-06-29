@@ -6,21 +6,12 @@ export interface MuscleSlug {
   views: readonly MuscleView[];
 }
 
-/**
- * Maps each fine muscle to the body-data slug it paints and the views that slug
- * shows on. The deltoid is a single slug split across views — `front_delts`
- * paints only on the front and `rear_delts` only on the back — while muscles
- * whose slug is drawn on both silhouettes (forearm, calves, triceps…) light up
- * wherever they appear. Pure data (no React/native imports) so the
- * slug-coverage invariant is unit-tested in `muscle-slugs.test.ts`.
- *
- * DISTINCT OVERLAYS: `side_delts`, `glute_med`, and `hip_flexors` each light a
- * dedicated overlay region carved from their parent (`side-deltoid` from the
- * deltoid cap, `glute-medius` from the gluteal mass, `hip-flexor` at the hip
- * crease) — see the `overlay` parts in `body-data.ts`. `brachialis` still shares
- * the `biceps` region (it lies directly under the biceps, so a distinct path
- * would only overlap it). The legend always names each muscle precisely.
- */
+// Each fine muscle → its body-data slug and the views that slug shows on. The
+// deltoid slug is split across views (`front_delts` front, `rear_delts` back).
+// `side_delts`/`glute_med`/`hip_flexors` light dedicated overlay regions carved
+// from their parent (see the `overlay` parts in body-data); `brachialis` shares
+// the `biceps` region since it lies directly under it. Pure data (no imports) so
+// the slug-coverage invariant is unit-tested in `muscle-slugs.test.ts`.
 export const MUSCLE_SLUG: Readonly<Record<Muscle, MuscleSlug>> = {
   chest: { slug: 'chest', views: ['front'] },
   front_delts: { slug: 'deltoids', views: ['front'] },

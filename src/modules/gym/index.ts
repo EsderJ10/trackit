@@ -9,17 +9,13 @@ import { GymDashboardWidget } from './widgets/GymDashboardWidget';
 import { GymProfileWidget } from './widgets/GymProfileWidget';
 import { GymSettingsPanel } from './widgets/GymSettingsPanel';
 
-/** Seed the exercise catalog first, then the program templates that reference it. */
+// Catalog must seed before program templates that reference it.
 function seedGymModule(db: Parameters<typeof seedGym>[0]): void {
   seedGym(db);
   seedMuscleLandmarks(db);
   seedProgramTemplates(db);
 }
 
-/**
- * The Gym tracking module. Ships its own route files under `app/modules/gym/`
- * for its routine → workout → history flow, so it omits `ModuleScreen`.
- */
 export const gymModule: TrackerModule = {
   meta: {
     id: 'gym',

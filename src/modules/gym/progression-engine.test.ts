@@ -36,7 +36,6 @@ const state = (over: Partial<ProgressionState> = {}): ProgressionState => ({
   ...over,
 });
 
-// All sets at the working weight and at least `reps` reps.
 const sets = (count: number, reps: number, weightKg = 100) =>
   Array.from({ length: count }, () => ({ reps, weightKg }));
 

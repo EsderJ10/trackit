@@ -29,7 +29,7 @@ export function ProgramList() {
   const { data: days } = useAllProgramDays();
   const current = useCurrentProgram();
 
-  // Group day names by program so each card can show "Next: <day>".
+  // Day names by program, for each card's "Next: <day>".
   const daysByProgram = useMemo(() => {
     const map = new Map<number, string[]>();
     for (const day of days) {
@@ -90,7 +90,6 @@ export function ProgramList() {
             const dayCount = programDays.length;
             const nextDay = programDays[program.currentDayIndex];
             const isCurrent = current?.id === program.id;
-            // Cursor: where the lifter is in the week × day grid.
             const cursor =
               dayCount === 0
                 ? 'No days yet'

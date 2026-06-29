@@ -29,8 +29,8 @@ interface MuscleSection {
   exercises: Exercise[];
 }
 
-/** A flattened section row; the key namespaces the exercise by its section so the
-    same exercise can appear under Favorites/Recent and its muscle group. */
+// key namespaces the exercise by section so it can appear under Favorites/Recent
+// and its muscle group at once.
 interface ExerciseRowItem {
   key: string;
   exercise: Exercise;
@@ -41,7 +41,6 @@ interface ExerciseSection {
   data: ExerciseRowItem[];
 }
 
-/** Bucket a (muscle-group, name)-ordered list into per-group sections. */
 function groupByMuscle(list: Exercise[]): MuscleSection[] {
   const byName = new Map<string, MuscleSection>();
   const order: string[] = [];
@@ -57,7 +56,6 @@ function groupByMuscle(list: Exercise[]): MuscleSection[] {
   return order.map((name) => byName.get(name)!);
 }
 
-/** Wrap a group's exercises as section rows with section-namespaced keys. */
 function toSection(title: string, exercises: Exercise[]): ExerciseSection {
   return {
     title,
@@ -68,7 +66,6 @@ function toSection(title: string, exercises: Exercise[]): ExerciseSection {
   };
 }
 
-/** A selectable pill for the muscle-group / equipment filter bars. */
 function FilterChip({
   label,
   active,
@@ -91,7 +88,6 @@ function FilterChip({
   );
 }
 
-/** A single exercise row: accent medallion, name, worked-muscle subtitle. */
 const ExerciseRow = memo(function ExerciseRow({
   exercise,
   onPress,
@@ -209,8 +205,7 @@ export function ExerciseList() {
     setEquipmentFilter(null);
   }
 
-  // An empty catalog has nothing to search or filter — show the plain prompt
-  // rather than an empty search bar over empty filter rows.
+  // Empty catalog: show a plain prompt, not search/filter chrome over nothing.
   if (exercises.length === 0) {
     return (
       <Screen>
@@ -226,7 +221,6 @@ export function ExerciseList() {
 
   const listHeader = (
     <View className="gap-4 pb-2">
-      {/* Search */}
       <View className="flex-row items-center gap-3 rounded-xl border border-border bg-surface-hi px-4 py-3.5">
         <Icon icon={Search} size={18} color={colors.fgFaint} />
         <TextInput
@@ -251,7 +245,6 @@ export function ExerciseList() {
         ) : null}
       </View>
 
-      {/* Muscle-group filter */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -274,7 +267,6 @@ export function ExerciseList() {
         ))}
       </ScrollView>
 
-      {/* Equipment filter */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

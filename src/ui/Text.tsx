@@ -18,13 +18,7 @@ export type TextVariant =
   | 'metric'
   | 'stat';
 
-/**
- * Geometry (size/weight/tracking) comes from the `typography` scale in
- * `theme.ts` — the single source of truth — applied as a `style` so it can't
- * silently diverge from the documented scale the way a parallel Tailwind map
- * did. `muted` reuses the `label` geometry at normal weight; `stat` reuses the
- * tabular-nums `metric` step so dashboard numbers don't jitter.
- */
+// Geometry from the `typography` scale (single source of truth), applied as `style` so it can't diverge from it like a parallel Tailwind map would. `stat` reuses tabular-nums `metric` so numbers don't jitter.
 const VARIANT_STYLE: Record<TextVariant, TextStyle> = {
   display: typography.display,
   title: typography.title,

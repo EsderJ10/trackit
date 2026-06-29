@@ -48,7 +48,7 @@ export default function RootLayout() {
   }, []);
 
   const bootstrapped = ready && authInitialized && sessionInitialized;
-  // The PIN lock overlays the app only once the user is signed in.
+  // PIN lock overlays the app only once signed in.
   const showLock = isAuthed && lockEnabled && locked;
 
   return (
@@ -74,11 +74,10 @@ export default function RootLayout() {
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Protected guard={isAuthed}>
                   <Stack.Screen name="(tabs)" />
-                  {/* No app/modules/_layout — these nested stacks are root
-                      screens, so gate them by their full segment names. The
-                      nav-owning modules are registry-driven so a new one needs
-                      no edit here; `modules/[moduleId]` is the generic fallback
-                      for simple (ModuleScreen-only) modules. */}
+                  {/* No app/modules/_layout: nested module stacks are root
+                      screens, gated by full segment name. Registry-driven so a
+                      new nav-owning module needs no edit; modules/[moduleId] is
+                      the fallback for simple ModuleScreen-only modules. */}
                   {MODULES.filter((module) => module.ownsRouteStack).map(
                     (module) => (
                       <Stack.Screen

@@ -1,26 +1,14 @@
-/**
- * Personal-record math. Operates entirely on **canonical kg** (the storage
- * unit) — callers convert to the display unit at render with `formatWeight`,
- * keeping the M1 unit discipline. Pure and dependency-free, so it is unit-tested
- * without a native/DB harness (see `progression.test.ts`).
- */
+// Personal-record math. Operates on canonical kg; callers convert at render.
 
 export interface PrSet {
   reps: number;
   weight: number;
 }
 
-/**
- * Reps above which a 1RM estimate is unreliable — every estimator (Epley
- * included) loses accuracy past ~12 reps, so we surface "—" rather than a
- * confidently-wrong number. See research.txt Part 2 §A4.
- */
+/** Reps above which a 1RM estimate is unreliable (Epley loses accuracy past ~12). See research.txt Part 2 §A4. */
 export const E1RM_MAX_REPS = 12;
 
-/**
- * Estimated one-rep max via the Epley formula: `w · (1 + reps/30)`. A single
- * rep is its own 1RM; non-positive reps fall back to the bare weight.
- */
+/** Epley 1RM: `w · (1 + reps/30)`. A single rep is its own 1RM; non-positive reps → bare weight. */
 export function estimateOneRepMax(weightKg: number, reps: number): number {
   if (reps <= 1) return weightKg;
   return weightKg * (1 + reps / 30);

@@ -106,7 +106,6 @@ function StepperRow({
 
 const EFFORT_SCALES: readonly EffortScale[] = ['rpe', 'rir'];
 
-/** Two-option segmented control choosing how sets surface effort (RPE vs RIR). */
 function EffortScaleRow({
   scale,
   onChange,

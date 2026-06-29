@@ -10,11 +10,9 @@ import {
 import { getExerciseBests, type SetLogRow } from '../queries';
 
 /**
- * Live PR celebration for the active workout. Holds the transient banner message
- * (auto-cleared after a beat) and the per-exercise all-time bests — fetched
- * lazily the first time an exercise is touched and folded forward as working
- * sets complete, so a record can't re-fire on a repeat tap. Call `celebrate`
- * when a set is checked off; it no-ops for non-working sets.
+ * Live PR celebration for the active workout. Per-exercise bests are fetched
+ * lazily on first touch and folded forward as working sets complete, so a record
+ * can't re-fire on a repeat tap. Call `celebrate` on check-off; no-ops for non-working sets.
  */
 export function usePRCelebration() {
   const [prMsg, setPrMsg] = useState<string | null>(null);

@@ -1,11 +1,7 @@
-// Pure RPE/RIR scale helpers. RPE (rate of perceived exertion, 1–10) and RIR
-// (reps in reserve, 0–9) are two views of the *same* stored value — `set_logs.rpe`
-// always holds canonical RPE, and `rir = 10 − rpe`. The chosen scale
-// (`gym_settings.effortScale`) is a presentation concern only, so we convert at
-// the UI boundary with these helpers — switching scales re-renders existing
-// history correctly instead of relabeling it (mirrors `core/settings/units`).
-//
-// Kept free of DB/native imports so it can be unit-tested directly.
+// Pure RPE/RIR scale helpers. RPE (1–10) and RIR (0–9) are two views of the same
+// stored value: `set_logs.rpe` always holds canonical RPE, `rir = 10 − rpe`. The
+// chosen scale (`gym_settings.effortScale`) is presentation only — convert at the
+// UI boundary here (mirrors `core/settings/units`).
 
 /** The effort scale the logging/review UI surfaces. */
 export type EffortScale = 'rpe' | 'rir';
@@ -20,11 +16,7 @@ export function effortLabel(scale: EffortScale): string {
   return scale === 'rir' ? 'RIR' : 'RPE';
 }
 
-/**
- * Valid input bounds in the *display* scale: RPE spans 1–10, RIR spans 0–9
- * (RPE 1 = 9 RIR, RPE 10 = 0 RIR). Used to flag out-of-range entry before it's
- * clamped on blur.
- */
+/** Valid input bounds in the display scale: RPE 1–10, RIR 0–9 — flags out-of-range entry. */
 export function effortBounds(scale: EffortScale): { min: number; max: number } {
   return scale === 'rir' ? { min: 0, max: 9 } : { min: 1, max: 10 };
 }

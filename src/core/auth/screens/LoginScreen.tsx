@@ -9,7 +9,6 @@ import { useSessionStore } from '../session-store';
 import { AccountError } from '../types';
 import { AuthScreen } from './AuthScreen';
 
-/** Sign in to the device's existing account with username/email + password. */
 export function LoginScreen() {
   const router = useRouter();
   const setUser = useSessionStore((state) => state.setUser);

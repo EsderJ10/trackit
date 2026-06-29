@@ -5,10 +5,6 @@ import { db } from '@/core/db/client';
 
 import { exercises, routineExercises, routines } from '../schema';
 
-// ---------------------------------------------------------------------------
-// Routines
-// ---------------------------------------------------------------------------
-
 export function useRoutines() {
   return useLiveQuery(
     db.select().from(routines).orderBy(desc(routines.createdAt)),
@@ -102,11 +98,7 @@ export function removeRoutineExercise(id: number): void {
   db.delete(routineExercises).where(eq(routineExercises.id, id)).run();
 }
 
-/**
- * Persist a new ordering of a routine's exercises. `orderedIds` are the
- * `routine_exercises` row ids in their desired order; each row's `position`
- * is rewritten to its index, in one transaction.
- */
+/** Rewrite each routine_exercises row's `position` to its index in `orderedIds`, in one transaction. */
 export function reorderRoutineExercises(orderedIds: number[]): void {
   db.transaction((tx) => {
     orderedIds.forEach((id, index) => {
@@ -118,11 +110,7 @@ export function reorderRoutineExercises(orderedIds: number[]): void {
   });
 }
 
-/**
- * Apply superset group changes for a routine's exercises in one transaction.
- * Each update sets one row's `superset_group` (null clears it). The grouping
- * itself is decided by the pure `supersets` helpers.
- */
+/** Apply superset_group changes (null clears) for a routine's exercises in one transaction. */
 export function updateRoutineSupersets(
   updates: { id: number; supersetGroup: number | null }[],
 ): void {

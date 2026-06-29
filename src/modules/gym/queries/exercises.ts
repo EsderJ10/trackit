@@ -5,10 +5,6 @@ import { db } from '@/core/db/client';
 
 import { exercises, setLogs, workoutSessions } from '../schema';
 
-// ---------------------------------------------------------------------------
-// Exercise catalog
-// ---------------------------------------------------------------------------
-
 export function useExercises() {
   return useLiveQuery(
     db.select().from(exercises).orderBy(exercises.muscleGroup, exercises.name),
@@ -33,11 +29,7 @@ export function setExerciseFavorite(
     .run();
 }
 
-/**
- * Exercise ids used most recently, newest-used first, across finished sessions.
- * Drives the "Recent" shortcut on the exercise list. Returns ids only — the
- * caller already holds the full rows from `useExercises`.
- */
+/** Exercise ids used most recently (newest first) across finished sessions. */
 export function useRecentExerciseIds(limit = 6): number[] {
   const { data } = useLiveQuery(
     db

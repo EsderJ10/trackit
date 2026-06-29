@@ -1,8 +1,4 @@
-/**
- * Shallow structural equality for flat objects of primitives — handy as a
- * `React.memo` comparator for list rows whose data object is recreated on every
- * live-query commit but whose field values usually don't change.
- */
+/** Shallow equality for flat primitive objects — a `React.memo` comparator for list rows recreated on every live-query commit. */
 export function shallowEqual<T extends object>(a: T, b: T): boolean {
   if (a === b) return true;
   const aKeys = Object.keys(a) as (keyof T)[];

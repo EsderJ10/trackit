@@ -30,7 +30,6 @@ export interface PinPadProps {
   onComplete: (pin: string) => void;
 }
 
-/** Numeric PIN entry with progress dots. Calls `onComplete` at PIN_LENGTH. */
 export function PinPad({
   title,
   subtitle,
@@ -40,9 +39,8 @@ export function PinPad({
 }: PinPadProps) {
   const [pin, setPin] = useState('');
 
-  // Clear the entry when the parent bumps `resetSignal` (e.g. a wrong PIN).
-  // Adjusting state during render on a changed prop is React's recommended
-  // alternative to a setState-in-effect for this "reset on signal" pattern.
+  // Reset on changed prop during render — React's recommended alternative to a
+  // setState-in-effect for this "reset on signal" pattern.
   const [prevReset, setPrevReset] = useState(resetSignal);
   if (resetSignal !== prevReset) {
     setPrevReset(resetSignal);

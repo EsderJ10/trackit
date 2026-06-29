@@ -11,17 +11,11 @@ import {
 } from '../landmarks';
 import { gymSettings, muscleLandmarks } from '../schema';
 
-// ---------------------------------------------------------------------------
-// Gym settings (single row, id = 1)
-// ---------------------------------------------------------------------------
+// Gym settings: single row, id = 1.
 
 const DEFAULT_REST_SEC = 120;
 
-/**
- * The persisted default rest length, in seconds. A plain sync read (used to
- * hydrate the rest-timer store on workout start); falls back to the default when
- * no row exists yet, so no singleton-row bootstrap is required.
- */
+/** Default rest length (seconds), sync read; falls back to the default pre-write. */
 export function getDefaultRestSec(): number {
   const row = db
     .select({ defaultRestSec: gymSettings.defaultRestSec })
@@ -31,7 +25,6 @@ export function getDefaultRestSec(): number {
   return row?.defaultRestSec ?? DEFAULT_REST_SEC;
 }
 
-/** Persist the default rest length; upserts so the row is created on first write. */
 export function setDefaultRestSec(defaultRestSec: number): void {
   db.insert(gymSettings)
     .values({ id: 1, defaultRestSec })
@@ -63,7 +56,6 @@ export function useWeeklyGoal(): number {
   return data[0]?.weeklyWorkoutGoal ?? DEFAULT_WEEKLY_GOAL;
 }
 
-/** Persist the weekly workout goal; upserts so the row is created on first write. */
 export function setWeeklyGoal(weeklyWorkoutGoal: number): void {
   db.insert(gymSettings)
     .values({ id: 1, weeklyWorkoutGoal })
@@ -84,7 +76,6 @@ export function useEffortScale(): EffortScale {
   return data[0]?.effortScale ?? DEFAULT_EFFORT_SCALE;
 }
 
-/** Persist the effort scale; upserts so the row is created on first write. */
 export function setEffortScale(effortScale: EffortScale): void {
   db.insert(gymSettings)
     .values({ id: 1, effortScale })
@@ -92,11 +83,7 @@ export function setEffortScale(effortScale: EffortScale): void {
     .run();
 }
 
-/**
- * Live per-muscle volume landmarks, keyed by `muscle_group` for O(1) lookup
- * against the profile's muscle breakdown. Empty until the seed runs; callers
- * skip band display for muscles absent from the map (e.g. custom groups).
- */
+/** Live per-muscle volume landmarks keyed by `muscle_group`; empty until the seed runs. */
 export function useMuscleLandmarks(): Map<string, MuscleLandmarkBands> {
   const { data } = useLiveQuery(db.select().from(muscleLandmarks));
   return useMemo(

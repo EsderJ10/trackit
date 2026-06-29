@@ -20,7 +20,7 @@ import {
 } from '../queries';
 import { sessionLabel } from '../session-label';
 
-/** One finished-workout row; memoized so the virtualized list reuses cells. */
+// memoized so the virtualized list reuses cells.
 const HistoryRow = memo(function HistoryRow({
   session,
   onPress,
@@ -70,8 +70,7 @@ export function History() {
   );
 
   const cal = useMemo(() => {
-    // Intentional current-time read for the calendar's "today"; the memo
-    // recomputes when sessions change, which is when it matters.
+    // Intentional current-time read for "today"; recomputes when sessions change.
     const now = new Date();
     return {
       todayStartMs: startOfDay(now).getTime(),

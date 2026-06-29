@@ -190,7 +190,6 @@ function HeaderAction({
   );
 }
 
-/** The program-centric hero: the next programmed day, one tap from starting. */
 function NextWorkoutHero({
   next,
   onStart,
@@ -257,7 +256,7 @@ function NextWorkoutHero({
   );
 }
 
-/** Current program exists but its cursor day has no exercises yet. */
+// Current program exists but its cursor day has no exercises yet.
 function SetupProgramHero({
   next,
   onPress,
@@ -288,7 +287,6 @@ function SetupProgramHero({
   );
 }
 
-/** No program picked yet — guide the user to choose one. */
 function ChooseProgramHero({ onPress }: { onPress: () => void }) {
   return (
     <PressableCard
@@ -314,7 +312,6 @@ function ChooseProgramHero({ onPress }: { onPress: () => void }) {
   );
 }
 
-/** Compact ad-hoc entry point — demoted below the program hero. */
 function EmptyWorkoutCard({ onPress }: { onPress: () => void }) {
   return (
     <PressableCard

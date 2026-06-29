@@ -27,18 +27,13 @@ import { advanceProgram } from './programs';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-// ---------------------------------------------------------------------------
-// Sessions + set logs
-// ---------------------------------------------------------------------------
-
 /**
  * Start a freestyle (or routine-based) session. `startedAt` (ms) backdates it
- * for logging a workout you did on a past day — `finishWorkout` then completes
- * it on that day rather than now, so it lands on its calendar date everywhere.
+ * for logging a past-day workout — `finishWorkout` then completes it on that day
+ * so it lands on its calendar date.
  */
 export function startWorkout(routineId?: number, startedAt?: number): number {
-  // Atomic: the session row and all its pre-filled set rows commit together,
-  // so a failure can't leave a session with a partial plan.
+  // Atomic: the session row and all its pre-filled set rows commit together.
   return db.transaction(() => {
     const result = db
       .insert(workoutSessions)
@@ -49,9 +44,8 @@ export function startWorkout(routineId?: number, startedAt?: number): number {
       .run();
     const sessionId = result.lastInsertRowId;
 
-    // Pre-fill each routine exercise with its planned sets, seeded from the last
-    // time it was performed (falling back to the routine target). New rows are
-    // incomplete (completedAt null) until the user checks them off.
+    // Pre-fill each routine exercise's planned sets, seeded from last performance
+    // (falling back to the routine target); rows are incomplete until checked off.
     if (routineId != null) {
       const plan = db
         .select()
@@ -74,9 +68,8 @@ export function startWorkout(routineId?: number, startedAt?: number): number {
 }
 
 /**
- * Insert planned (incomplete) set rows for an exercise in a session, seeded
- * from the last time it was performed, falling back to the given target.
- * Returns the number of rows seeded.
+ * Insert planned (incomplete) set rows for an exercise, seeded from last
+ * performance, falling back to the given target. Returns the rows seeded.
  */
 export function seedExerciseSets(
   sessionId: number,
@@ -108,9 +101,8 @@ export function seedExerciseSets(
 }
 
 /**
- * The completed sets (reps + weight, in set order) from the most recent prior
- * session that included this exercise. Empty when there is no history. Used to
- * seed a new session and, later, to drive progression calculations.
+ * The completed working sets (reps + weight, in order) from the most recent prior
+ * finished session with this exercise; empty when there's no history.
  */
 export function getLastPerformance(
   exerciseId: number,
@@ -123,11 +115,10 @@ export function getLastPerformance(
     .where(
       and(
         eq(setLogs.exerciseId, exerciseId),
-        // Seed from working sets only — never pre-fill a warmup as the work set.
+        // Working sets only — never pre-fill a warmup as the work set.
         eq(setLogs.setType, 'working'),
         isNotNull(setLogs.completedAt),
-        // Only seed from a workout the user actually finished, not an
-        // abandoned in-progress session.
+        // Finished sessions only, not an abandoned in-progress one.
         isNotNull(workoutSessions.finishedAt),
       ),
     )
@@ -155,9 +146,8 @@ export function getLastPerformance(
 
 /**
  * An exercise's all-time bests for live PR detection — folded from working sets
- * in *finished* sessions (the current in-progress session has no `finishedAt`,
- * so it's excluded for free). Plain read, called once per exercise on session
- * load; the screen folds new sets in-memory after that.
+ * in finished sessions (the in-progress session has no `finishedAt`, so it's
+ * excluded). Plain read, once per exercise on load; the screen folds new sets after.
  */
 export function getExerciseBests(exerciseId: number): ExerciseBests {
   const rows = db
@@ -192,11 +182,7 @@ export function getExerciseBests(exerciseId: number): ExerciseBests {
   );
 }
 
-/**
- * Every completed set across all sessions as flat rows for a CSV export — newest
- * session first. Plain read (no live query); the settings panel serializes via
- * `toWorkoutCsv` and shares the file.
- */
+/** Every completed set across all sessions as flat CSV-export rows, newest session first. */
 export function getWorkoutCsvRows(): CsvSetRow[] {
   return db
     .select({
@@ -222,8 +208,7 @@ export function getWorkoutCsvRows(): CsvSetRow[] {
 export interface ExerciseHistoryRow {
   setId: number;
   sessionId: number;
-  // Non-null in practice (the query filters finished sessions) but Drizzle's
-  // inferred type keeps the column's nullability.
+  // Non-null in practice (query filters finished sessions); Drizzle keeps the nullable type.
   finishedAt: Date | null;
   setNumber: number;
   reps: number;
@@ -231,11 +216,7 @@ export interface ExerciseHistoryRow {
   rpe: number | null;
 }
 
-/**
- * Every completed set for one exercise across finished sessions, newest first.
- * Weights stay canonical kg; the progression view converts at render. Grouped
- * into per-session blocks by the screen, and fed to `computePRs`.
- */
+/** Every completed working set for one exercise across finished sessions, newest first; weights stay canonical kg. */
 export function useExerciseSetHistory(exerciseId: number) {
   return useLiveQuery(
     db
@@ -253,7 +234,7 @@ export function useExerciseSetHistory(exerciseId: number) {
       .where(
         and(
           eq(setLogs.exerciseId, exerciseId),
-          // Working sets only — the PR/e1RM history excludes warmups & drops.
+          // Working sets only — PR/e1RM history excludes warmups & drops.
           eq(setLogs.setType, 'working'),
           isNotNull(setLogs.completedAt),
           isNotNull(workoutSessions.finishedAt),
@@ -264,11 +245,7 @@ export function useExerciseSetHistory(exerciseId: number) {
   );
 }
 
-/**
- * Every completed set across finished sessions, with its session finish time
- * and the bits needed for weekly volume aggregation. Powers the Progress
- * screen's trends; the pure bucketing lives in the unit-tested `analytics`.
- */
+/** Every completed set across finished sessions with the bits for weekly volume aggregation (bucketed in `analytics`). */
 export function useVolumeHistory() {
   return useLiveQuery(
     db
@@ -300,8 +277,8 @@ export function useSession(sessionId: number) {
   return data[0];
 }
 
-// Single source of truth is the schema column (imported above for local use);
-// re-exported here so consumers keep importing these from the query barrel.
+// Single source of truth is the schema column; re-exported so consumers keep
+// importing these from the query barrel.
 export type { MeasurementKind, SetType };
 
 export interface SetLogRow {
@@ -460,8 +437,8 @@ export function finishWorkout(sessionId: number): void {
   // re-finish can't double-advance the working weight.
   if (session == null || session.finishedAt != null) return;
 
-  // A backdated session (started on an earlier day) completes on that day so it
-  // lands on its calendar date in history; a normal session finishes now.
+  // A backdated session completes on its started day so it lands on its calendar
+  // date; a normal session finishes now.
   const now = new Date();
   const startOfToday = new Date(
     now.getFullYear(),
@@ -471,9 +448,8 @@ export function finishWorkout(sessionId: number): void {
   const finishedAt =
     session.startedAt.getTime() < startOfToday ? session.startedAt : now;
 
-  // Atomic: stamping finishedAt and advancing every exercise's progression
-  // state + the program cursor must commit together. A crash mid-advance must
-  // not leave the session finished with progression half-applied.
+  // Atomic: stamping finishedAt and advancing progression + the program cursor
+  // must commit together, or a crash leaves progression half-applied.
   db.transaction(() => {
     db.update(workoutSessions)
       .set({ finishedAt })
@@ -490,10 +466,6 @@ export function finishWorkout(sessionId: number): void {
     }
   });
 }
-
-// ---------------------------------------------------------------------------
-// History + dashboard stats
-// ---------------------------------------------------------------------------
 
 export interface SessionSummary {
   id: number;
@@ -540,10 +512,7 @@ export interface ActiveSession {
   startedAt: Date;
 }
 
-/**
- * The most recent in-progress workout (no `finishedAt`), if any. Powers the
- * resume-aware "Start / Resume workout" hero on Home and Train.
- */
+/** The most recent in-progress workout (no `finishedAt`), if any. */
 export function useActiveSession(): ActiveSession | undefined {
   const { data } = useLiveQuery(
     db
@@ -601,11 +570,10 @@ export interface GymStats {
 }
 
 export function useGymStats(): GymStats {
-  // Aggregate the rolling 7-day window in SQL: only load-bearing kinds
-  // (weight_reps/bodyweight) contribute tonnage, warmups are excluded, and the
-  // cutoff is evaluated by SQLite (`unixepoch()`) so the query carries no
-  // wall-clock dependency and never ships the full set-log history to JS. An
-  // aggregate with no GROUP BY always returns exactly one row.
+  // Rolling 7-day window aggregated in SQL: only load-bearing kinds
+  // (weight_reps/bodyweight) contribute tonnage, warmups excluded, cutoff via
+  // SQLite `unixepoch()` (no wall-clock dep, never ships full history to JS). A
+  // GROUP BY-less aggregate always returns exactly one row.
   const { data: weekly } = useLiveQuery(
     db
       .select({
@@ -664,12 +632,7 @@ export type {
   MuscleGroupCount,
 } from '../profile-stats';
 
-/**
- * Lifetime / gamification stats for the profile screen. Lifetime totals count
- * completed sets (the dashboard's weekly view uses the same rule); workouts,
- * the streak, and the calendar derive from finished sessions. The aggregation
- * itself lives in the pure, unit-tested `aggregateProfileStats`.
- */
+/** Lifetime / gamification stats for the profile screen (aggregated in the pure `aggregateProfileStats`). */
 export function useGymProfileStats(): GymProfileStats {
   const { data: sets } = useLiveQuery(
     db
@@ -693,19 +656,14 @@ export function useGymProfileStats(): GymProfileStats {
 
   return useMemo<GymProfileStats>(
     () =>
-      // Intentional read of the current time for the rolling window + streak;
-      // the memo recomputes when the data changes, which is when it matters.
+      // Intentional read of current time for the rolling window + streak.
       // eslint-disable-next-line react-hooks/purity
       aggregateProfileStats(sets, finished, Date.now()),
     [sets, finished],
   );
 }
 
-/**
- * Per-exercise personal records, ranked by best estimated 1RM. Mirrors the
- * exercise-history filter (completed sets in finished sessions) so an
- * in-progress set can't masquerade as a record.
- */
+/** Per-exercise personal records, ranked by best estimated 1RM (finished sessions only). */
 export function useExercisePRs(limit = 5) {
   const { data } = useLiveQuery(
     db
@@ -720,8 +678,7 @@ export function useExercisePRs(limit = 5) {
       .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
       .where(
         and(
-          // Only working sets of load×reps lifts yield a 1RM PR — never a
-          // warmup, a drop set, or a timed/bodyweight exercise.
+          // Only working sets of load×reps lifts yield a 1RM PR.
           eq(setLogs.setType, 'working'),
           eq(exercises.measurementKind, 'weight_reps'),
           isNotNull(setLogs.completedAt),

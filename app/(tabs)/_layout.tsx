@@ -7,11 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MODULES } from '@/core/module-registry';
 import { Icon, Text, cn, colors, glow } from '@/ui';
 
-/**
- * Custom bottom tab bar: the active item gets a lifted, soft-glowing pill in the
- * app's purple accent — the deliberate "feels premium" signature over the flat
- * default bar.
- */
 function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
@@ -69,8 +64,8 @@ function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 export default function TabsLayout() {
-  // Modules contribute their own primary tabs (gym → Train, History). The core
-  // renders the chrome from registry metadata; the route files are physical.
+  // Modules contribute their own primary tabs via registry metadata; the route
+  // files are physical.
   const moduleTabs = MODULES.flatMap((module) => module.primaryTabs ?? []);
 
   return (

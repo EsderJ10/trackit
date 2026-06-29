@@ -9,11 +9,7 @@ export interface PRBannerProps {
   message: string | null;
 }
 
-/**
- * Transient "new PR" celebration shown at the top of the active workout the
- * instant a record-beating set is checked off. Restrained, serious-training tone
- * — a glowing pill, not confetti. The parent clears `message` on a timer.
- */
+/** Transient "new PR" pill at the top of the active workout; parent clears `message` on a timer. */
 export function PRBanner({ message }: PRBannerProps) {
   if (message == null) return null;
   return (

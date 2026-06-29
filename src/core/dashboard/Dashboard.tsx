@@ -38,10 +38,9 @@ function HeaderButton({
   );
 }
 
-/** Render one module's dashboard widget, honoring the self-navigating rule. */
 function ModuleWidget({ module }: { module: TrackerModule }) {
-  // Modules with their own primary tabs are self-navigating (their widgets own
-  // their CTAs); simpler modules link to the generic module screen.
+  // Modules with primary tabs are self-navigating (widgets own their CTAs);
+  // simpler modules link to the generic module screen.
   if (module.primaryTabs?.length) {
     return <module.DashboardWidget moduleId={module.meta.id} />;
   }
@@ -60,10 +59,7 @@ function ModuleWidget({ module }: { module: TrackerModule }) {
   );
 }
 
-/**
- * The dynamic home screen. Renders module widgets per the user's saved layout
- * (order + visibility), driven entirely by the module registry.
- */
+/** Dynamic home screen: renders module widgets per the saved layout (order + visibility). */
 export function Dashboard() {
   const router = useRouter();
   const layout = useDashboardLayout();
@@ -78,7 +74,6 @@ export function Dashboard() {
     );
   }
 
-  // One-time read of the clock for the greeting + date header.
   const now = new Date();
   const greeting = greetingFor(now.getHours());
   const dateLabel = now.toLocaleDateString(undefined, {

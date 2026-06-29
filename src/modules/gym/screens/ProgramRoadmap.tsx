@@ -25,11 +25,7 @@ import {
   useProgramWeeks,
 } from '../queries';
 
-/**
- * Read-only program roadmap: the first-class destination for the active program.
- * Shows the week timeline, the day split, and a "you are here" cursor with a
- * start-from-here CTA. Editing lives behind the header pencil (ProgramEditor).
- */
+/** Read-only program roadmap: week timeline, day split, "you are here" cursor. */
 export function ProgramRoadmap() {
   const { programId: programParam } = useLocalSearchParams<{
     programId: string;
@@ -42,7 +38,6 @@ export function ProgramRoadmap() {
   const { data: weeks } = useProgramWeeks(programId);
   const { data: exercises } = useProgramExercises(programId);
 
-  // Day → its exercise names (in order) for the per-day preview.
   const previewByDay = useMemo(() => {
     const map = new Map<number, string[]>();
     for (const ex of exercises) {
@@ -53,7 +48,7 @@ export function ProgramRoadmap() {
     return map;
   }, [exercises]);
 
-  // weekIndex → deload flag; weeks rows may lag `lengthWeeks`, so default false.
+  // weeks rows may lag `lengthWeeks`, so default missing weeks to non-deload.
   const deloadByWeek = useMemo(() => {
     const map = new Map<number, boolean>();
     for (const w of weeks) map.set(w.weekIndex, w.isDeload);

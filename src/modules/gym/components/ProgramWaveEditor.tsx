@@ -36,7 +36,6 @@ type FormKey =
   | 'rirStart'
   | 'rirEnd';
 
-/** Default mesocycle: 4 hard weeks MEV→MRV, RIR 3→1, + a light deload. */
 const DEFAULT_FORM: Record<FormKey, string> = {
   weekCount: '4',
   setsStart: '3',
@@ -55,7 +54,6 @@ const FIELDS: { key: FormKey; label: string }[] = [
   { key: 'rirEnd', label: 'RIR · last' },
 ];
 
-/** Describe one prescription cell, e.g. "8 × RPE 8" or "5 × 80% · 1+". */
 function cellLabel(set: ProgramSetRow): string {
   const intensity =
     set.intensityKind === 'rpe'
@@ -235,7 +233,6 @@ export function ProgramWaveEditor({
   );
 }
 
-/** Small pill toggle for boolean wave options. */
 function TogglePill({
   label,
   active,

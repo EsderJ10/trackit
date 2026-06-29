@@ -12,11 +12,7 @@ import { Card, Icon, Screen, Section, Text, cn, colors } from '@/ui';
 
 const UNITS: readonly WeightUnit[] = ['kg', 'lb'];
 
-/**
- * The full Settings surface. Reached from the gear in Home/Profile (presented
- * as a modal), it stays module-agnostic — module `SettingsPanel`s slot in from
- * the registry.
- */
+/** Settings surface (modal); module-agnostic — `SettingsPanel`s slot in from the registry. */
 export function SettingsScreen() {
   const router = useRouter();
   const settings = useSettings();

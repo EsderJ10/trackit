@@ -1,18 +1,12 @@
-// Pure helpers for the user-customizable dashboard layout: which module widgets
-// show on Home and in what order. Persisted as JSON in `app_settings`
-// (`dashboardLayout`); the core stays module-agnostic — it only ever moves
-// opaque module ids around. DB/React-free so it unit-tests directly.
+// Pure (DB/React-free) helpers for the dashboard layout, persisted as JSON in
+// `app_settings.dashboardLayout`. Core stays module-agnostic — only moves opaque ids.
 
 export interface DashboardLayoutEntry {
   moduleId: string;
   hidden: boolean;
 }
 
-/**
- * Parse the stored layout JSON. Returns `[]` for null/empty/malformed input so a
- * corrupt value can never crash Home — `reconcileLayout` then rebuilds defaults.
- * Validates shape explicitly (no `any`).
- */
+/** Parse stored layout JSON; `[]` on null/empty/malformed so a corrupt value never crashes Home. */
 export function parseDashboardLayout(
   raw: string | null | undefined,
 ): DashboardLayoutEntry[] {
@@ -37,10 +31,8 @@ export function parseDashboardLayout(
 }
 
 /**
- * Reconcile a stored layout against the live set of module ids: keep stored
- * entries whose module still exists (preserving order + hidden state, deduped),
- * append any newly-registered modules in registry order as visible, and drop
- * entries for modules that no longer exist.
+ * Reconcile stored layout against live module ids: keep existing (order + hidden,
+ * deduped), append new modules visible in registry order, drop missing ones.
  */
 export function reconcileLayout(
   stored: readonly DashboardLayoutEntry[],
@@ -71,7 +63,7 @@ export function serializeDashboardLayout(
   );
 }
 
-/** Flip a module's visibility. Pure — returns a new array. */
+/** Flip a module's visibility. Pure (new array). */
 export function toggleHidden(
   entries: readonly DashboardLayoutEntry[],
   moduleId: string,
@@ -81,7 +73,7 @@ export function toggleHidden(
   );
 }
 
-/** Move the entry at `index` one slot in `dir` (-1 up, +1 down). Pure. */
+/** Move entry at `index` one slot in `dir` (-1 up, +1 down). Pure. */
 export function moveEntry(
   entries: readonly DashboardLayoutEntry[],
   index: number,
