@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import {
+  Chip,
   EmptyState,
   Icon,
   PressableCard,
@@ -78,16 +79,7 @@ function FilterChip({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      className="rounded-full border px-3 py-1.5 active:opacity-70"
-      style={{
-        backgroundColor: active ? colors.gym : 'transparent',
-        borderColor: active ? colors.gym : colors.borderSoft,
-      }}
-    >
+    <Chip active={active} accent={colors.gym} onPress={onPress}>
       <Text
         variant="caption"
         className="uppercase tracking-wider"
@@ -95,7 +87,7 @@ function FilterChip({
       >
         {label}
       </Text>
-    </Pressable>
+    </Chip>
   );
 }
 

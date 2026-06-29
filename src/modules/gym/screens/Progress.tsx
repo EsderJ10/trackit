@@ -7,6 +7,7 @@ import { useSettings } from '@/core/settings/use-settings';
 import { toDisplayWeight } from '@/core/settings/units';
 import {
   Card,
+  Chip,
   EmptyState,
   Icon,
   LineChart,
@@ -65,14 +66,13 @@ function RangeTabs({
       {RANGES.map((range) => {
         const active = range.key === value;
         return (
-          <Pressable
+          <Chip
             key={range.key}
+            shape="segment"
+            active={active}
+            accent={colors.gym}
             onPress={() => onChange(range.key)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
             accessibilityLabel={`Show last ${range.label}`}
-            className="rounded-lg px-3 py-1.5 active:opacity-70"
-            style={active ? { backgroundColor: colors.gym } : undefined}
           >
             <Text
               style={{
@@ -82,7 +82,7 @@ function RangeTabs({
             >
               {range.label}
             </Text>
-          </Pressable>
+          </Chip>
         );
       })}
     </View>
@@ -131,17 +131,12 @@ function GroupChips({
       {groups.map(({ group }) => {
         const active = group === selected;
         return (
-          <Pressable
+          <Chip
             key={group}
+            active={active}
+            accent={colors.gym}
             onPress={() => onSelect(group)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
             accessibilityLabel={`Show ${group} weekly sets`}
-            className="rounded-full border px-3 py-1 active:opacity-70"
-            style={{
-              borderColor: active ? colors.gym : colors.border,
-              backgroundColor: active ? colors.gym : 'transparent',
-            }}
           >
             <Text
               style={{
@@ -151,7 +146,7 @@ function GroupChips({
             >
               {group}
             </Text>
-          </Pressable>
+          </Chip>
         );
       })}
     </View>
