@@ -10,7 +10,10 @@ import {
 import type { WeightUnit } from '@/core/settings/schema';
 import { Button, Icon, Text, colors } from '@/ui';
 
-import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
+import type {
+  ProgramExerciseRow as ProgramExerciseRowData,
+  ProgramSchemeChoice,
+} from '../queries';
 import {
   type SupersetUpdate,
   linkWithPrevious,
@@ -33,6 +36,8 @@ export interface ProgramDaySectionProps {
   onSetE1rm: (programExerciseId: number, weightKg: number) => void;
   onRemoveExercise: (programExerciseId: number) => void;
   onEditWave: (programExerciseId: number, name: string) => void;
+  /** Switch a slot's progression scheme. */
+  onChangeScheme: (programExerciseId: number, scheme: ProgramSchemeChoice) => void;
   /** Persist a new exercise order for this day (program_exercises row ids). */
   onReorderExercises: (orderedIds: number[]) => void;
   /** Persist superset group changes for this day's exercises. */
@@ -55,6 +60,7 @@ export function ProgramDaySection({
   onSetE1rm,
   onRemoveExercise,
   onEditWave,
+  onChangeScheme,
   onReorderExercises,
   onUpdateSupersets,
   reorderable,
@@ -149,6 +155,7 @@ export function ProgramDaySection({
                 onSetE1rm={onSetE1rm}
                 onRemove={onRemoveExercise}
                 onEditWave={onEditWave}
+                onChangeScheme={onChangeScheme}
                 onLink={onLink}
                 onUnlink={onUnlink}
               />

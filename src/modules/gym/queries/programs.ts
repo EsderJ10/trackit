@@ -865,6 +865,56 @@ export function setProgramExerciseE1rm(
     .run();
 }
 
+/**
+ * Switch an existing slot's progression rule (same field-mapping as
+ * `addProgramExercise`). The old scheme's wave prescriptions no longer apply, so
+ * they're wiped; training state is nudged so the new scheme renders sanely
+ * (seed the rpe e1RM anchor, align dp's rep target).
+ */
+export function updateProgramExerciseScheme(
+  programExerciseId: number,
+  scheme: ProgramSchemeChoice,
+  targetSets?: number,
+): void {
+  db.transaction((tx) => {
+    tx.update(programExercises)
+      .set({
+        schemeType: scheme.type,
+        incrementKg: scheme.type === 'rpe' ? 2.5 : scheme.incrementKg,
+        minReps: scheme.type === 'dp' ? scheme.minReps : null,
+        maxReps: scheme.type === 'dp' ? scheme.maxReps : null,
+        failThreshold: scheme.type === 'lp' ? scheme.failThreshold : 3,
+        deloadPct: scheme.type === 'lp' ? scheme.deloadPct : 0.1,
+        targetRpe: scheme.type === 'rpe' ? scheme.targetRpe : null,
+        ...(targetSets != null ? { targetSets } : {}),
+      })
+      .where(eq(programExercises.id, programExerciseId))
+      .run();
+
+    tx.delete(programSets)
+      .where(eq(programSets.programExerciseId, programExerciseId))
+      .run();
+
+    const state = tx
+      .select()
+      .from(exerciseTrainingState)
+      .where(eq(exerciseTrainingState.programExerciseId, programExerciseId))
+      .all()[0];
+    if (state == null) return;
+
+    const patch: { lastReason: string; e1rmKg?: number; currentReps?: number } =
+      { lastReason: 'Scheme changed' };
+    if (scheme.type === 'rpe' && state.e1rmKg == null) {
+      patch.e1rmKg = state.currentWeightKg;
+    }
+    if (scheme.type === 'dp') patch.currentReps = scheme.minReps;
+    tx.update(exerciseTrainingState)
+      .set(patch)
+      .where(eq(exerciseTrainingState.programExerciseId, programExerciseId))
+      .run();
+  });
+}
+
 /** Remove a program-exercise slot (its state + prescriptions cascade). */
 export function removeProgramExercise(programExerciseId: number): void {
   db.delete(programExercises)

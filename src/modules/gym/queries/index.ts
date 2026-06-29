@@ -32,6 +32,7 @@ export {
   renameProgram,
   deleteProgram,
   addProgramExercise,
+  updateProgramExerciseScheme,
   setProgramExerciseWeight,
   setProgramExerciseTrainingMax,
   setProgramExerciseE1rm,

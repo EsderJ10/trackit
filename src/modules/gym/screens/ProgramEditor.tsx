@@ -21,6 +21,7 @@ import {
   colors,
 } from '@/ui';
 
+import { SCHEME_PRESETS, type SchemePreset } from '../program-schemes';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
 import { ProgramDaySection } from '../components/ProgramDaySection';
 import { ProgramWaveEditor } from '../components/ProgramWaveEditor';
@@ -41,6 +42,7 @@ import {
   renameProgram,
   renameProgramDay,
   renameProgramWeek,
+  updateProgramExerciseScheme,
   updateProgramSupersets,
   setProgramExerciseE1rm,
   setProgramExerciseTrainingMax,
@@ -52,34 +54,10 @@ import {
   useProgramExercises,
   useProgramWeeks,
   type ProgramExerciseRow,
-  type ProgramSchemeChoice,
 } from '../queries';
 
 // Default starting weight (canonical kg); adjusted per exercise.
 const DEFAULT_START_KG = 20;
-
-const SCHEMES: { label: string; scheme: ProgramSchemeChoice; reps?: number }[] =
-  [
-    {
-      label: 'Linear · 3 × 5',
-      scheme: {
-        type: 'lp',
-        incrementKg: 2.5,
-        failThreshold: 3,
-        deloadPct: 0.1,
-      },
-      reps: 5,
-    },
-    {
-      label: 'Double · 3 × 8–12',
-      scheme: { type: 'dp', incrementKg: 2.5, minReps: 8, maxReps: 12 },
-    },
-    {
-      label: 'Autoregulated · RPE wave',
-      scheme: { type: 'rpe', targetRpe: 8 },
-      reps: 8,
-    },
-  ];
 
 interface Pending {
   dayId: number;
@@ -126,7 +104,7 @@ export function ProgramEditor() {
     [],
   );
 
-  function chooseScheme(option: (typeof SCHEMES)[number]) {
+  function chooseScheme(option: SchemePreset) {
     if (pending == null) return;
     addProgramExercise({
       programId,
@@ -221,6 +199,7 @@ export function ProgramEditor() {
                     onSetE1rm={setProgramExerciseE1rm}
                     onRemoveExercise={removeProgramExercise}
                     onEditWave={openWaveEditor}
+                    onChangeScheme={updateProgramExerciseScheme}
                     onReorderExercises={reorderProgramExercises}
                     onUpdateSupersets={updateProgramSupersets}
                   />
@@ -232,7 +211,7 @@ export function ProgramEditor() {
           {pending ? (
             <Card className="gap-3">
               <Text variant="heading">How should {pending.name} progress?</Text>
-              {SCHEMES.map((option) => (
+              {SCHEME_PRESETS.map((option) => (
                 <Button
                   key={option.label}
                   label={option.label}
