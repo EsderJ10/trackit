@@ -76,10 +76,6 @@ describe('aggregateProfileStats', () => {
     expect(stats.streakWeeks).toBe(2);
     expect(stats.longestStreakWeeks).toBe(2);
   });
-
-  it('lists a calendar day per distinct finished session', () => {
-    expect(stats.workoutDays).toHaveLength(3);
-  });
 });
 
 describe('rankExercisePRs', () => {

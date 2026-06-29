@@ -6,7 +6,6 @@ import { computePRs } from './progression';
 import {
   computeLongestStreak,
   computeStreakWeeks,
-  dayKey,
   startOfWeek,
 } from './streak';
 
@@ -50,8 +49,6 @@ export interface GymProfileStats {
   longestStreakWeeks: number;
   /** Completed-set count per muscle group over the last 7 days, ranked. */
   muscleBreakdown: MuscleGroupCount[];
-  /** Local day keys (see `dayKey`) of every finished session — drives the calendar. */
-  workoutDays: string[];
 }
 
 /**
@@ -89,13 +86,11 @@ export function aggregateProfileStats(
 
   const currentWeek = startOfWeek(new Date(now)).getTime();
   const loggedWeeks = new Set<number>();
-  const workoutDays = new Set<string>();
   let thisWeekWorkouts = 0;
   for (const f of finished) {
     if (f.finishedAt == null) continue;
     const week = startOfWeek(f.finishedAt).getTime();
     loggedWeeks.add(week);
-    workoutDays.add(dayKey(f.finishedAt));
     if (week === currentWeek) thisWeekWorkouts += 1;
   }
 
@@ -108,7 +103,6 @@ export function aggregateProfileStats(
     streakWeeks: computeStreakWeeks(loggedWeeks, startOfWeek(new Date(now))),
     longestStreakWeeks: computeLongestStreak(loggedWeeks),
     muscleBreakdown,
-    workoutDays: [...workoutDays],
   };
 }
 
