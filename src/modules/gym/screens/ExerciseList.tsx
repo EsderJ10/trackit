@@ -9,7 +9,15 @@ import {
   View,
 } from 'react-native';
 
-import { Card, EmptyState, Icon, Screen, Text, colors, tint } from '@/ui';
+import {
+  EmptyState,
+  Icon,
+  PressableCard,
+  Screen,
+  Text,
+  colors,
+  tint,
+} from '@/ui';
 
 import { muscleLabel } from '../muscles';
 import { useExercises, useRecentExerciseIds } from '../queries';
@@ -105,29 +113,28 @@ const ExerciseRow = memo(function ExerciseRow({
       : (exercise.equipment ?? exercise.muscleGroup);
 
   return (
-    <Pressable
+    <PressableCard
       onPress={() => onPress(exercise.id)}
-      className="active:opacity-70"
+      accessibilityLabel={exercise.name}
+      className="flex-row items-center gap-3"
     >
-      <Card className="flex-row items-center gap-3">
-        <View
-          className="h-9 w-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: tint(colors.gym, 0.13) }}
-        >
-          <Icon icon={Dumbbell} size={18} color={colors.gym} />
-        </View>
-        <View className="flex-1">
-          <Text variant="body">{exercise.name}</Text>
-          <Text variant="caption" className="text-fg-muted">
-            {subtitle}
-          </Text>
-        </View>
-        {exercise.isFavorite ? (
-          <Icon icon={Star} size={16} color={colors.gym} fill={colors.gym} />
-        ) : null}
-        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
-      </Card>
-    </Pressable>
+      <View
+        className="h-9 w-9 items-center justify-center rounded-full"
+        style={{ backgroundColor: tint(colors.gym, 0.13) }}
+      >
+        <Icon icon={Dumbbell} size={18} color={colors.gym} />
+      </View>
+      <View className="flex-1">
+        <Text variant="body">{exercise.name}</Text>
+        <Text variant="caption" className="text-fg-muted">
+          {subtitle}
+        </Text>
+      </View>
+      {exercise.isFavorite ? (
+        <Icon icon={Star} size={16} color={colors.gym} fill={colors.gym} />
+      ) : null}
+      <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+    </PressableCard>
   );
 });
 
@@ -326,7 +333,12 @@ export function ExerciseList() {
         ListEmptyComponent={
           <View className="gap-3 px-1 pt-2">
             <Text variant="muted">No exercises match your filters.</Text>
-            <Pressable onPress={clearFilters} className="active:opacity-70">
+            <Pressable
+              onPress={clearFilters}
+              accessibilityRole="button"
+              accessibilityLabel="Clear filters"
+              className="active:opacity-70"
+            >
               <Text variant="label" style={{ color: colors.gym }}>
                 Clear filters
               </Text>

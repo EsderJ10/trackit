@@ -10,6 +10,7 @@ export { cn } from './cn';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { Icon, type IconProps } from './Icon';
 export { LineChart, type LineChartProps } from './LineChart';
+export { PressableCard, type PressableCardProps } from './PressableCard';
 export { Screen, type ScreenProps } from './Screen';
 export { shallowEqual } from './shallow-equal';
 export {

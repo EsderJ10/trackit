@@ -14,6 +14,7 @@ import {
   Button,
   Card,
   Icon,
+  PressableCard,
   Screen,
   SectionHeader,
   Text,
@@ -242,6 +243,8 @@ function NextWorkoutHero({
 
         <Pressable
           onPress={onOpenProgram}
+          accessibilityRole="button"
+          accessibilityLabel={`View program ${next.programName}`}
           className="flex-row items-center gap-1 active:opacity-70"
         >
           <Text variant="caption" style={{ color: colors.fgMuted }}>
@@ -263,71 +266,74 @@ function SetupProgramHero({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} className="active:opacity-90">
-      <Card className="flex-row items-center gap-4">
-        <View
-          className="h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: tint(colors.gym, 0.13) }}
-        >
-          <Icon icon={Target} size={26} color={colors.gym} />
-        </View>
-        <View className="flex-1">
-          <Text variant="heading">Finish setting up {next.programName}</Text>
-          <Text variant="muted">
-            Add exercises to this day to get your next workout.
-          </Text>
-        </View>
-        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
-      </Card>
-    </Pressable>
+    <PressableCard
+      onPress={onPress}
+      accessibilityLabel={`Finish setting up ${next.programName}`}
+      className="flex-row items-center gap-4"
+    >
+      <View
+        className="h-14 w-14 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: tint(colors.gym, 0.13) }}
+      >
+        <Icon icon={Target} size={26} color={colors.gym} />
+      </View>
+      <View className="flex-1">
+        <Text variant="heading">Finish setting up {next.programName}</Text>
+        <Text variant="muted">
+          Add exercises to this day to get your next workout.
+        </Text>
+      </View>
+      <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+    </PressableCard>
   );
 }
 
 /** No program picked yet — guide the user to choose one. */
 function ChooseProgramHero({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable
+    <PressableCard
       onPress={onPress}
+      accessibilityLabel="Choose a program"
       style={glow(colors.gym, 0.5)}
-      className="active:opacity-90"
+      className="flex-row items-center gap-4 bg-surface-hi"
     >
-      <Card className="flex-row items-center gap-4 bg-surface-hi">
-        <View
-          className="h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: tint(colors.gym, 0.13) }}
-        >
-          <Icon icon={Target} size={26} color={colors.gym} />
-        </View>
-        <View className="flex-1">
-          <Text variant="heading">Choose a program</Text>
-          <Text variant="muted">
-            Pick a plan and your next workout shows up right here.
-          </Text>
-        </View>
-        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
-      </Card>
-    </Pressable>
+      <View
+        className="h-14 w-14 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: tint(colors.gym, 0.13) }}
+      >
+        <Icon icon={Target} size={26} color={colors.gym} />
+      </View>
+      <View className="flex-1">
+        <Text variant="heading">Choose a program</Text>
+        <Text variant="muted">
+          Pick a plan and your next workout shows up right here.
+        </Text>
+      </View>
+      <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+    </PressableCard>
   );
 }
 
 /** Compact ad-hoc entry point — demoted below the program hero. */
 function EmptyWorkoutCard({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} className="active:opacity-80">
-      <Card className="flex-row items-center gap-3">
-        <View
-          className="h-10 w-10 items-center justify-center rounded-xl"
-          style={{ backgroundColor: tint(colors.gym, 0.1) }}
-        >
-          <Icon icon={Play} size={18} color={colors.gym} />
-        </View>
-        <View className="flex-1">
-          <Text variant="body">Start an empty workout</Text>
-          <Text variant="muted">Log freestyle, off-plan.</Text>
-        </View>
-        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
-      </Card>
-    </Pressable>
+    <PressableCard
+      onPress={onPress}
+      accessibilityLabel="Start an empty workout"
+      className="flex-row items-center gap-3"
+    >
+      <View
+        className="h-10 w-10 items-center justify-center rounded-xl"
+        style={{ backgroundColor: tint(colors.gym, 0.1) }}
+      >
+        <Icon icon={Play} size={18} color={colors.gym} />
+      </View>
+      <View className="flex-1">
+        <Text variant="body">Start an empty workout</Text>
+        <Text variant="muted">Log freestyle, off-plan.</Text>
+      </View>
+      <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+    </PressableCard>
   );
 }
 
@@ -339,38 +345,37 @@ function ResumeHero({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <PressableCard
       onPress={onPress}
+      accessibilityLabel={`Resume workout: ${sessionLabel(session).title}`}
       style={glow(colors.gym, 0.6)}
-      className="active:opacity-90"
+      className="flex-row items-center gap-4 bg-surface-hi"
     >
-      <Card className="flex-row items-center gap-4 bg-surface-hi">
-        <View
-          className="h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: tint(colors.gym, 0.13) }}
-        >
-          <Icon icon={Play} size={26} color={colors.gym} />
-        </View>
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2">
-            <View
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: colors.gym }}
-            />
-            <Text variant="label" style={{ color: colors.gym }}>
-              Workout in progress
-            </Text>
-          </View>
-          <Text variant="heading" className="mt-0.5">
-            {sessionLabel(session).title}
-          </Text>
-          <Text variant="muted">
-            {sessionLabel(session).subtitle ??
-              'Tap to resume where you left off.'}
+      <View
+        className="h-14 w-14 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: tint(colors.gym, 0.13) }}
+      >
+        <Icon icon={Play} size={26} color={colors.gym} />
+      </View>
+      <View className="flex-1">
+        <View className="flex-row items-center gap-2">
+          <View
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: colors.gym }}
+          />
+          <Text variant="label" style={{ color: colors.gym }}>
+            Workout in progress
           </Text>
         </View>
-      </Card>
-    </Pressable>
+        <Text variant="heading" className="mt-0.5">
+          {sessionLabel(session).title}
+        </Text>
+        <Text variant="muted">
+          {sessionLabel(session).subtitle ??
+            'Tap to resume where you left off.'}
+        </Text>
+      </View>
+    </PressableCard>
   );
 }
 
@@ -392,7 +397,12 @@ function RoutineCard({
 
   return (
     <Card className="gap-3">
-      <Pressable onPress={onOpen} className="active:opacity-70">
+      <Pressable
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={`Open routine ${name}`}
+        className="active:opacity-70"
+      >
         <Text variant="heading">{name}</Text>
         <Text variant="caption" className="mt-1">
           {count} {count === 1 ? 'exercise' : 'exercises'} · Created{' '}
