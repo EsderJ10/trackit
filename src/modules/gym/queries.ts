@@ -362,36 +362,40 @@ export function useRecentExerciseIds(limit = 6): number[] {
  * it on that day rather than now, so it lands on its calendar date everywhere.
  */
 export function startWorkout(routineId?: number, startedAt?: number): number {
-  const result = db
-    .insert(workoutSessions)
-    .values({
-      routineId: routineId ?? null,
-      ...(startedAt != null ? { startedAt: new Date(startedAt) } : {}),
-    })
-    .run();
-  const sessionId = result.lastInsertRowId;
+  // Atomic: the session row and all its pre-filled set rows commit together,
+  // so a failure can't leave a session with a partial plan.
+  return db.transaction(() => {
+    const result = db
+      .insert(workoutSessions)
+      .values({
+        routineId: routineId ?? null,
+        ...(startedAt != null ? { startedAt: new Date(startedAt) } : {}),
+      })
+      .run();
+    const sessionId = result.lastInsertRowId;
 
-  // Pre-fill each routine exercise with its planned sets, seeded from the last
-  // time it was performed (falling back to the routine target). New rows are
-  // incomplete (completedAt null) until the user checks them off.
-  if (routineId != null) {
-    const plan = db
-      .select()
-      .from(routineExercises)
-      .where(eq(routineExercises.routineId, routineId))
-      .orderBy(routineExercises.position)
-      .all();
+    // Pre-fill each routine exercise with its planned sets, seeded from the last
+    // time it was performed (falling back to the routine target). New rows are
+    // incomplete (completedAt null) until the user checks them off.
+    if (routineId != null) {
+      const plan = db
+        .select()
+        .from(routineExercises)
+        .where(eq(routineExercises.routineId, routineId))
+        .orderBy(routineExercises.position)
+        .all();
 
-    for (const exercise of plan) {
-      seedExerciseSets(sessionId, exercise.exerciseId, {
-        sets: exercise.targetSets,
-        reps: exercise.targetReps,
-        weight: exercise.targetWeight,
-      });
+      for (const exercise of plan) {
+        seedExerciseSets(sessionId, exercise.exerciseId, {
+          sets: exercise.targetSets,
+          reps: exercise.targetReps,
+          weight: exercise.targetWeight,
+        });
+      }
     }
-  }
 
-  return sessionId;
+    return sessionId;
+  });
 }
 
 /**
@@ -795,19 +799,24 @@ export function finishWorkout(sessionId: number): void {
   const finishedAt =
     session.startedAt.getTime() < startOfToday ? session.startedAt : now;
 
-  db.update(workoutSessions)
-    .set({ finishedAt })
-    .where(eq(workoutSessions.id, sessionId))
-    .run();
+  // Atomic: stamping finishedAt and advancing every exercise's progression
+  // state + the program cursor must commit together. A crash mid-advance must
+  // not leave the session finished with progression half-applied.
+  db.transaction(() => {
+    db.update(workoutSessions)
+      .set({ finishedAt })
+      .where(eq(workoutSessions.id, sessionId))
+      .run();
 
-  if (session.programId != null && session.programDayId != null) {
-    advanceProgram(
-      session.programId,
-      session.programDayId,
-      session.weekIndex ?? 1,
-      sessionId,
-    );
-  }
+    if (session.programId != null && session.programDayId != null) {
+      advanceProgram(
+        session.programId,
+        session.programDayId,
+        session.weekIndex ?? 1,
+        sessionId,
+      );
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1850,91 +1859,94 @@ export function startProgramWorkout(programId: number): number {
     )
     .all()[0];
 
-  const result = db
-    .insert(workoutSessions)
-    .values({
-      programId,
-      programWeekIndex: weekIndex,
-      programDayIndex: program.currentDayIndex,
-      programDayId: day?.id ?? null,
-    })
-    .run();
-  const sessionId = result.lastInsertRowId;
-  if (day == null) return sessionId;
-
-  const plan = db
-    .select({
-      programExerciseId: programExercises.id,
-      exerciseId: programExercises.exerciseId,
-      targetSets: programExercises.targetSets,
-      currentWeightKg: exerciseTrainingState.currentWeightKg,
-      currentReps: exerciseTrainingState.currentReps,
-      successStreak: exerciseTrainingState.successStreak,
-      failStreak: exerciseTrainingState.failStreak,
-      trainingMaxKg: exerciseTrainingState.trainingMaxKg,
-      e1rmKg: exerciseTrainingState.e1rmKg,
-    })
-    .from(programExercises)
-    .innerJoin(
-      exerciseTrainingState,
-      eq(exerciseTrainingState.programExerciseId, programExercises.id),
-    )
-    .where(eq(programExercises.programDayId, day.id))
-    .orderBy(programExercises.position)
-    .all();
-
-  for (const slot of plan) {
-    // Prescriptions for this week win (percent/rpe waves); lp/dp fall back to
-    // rendering identical sets from the working-weight state.
-    const prescribed = db
-      .select({
-        reps: programSets.reps,
-        intensityKind: programSets.intensityKind,
-        intensityValue: programSets.intensityValue,
-        amrap: programSets.amrap,
+  // Atomic: the session row and every prescribed set row commit together.
+  return db.transaction(() => {
+    const result = db
+      .insert(workoutSessions)
+      .values({
+        programId,
+        programWeekIndex: weekIndex,
+        programDayIndex: program.currentDayIndex,
+        programDayId: day?.id ?? null,
       })
-      .from(programSets)
-      .where(
-        and(
-          eq(programSets.programExerciseId, slot.programExerciseId),
-          eq(programSets.weekIndex, weekIndex),
-        ),
+      .run();
+    const sessionId = result.lastInsertRowId;
+    if (day == null) return sessionId;
+
+    const plan = db
+      .select({
+        programExerciseId: programExercises.id,
+        exerciseId: programExercises.exerciseId,
+        targetSets: programExercises.targetSets,
+        currentWeightKg: exerciseTrainingState.currentWeightKg,
+        currentReps: exerciseTrainingState.currentReps,
+        successStreak: exerciseTrainingState.successStreak,
+        failStreak: exerciseTrainingState.failStreak,
+        trainingMaxKg: exerciseTrainingState.trainingMaxKg,
+        e1rmKg: exerciseTrainingState.e1rmKg,
+      })
+      .from(programExercises)
+      .innerJoin(
+        exerciseTrainingState,
+        eq(exerciseTrainingState.programExerciseId, programExercises.id),
       )
-      .orderBy(programSets.setNumber)
+      .where(eq(programExercises.programDayId, day.id))
+      .orderBy(programExercises.position)
       .all();
 
-    const sets: { reps: number; weightKg: number }[] =
-      prescribed.length > 0
-        ? prescribed.map((p) =>
-            renderPrescribedSet(p, {
-              currentWeightKg: slot.currentWeightKg,
-              trainingMaxKg: slot.trainingMaxKg,
-              e1rmKg: slot.e1rmKg,
-              stepKg: program.roundingStepKg,
-            }),
-          )
-        : suggestNext(
-            {
-              currentWeightKg: slot.currentWeightKg,
-              currentReps: slot.currentReps,
-              successStreak: slot.successStreak,
-              failStreak: slot.failStreak,
-            },
-            slot.targetSets,
-          );
+    for (const slot of plan) {
+      // Prescriptions for this week win (percent/rpe waves); lp/dp fall back to
+      // rendering identical sets from the working-weight state.
+      const prescribed = db
+        .select({
+          reps: programSets.reps,
+          intensityKind: programSets.intensityKind,
+          intensityValue: programSets.intensityValue,
+          amrap: programSets.amrap,
+        })
+        .from(programSets)
+        .where(
+          and(
+            eq(programSets.programExerciseId, slot.programExerciseId),
+            eq(programSets.weekIndex, weekIndex),
+          ),
+        )
+        .orderBy(programSets.setNumber)
+        .all();
 
-    sets.forEach((set, index) => {
-      addSet({
-        sessionId,
-        exerciseId: slot.exerciseId,
-        setNumber: index + 1,
-        reps: set.reps,
-        weight: set.weightKg,
+      const sets: { reps: number; weightKg: number }[] =
+        prescribed.length > 0
+          ? prescribed.map((p) =>
+              renderPrescribedSet(p, {
+                currentWeightKg: slot.currentWeightKg,
+                trainingMaxKg: slot.trainingMaxKg,
+                e1rmKg: slot.e1rmKg,
+                stepKg: program.roundingStepKg,
+              }),
+            )
+          : suggestNext(
+              {
+                currentWeightKg: slot.currentWeightKg,
+                currentReps: slot.currentReps,
+                successStreak: slot.successStreak,
+                failStreak: slot.failStreak,
+              },
+              slot.targetSets,
+            );
+
+      sets.forEach((set, index) => {
+        addSet({
+          sessionId,
+          exerciseId: slot.exerciseId,
+          setNumber: index + 1,
+          reps: set.reps,
+          weight: set.weightKg,
+        });
       });
-    });
-  }
+    }
 
-  return sessionId;
+    return sessionId;
+  });
 }
 
 /**
