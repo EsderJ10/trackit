@@ -15,11 +15,14 @@ import { Alert, Pressable, View } from 'react-native';
 import { Button, Card, Icon, Text, colors, tint } from '@/ui';
 
 import { toWorkoutCsv } from '../csv-export';
+import { type EffortScale, effortLabel } from '../effort';
 import {
   getWorkoutCsvRows,
   setDefaultRestSec,
+  setEffortScale,
   setWeeklyGoal,
   useDefaultRestSec,
+  useEffortScale,
   useWeeklyGoal,
 } from '../queries';
 
@@ -100,6 +103,51 @@ function StepperRow({
   );
 }
 
+const EFFORT_SCALES: readonly EffortScale[] = ['rpe', 'rir'];
+
+/** Two-option segmented control choosing how sets surface effort (RPE vs RIR). */
+function EffortScaleRow({
+  scale,
+  onChange,
+}: {
+  scale: EffortScale;
+  onChange: (next: EffortScale) => void;
+}) {
+  return (
+    <Card className="flex-row items-center justify-between">
+      <View className="flex-1 pr-3">
+        <Text variant="body">Effort scale</Text>
+        <Text variant="muted">RPE (1–10) or RIR (reps in reserve)</Text>
+      </View>
+      <View className="flex-row gap-1 rounded-xl bg-surface-hi p-1">
+        {EFFORT_SCALES.map((option) => {
+          const active = scale === option;
+          return (
+            <Pressable
+              key={option}
+              onPress={() => onChange(option)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`Use ${effortLabel(option)} scale`}
+              className="rounded-lg px-3 py-1.5 active:opacity-70"
+              style={active ? { backgroundColor: colors.gym } : undefined}
+            >
+              <Text
+                style={{
+                  color: active ? colors.bg : colors.fgMuted,
+                  fontWeight: '600',
+                }}
+              >
+                {effortLabel(option)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
 function formatRest(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
@@ -111,6 +159,7 @@ export function GymSettingsPanel() {
   const router = useRouter();
   const goal = useWeeklyGoal();
   const rest = useDefaultRestSec();
+  const effortScale = useEffortScale();
   const [exporting, setExporting] = useState(false);
 
   async function exportCsv() {
@@ -166,6 +215,8 @@ export function GymSettingsPanel() {
         canDec={rest > MIN_REST}
         canInc={rest < MAX_REST}
       />
+
+      <EffortScaleRow scale={effortScale} onChange={setEffortScale} />
 
       <Pressable
         onPress={() => router.push('/modules/gym/landmarks')}

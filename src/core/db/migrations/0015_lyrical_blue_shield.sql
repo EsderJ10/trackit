@@ -1,0 +1,1 @@
+ALTER TABLE `gym_settings` ADD `effort_scale` text DEFAULT 'rpe' NOT NULL;

@@ -305,6 +305,15 @@ export const gymSettings = sqliteTable('gym_settings', {
   /** Target finished workouts per week — drives the profile's weekly-goal ring. */
   weeklyWorkoutGoal: integer('weekly_workout_goal').notNull().default(3),
   /**
+   * Which effort scale the logging/review UI surfaces: RPE (1–10) or RIR (reps
+   * in reserve, 0–9). The two are the same stored value (`rir = 10 − rpe`), so
+   * this is a pure display preference — sets always persist canonical RPE in
+   * `set_logs.rpe`. See `./effort`.
+   */
+  effortScale: text('effort_scale', { enum: ['rpe', 'rir'] })
+    .notNull()
+    .default('rpe'),
+  /**
    * The single program the user is currently following ("everything revolves
    * around it" — Train/Home surface its next workout). Null = no program picked,
    * fall back to ad-hoc training. Distinct from `programs.active` (which means
