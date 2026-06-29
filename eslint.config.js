@@ -8,6 +8,27 @@ module.exports = [
   ...expoConfig,
   eslintConfigPrettier,
   {
+    // Type-aware linting for our TypeScript source. `eslint-config-expo` wires
+    // the @typescript-eslint parser but with no type information, so the
+    // project's strongest stated constraints — no `any`, no un-awaited promises
+    // — could only be enforced by `tsc` + review, never by lint. Turning on
+    // `projectService` gives the rules below the type info they need.
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
+  },
+  {
     ignores: [
       'node_modules/*',
       '.expo/*',
