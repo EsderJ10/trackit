@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
@@ -929,17 +929,26 @@ export interface GymStats {
 }
 
 export function useGymStats(): GymStats {
-  const { data: sets } = useLiveQuery(
+  // Aggregate the rolling 7-day window in SQL: only load-bearing kinds
+  // (weight_reps/bodyweight) contribute tonnage, warmups are excluded, and the
+  // cutoff is evaluated by SQLite (`unixepoch()`) so the query carries no
+  // wall-clock dependency and never ships the full set-log history to JS. An
+  // aggregate with no GROUP BY always returns exactly one row.
+  const { data: weekly } = useLiveQuery(
     db
       .select({
-        weight: setLogs.weight,
-        reps: setLogs.reps,
-        completedAt: setLogs.completedAt,
-        setType: setLogs.setType,
-        measurementKind: exercises.measurementKind,
+        weeklySets: sql<number>`count(*)`,
+        weeklyVolume: sql<number>`coalesce(sum(case when ${exercises.measurementKind} in ('weight_reps', 'bodyweight') then ${setLogs.weight} * ${setLogs.reps} else 0 end), 0)`,
       })
       .from(setLogs)
-      .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id)),
+      .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id))
+      .where(
+        and(
+          isNotNull(setLogs.completedAt),
+          ne(setLogs.setType, 'warmup'),
+          sql`${setLogs.completedAt} >= (unixepoch() * 1000 - ${WEEK_MS})`,
+        ),
+      ),
   );
   const { data: lastSessions } = useLiveQuery(
     db
@@ -961,30 +970,11 @@ export function useGymStats(): GymStats {
   );
 
   return useMemo<GymStats>(() => {
-    // Intentional read of the current time for the rolling 7-day window; the
-    // memo recomputes when `sets` change, which is when this value matters.
-    // eslint-disable-next-line react-hooks/purity
-    const cutoff = Date.now() - WEEK_MS;
-    // Completed, non-warmup sets count; planned sets have null completedAt.
-    const weekly = sets.filter(
-      (s) =>
-        s.completedAt != null &&
-        s.completedAt.getTime() >= cutoff &&
-        s.setType !== 'warmup',
-    );
-    // Tonnage only from load-bearing kinds (timed/distance carry no weight).
-    const weeklyVolume = weekly.reduce(
-      (sum, s) =>
-        s.measurementKind === 'weight_reps' ||
-        s.measurementKind === 'bodyweight'
-          ? sum + s.weight * s.reps
-          : sum,
-      0,
-    );
+    const agg = weekly[0];
     const last = lastSessions[0];
     return {
-      weeklyVolume: Math.round(weeklyVolume),
-      weeklySets: weekly.length,
+      weeklyVolume: Math.round(agg?.weeklyVolume ?? 0),
+      weeklySets: agg?.weeklySets ?? 0,
       lastWorkout:
         last && last.finishedAt
           ? {
@@ -993,7 +983,7 @@ export function useGymStats(): GymStats {
             }
           : null,
     };
-  }, [sets, lastSessions]);
+  }, [weekly, lastSessions]);
 }
 
 export type {
