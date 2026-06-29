@@ -72,6 +72,15 @@ export interface TrackerModule {
    * module is reached at `/modules/<id>`.
    */
   ModuleScreen?: ComponentType;
+  /**
+   * True when the module ships its own nested route stack under
+   * `app/modules/<id>/` (for internal navigation) instead of relying on the
+   * core's generic `app/modules/[moduleId]` route. The root layout reads this to
+   * register a protected `<Stack.Screen name="modules/<id>">` for each such
+   * module — so a nav-owning module needs no hand-edit in core beyond its one
+   * registry line. Mutually exclusive with `ModuleScreen` in practice.
+   */
+  ownsRouteStack?: boolean;
   /** Optional settings section slotted into the core Settings screen. */
   SettingsPanel?: ComponentType;
   /**

@@ -12,6 +12,7 @@ import { useAuthStore } from '@/core/auth/auth-store';
 import { LockScreen } from '@/core/auth/LockScreen';
 import { useSessionStore } from '@/core/auth/session-store';
 import { useDatabaseReady } from '@/core/db/ready';
+import { MODULES } from '@/core/module-registry';
 import { colors, navigationTheme, Text } from '@/ui';
 
 export default function RootLayout() {
@@ -74,8 +75,18 @@ export default function RootLayout() {
                 <Stack.Protected guard={isAuthed}>
                   <Stack.Screen name="(tabs)" />
                   {/* No app/modules/_layout — these nested stacks are root
-                      screens, so gate them by their full segment names. */}
-                  <Stack.Screen name="modules/gym" />
+                      screens, so gate them by their full segment names. The
+                      nav-owning modules are registry-driven so a new one needs
+                      no edit here; `modules/[moduleId]` is the generic fallback
+                      for simple (ModuleScreen-only) modules. */}
+                  {MODULES.filter((module) => module.ownsRouteStack).map(
+                    (module) => (
+                      <Stack.Screen
+                        key={module.meta.id}
+                        name={`modules/${module.meta.id}`}
+                      />
+                    ),
+                  )}
                   <Stack.Screen name="modules/[moduleId]" />
                   <Stack.Screen
                     name="settings"

@@ -30,6 +30,8 @@ export const gymModule: TrackerModule = {
     version: '1.0.0',
   },
   DashboardWidget: GymDashboardWidget,
+  // Reached at /modules/gym via its own nested stack (app/modules/gym/).
+  ownsRouteStack: true,
   ProfileWidget: GymProfileWidget,
   SettingsPanel: GymSettingsPanel,
   primaryTabs: [
