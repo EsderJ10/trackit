@@ -348,10 +348,18 @@ export function useRecentExerciseIds(limit = 6): number[] {
 // Sessions + set logs
 // ---------------------------------------------------------------------------
 
-export function startWorkout(routineId?: number): number {
+/**
+ * Start a freestyle (or routine-based) session. `startedAt` (ms) backdates it
+ * for logging a workout you did on a past day — `finishWorkout` then completes
+ * it on that day rather than now, so it lands on its calendar date everywhere.
+ */
+export function startWorkout(routineId?: number, startedAt?: number): number {
   const result = db
     .insert(workoutSessions)
-    .values({ routineId: routineId ?? null })
+    .values({
+      routineId: routineId ?? null,
+      ...(startedAt != null ? { startedAt: new Date(startedAt) } : {}),
+    })
     .run();
   const sessionId = result.lastInsertRowId;
 
@@ -755,6 +763,7 @@ export function finishWorkout(sessionId: number): void {
   const session = db
     .select({
       finishedAt: workoutSessions.finishedAt,
+      startedAt: workoutSessions.startedAt,
       programId: workoutSessions.programId,
       programDayId: workoutSessions.programDayId,
       weekIndex: workoutSessions.programWeekIndex,
@@ -767,8 +776,19 @@ export function finishWorkout(sessionId: number): void {
   // re-finish can't double-advance the working weight.
   if (session == null || session.finishedAt != null) return;
 
+  // A backdated session (started on an earlier day) completes on that day so it
+  // lands on its calendar date in history; a normal session finishes now.
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const finishedAt =
+    session.startedAt.getTime() < startOfToday ? session.startedAt : now;
+
   db.update(workoutSessions)
-    .set({ finishedAt: new Date() })
+    .set({ finishedAt })
     .where(eq(workoutSessions.id, sessionId))
     .run();
 

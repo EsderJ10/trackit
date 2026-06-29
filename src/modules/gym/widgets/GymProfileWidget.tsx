@@ -1,25 +1,15 @@
 import { useRouter } from 'expo-router';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Dumbbell,
-  Flame,
-  Trophy,
-} from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { ChevronRight, Dumbbell, Flame, Trophy } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import { useSettings } from '@/core/settings/use-settings';
 import type { DashboardWidgetProps } from '@/core/types/module';
-import { Card, EmptyState, Icon, Stat, Text, cn, colors, tint } from '@/ui';
+import { Card, EmptyState, Icon, Stat, Text, colors } from '@/ui';
 
 import { MuscleVolumeBars } from '../components/MuscleVolumeBars';
 import { formatWeight } from '../format';
 import { useExercisePRs, useGymProfileStats, useWeeklyGoal } from '../queries';
-import { dayKey } from '../streak';
-
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
 
 /** Compact thousands formatting (e.g. 12.4k) for big lifetime counters. */
 function compact(n: number): string {
@@ -49,7 +39,6 @@ export function GymProfileWidget(_props: DashboardWidgetProps) {
       <LifetimeCard stats={stats} weightUnit={weightUnit} />
       <PRsCard weightUnit={weightUnit} />
       <MuscleVolumeBars breakdown={stats.muscleBreakdown} />
-      <CalendarCard workoutDays={stats.workoutDays} />
     </View>
   );
 }
@@ -184,121 +173,6 @@ function PRsCard({ weightUnit }: { weightUnit: 'kg' | 'lb' }) {
           </View>
           <Icon icon={ChevronRight} size={16} color={colors.fgFaint} />
         </Pressable>
-      ))}
-    </Card>
-  );
-}
-
-function CalendarCard({ workoutDays }: { workoutDays: string[] }) {
-  const [viewMonth, setViewMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
-
-  const loggedDays = useMemo(() => new Set(workoutDays), [workoutDays]);
-
-  const { todayKey, currentMonthIndex } = useMemo(() => {
-    const now = new Date();
-    return {
-      todayKey: dayKey(now),
-      currentMonthIndex: now.getFullYear() * 12 + now.getMonth(),
-    };
-  }, []);
-
-  const weeks = useMemo(() => {
-    const year = viewMonth.getFullYear();
-    const month = viewMonth.getMonth();
-    const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const cells: (number | null)[] = [];
-    for (let i = 0; i < startOffset; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    while (cells.length % 7 !== 0) cells.push(null);
-    const rows: (number | null)[][] = [];
-    for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
-    return { year, month, rows };
-  }, [viewMonth]);
-
-  const viewMonthIndex = weeks.year * 12 + weeks.month;
-  const canGoNext = viewMonthIndex < currentMonthIndex;
-
-  return (
-    <Card className="gap-3">
-      <View className="flex-row items-center justify-between">
-        <Pressable
-          onPress={() =>
-            setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
-          }
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Previous month"
-        >
-          <Icon icon={ChevronLeft} size={20} color={colors.fgMuted} />
-        </Pressable>
-        <Text variant="label">
-          {viewMonth.toLocaleDateString(undefined, {
-            month: 'long',
-            year: 'numeric',
-          })}
-        </Text>
-        <Pressable
-          onPress={() =>
-            canGoNext &&
-            setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))
-          }
-          disabled={!canGoNext}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Next month"
-        >
-          <Icon
-            icon={ChevronRight}
-            size={20}
-            color={canGoNext ? colors.fgMuted : colors.fgFaint}
-          />
-        </Pressable>
-      </View>
-
-      <View className="flex-row">
-        {WEEKDAYS.map((label, i) => (
-          <View key={i} className="flex-1 items-center">
-            <Text variant="caption">{label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {weeks.rows.map((row, r) => (
-        <View key={r} className="flex-row">
-          {row.map((day, c) => {
-            if (day == null) return <View key={c} className="flex-1" />;
-            const key = dayKey(new Date(weeks.year, weeks.month, day));
-            const logged = loggedDays.has(key);
-            const isToday = key === todayKey;
-            return (
-              <View key={c} className="flex-1 items-center py-1">
-                <View
-                  className={cn(
-                    'h-8 w-8 items-center justify-center rounded-full',
-                  )}
-                  style={
-                    logged
-                      ? { backgroundColor: tint(colors.gym, 0.25) }
-                      : isToday
-                        ? { borderWidth: 1, borderColor: colors.border }
-                        : undefined
-                  }
-                >
-                  <Text
-                    variant="muted"
-                    style={logged ? { color: colors.gym } : undefined}
-                  >
-                    {day}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
       ))}
     </Card>
   );
