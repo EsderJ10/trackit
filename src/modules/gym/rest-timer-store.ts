@@ -3,13 +3,14 @@ import { create } from 'zustand';
 import { setDefaultRestSec } from './queries';
 import { cancelRestEnd, scheduleRestEnd } from './rest-notifications';
 
-/** Default rest between sets, the step for the ±30s controls, and the floor. */
+/** Default rest between sets, the step for the ±15s controls, and the floor. */
 export const DEFAULT_REST_MS = 120_000;
-export const REST_STEP_MS = 30_000;
-export const MIN_REST_MS = 30_000;
+export const REST_STEP_MS = 15_000;
+/** 0 = disabled: no countdown bar and no scheduled notification after a set. */
+export const MIN_REST_MS = 0;
 
 interface RestTimerState {
-  /** Default rest length; the ±30s controls reshape this and the running timer. */
+  /** Default rest length; the ±15s controls reshape this and the running timer. */
   durationMs: number;
   /** Absolute epoch-ms the current rest ends, or null when idle. */
   endsAt: number | null;
@@ -19,7 +20,7 @@ interface RestTimerState {
   setDuration: (ms: number) => void;
   /** Start (or restart) the rest countdown from the default duration. */
   start: () => void;
-  /** Shift the running timer by `deltaMs` and stick it as the new default. */
+  /** Shift the running timer by `deltaMs` (±15s) and stick it as the new default. */
   adjust: (deltaMs: number) => void;
   /** Clear the timer (skip / dismiss) and cancel its pending notification. */
   stop: () => void;
@@ -42,6 +43,11 @@ export const useRestTimer = create<RestTimerState>((set, get) => ({
   start: () => {
     void cancelRestEnd(get().notificationId);
     const { durationMs } = get();
+    // 0 = rest timer disabled: skip the countdown bar and the "rest over" alert.
+    if (durationMs <= 0) {
+      set({ endsAt: null, notificationId: null });
+      return;
+    }
     const endsAt = Date.now() + durationMs;
     set({ endsAt, notificationId: null });
     void scheduleRestEnd(Math.round(durationMs / 1000)).then((id) => {

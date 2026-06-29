@@ -30,9 +30,9 @@ import {
 const MIN_GOAL = 1;
 const MAX_GOAL = 14;
 
-const MIN_REST = 30;
+const MIN_REST = 0;
 const MAX_REST = 300;
-const REST_STEP = 15;
+const REST_STEP = 5;
 
 function StepButton({
   icon,
@@ -202,8 +202,10 @@ export function GymSettingsPanel() {
 
       <StepperRow
         title="Default rest timer"
-        subtitle="Auto-starts after each set"
-        value={formatRestSeconds(rest)}
+        subtitle={
+          rest === 0 ? 'Off — no timer after sets' : 'Auto-starts after each set'
+        }
+        value={rest === 0 ? 'Off' : formatRestSeconds(rest)}
         onDec={() => setDefaultRestSec(Math.max(MIN_REST, rest - REST_STEP))}
         onInc={() => setDefaultRestSec(Math.min(MAX_REST, rest + REST_STEP))}
         canDec={rest > MIN_REST}

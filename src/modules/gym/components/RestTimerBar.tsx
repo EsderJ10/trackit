@@ -9,7 +9,7 @@ import { REST_STEP_MS, useRestTimer } from '../rest-timer-store';
 
 /**
  * Sticky between-sets countdown. Renders nothing when idle; while running it
- * ticks off the store's absolute `endsAt` and self-dismisses at zero. The ±30s
+ * ticks off the store's absolute `endsAt` and self-dismisses at zero. The ±15s
  * controls reshape the running timer; the ✕ skips it.
  */
 export function RestTimerBar() {
@@ -54,7 +54,7 @@ export function RestTimerBar() {
       <Pressable
         onPress={() => adjust(-REST_STEP_MS)}
         accessibilityRole="button"
-        accessibilityLabel="Subtract 30 seconds from rest"
+        accessibilityLabel="Subtract 15 seconds from rest"
         hitSlop={8}
         className="h-9 w-9 items-center justify-center rounded-full border border-border active:opacity-70"
       >
@@ -63,7 +63,7 @@ export function RestTimerBar() {
       <Pressable
         onPress={() => adjust(REST_STEP_MS)}
         accessibilityRole="button"
-        accessibilityLabel="Add 30 seconds to rest"
+        accessibilityLabel="Add 15 seconds to rest"
         hitSlop={8}
         className="h-9 w-9 items-center justify-center rounded-full border border-border active:opacity-70"
       >
