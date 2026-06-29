@@ -33,8 +33,6 @@ import {
   finishWorkout,
   getDefaultRestSec,
   getLastPerformance,
-  reorderProgramExercises,
-  reorderRoutineExercises,
   seedExerciseSets,
   setSetCompleted,
   updateSessionNotes,
@@ -52,6 +50,7 @@ import {
   ensureRestPermissions,
 } from '../rest-notifications';
 import { useRestTimer } from '../rest-timer-store';
+import { useExerciseReorder } from '../hooks/use-exercise-reorder';
 import { usePRCelebration } from '../hooks/use-pr-celebration';
 
 interface DisplayExercise {
@@ -93,10 +92,10 @@ export function ActiveWorkout() {
 
   const [extraIds, setExtraIds] = useState<number[]>([]);
   const [removedIds, setRemovedIds] = useState<number[]>([]);
-  // A session-local exercise order (by exerciseId). Null until the user drags;
-  // once set, it overrides the plan order for this workout only — the saved
-  // program/routine is touched only if they confirm on finish.
-  const [orderOverride, setOrderOverride] = useState<number[] | null>(null);
+  // Session-local exercise reordering (drag order overrides the plan order for
+  // this workout only; persisted to the routine/program only on confirm).
+  const { orderOverride, applyReorder, planOrderChanged, persistPlanOrder } =
+    useExerciseReorder({ plan, programPlan, session });
   const [pickerOpen, setPickerOpen] = useState(false);
   // Live PR celebration: banner message + lazily-folded per-exercise bests.
   const { prMsg, celebrate } = usePRCelebration();
@@ -298,46 +297,9 @@ export function ActiveWorkout() {
   }
 
   function handleReorder({ from, to }: ReorderableListReorderEvent) {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setOrderOverride(
+    applyReorder(
       reorderItems(displayExercises, from, to).map((ex) => ex.exerciseId),
     );
-  }
-
-  // The plan's exercises (routine or program — a session is one or the other)
-  // as {row id, exerciseId}, in their saved order. Used to offer "save the new
-  // order" on finish; extra/removed exercises aren't part of the saved plan.
-  const planSlots = useMemo(
-    () =>
-      (plan.length > 0 ? plan : programPlan).map((row) => ({
-        id: row.id,
-        exerciseId: row.exerciseId,
-      })),
-    [plan, programPlan],
-  );
-
-  // Those same plan slots, sorted into the user's current display order.
-  function planSlotsInDisplayOrder() {
-    if (orderOverride == null) return planSlots;
-    const rank = new Map(orderOverride.map((id, index) => [id, index]));
-    return [...planSlots].sort(
-      (a, b) =>
-        (rank.get(a.exerciseId) ?? Number.POSITIVE_INFINITY) -
-        (rank.get(b.exerciseId) ?? Number.POSITIVE_INFINITY),
-    );
-  }
-
-  // Has the drag actually moved a *plan* exercise (vs. only extras)?
-  function planOrderChanged(): boolean {
-    if (orderOverride == null || planSlots.length === 0) return false;
-    const reordered = planSlotsInDisplayOrder();
-    return planSlots.some((slot, index) => reordered[index]?.id !== slot.id);
-  }
-
-  function persistPlanOrder() {
-    const ids = planSlotsInDisplayOrder().map((slot) => slot.id);
-    if (session?.routineId != null) reorderRoutineExercises(ids);
-    else if (session?.programDayId != null) reorderProgramExercises(ids);
   }
 
   function commitFinish() {
