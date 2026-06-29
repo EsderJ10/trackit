@@ -26,19 +26,12 @@ import { DEFAULT_BAR } from '../plate-math';
 import { supersetBadges } from '../supersets';
 import { warmupSets } from '../warmup';
 import {
-  detectPRs,
-  type ExerciseBests,
-  foldBests,
-  prMessage,
-} from '../pr-detect';
-import {
   addSet,
   addWarmupSets,
   deleteExerciseSets,
   deleteSetLog,
   finishWorkout,
   getDefaultRestSec,
-  getExerciseBests,
   getLastPerformance,
   reorderProgramExercises,
   reorderRoutineExercises,
@@ -59,6 +52,7 @@ import {
   ensureRestPermissions,
 } from '../rest-notifications';
 import { useRestTimer } from '../rest-timer-store';
+import { usePRCelebration } from '../hooks/use-pr-celebration';
 
 interface DisplayExercise {
   exerciseId: number;
@@ -104,10 +98,8 @@ export function ActiveWorkout() {
   // program/routine is touched only if they confirm on finish.
   const [orderOverride, setOrderOverride] = useState<number[] | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  // Live PR celebration: the current banner message (cleared on a timer) and the
-  // per-exercise all-time bests, fetched lazily and folded as sets complete.
-  const [prMsg, setPrMsg] = useState<string | null>(null);
-  const bestsRef = useRef(new Map<number, ExerciseBests>());
+  // Live PR celebration: banner message + lazily-folded per-exercise bests.
+  const { prMsg, celebrate } = usePRCelebration();
   // Plate calculator target, in the display unit (null = closed).
   const [plateTarget, setPlateTarget] = useState<number | null>(null);
 
@@ -120,12 +112,6 @@ export function ActiveWorkout() {
   useEffect(() => {
     setsRef.current = sets;
   }, [sets]);
-
-  useEffect(() => {
-    if (prMsg == null) return;
-    const timer = setTimeout(() => setPrMsg(null), 2800);
-    return () => clearTimeout(timer);
-  }, [prMsg]);
 
   const catalogById = useMemo(
     () => new Map(catalog.map((exercise) => [exercise.id, exercise])),
@@ -432,30 +418,11 @@ export function ActiveWorkout() {
       startRest();
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Live PR check — working sets only; warmups/drops/timed-vs-load never PR.
+      // Read the just-completed set from the live ref and run the PR check.
       const set = setsRef.current.find((s) => s.id === id);
-      if (set == null || set.setType !== 'working') return;
-      const candidate = {
-        reps: set.reps,
-        weightKg: set.weight,
-        durationSec: set.durationSec,
-        measurementKind: set.measurementKind,
-      };
-      let bests = bestsRef.current.get(set.exerciseId);
-      if (bests == null) {
-        bests = getExerciseBests(set.exerciseId);
-      }
-      const kinds = detectPRs(candidate, bests);
-      // Fold the set in so the same record can't re-fire on a repeat tap.
-      bestsRef.current.set(set.exerciseId, foldBests(bests, candidate));
-      if (kinds.length > 0) {
-        void Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success,
-        );
-        setPrMsg(prMessage(set.exerciseName, kinds));
-      }
+      if (set != null) celebrate(set);
     },
-    [startRest],
+    [startRest, celebrate],
   );
 
   return (
