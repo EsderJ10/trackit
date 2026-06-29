@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import {
   NestedReorderableList,
@@ -10,6 +11,12 @@ import type { WeightUnit } from '@/core/settings/schema';
 import { Button, Icon, Text, colors } from '@/ui';
 
 import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
+import {
+  type SupersetUpdate,
+  linkWithPrevious,
+  supersetBadges,
+  unlink,
+} from '../supersets';
 import { ProgramExerciseRow } from './ProgramExerciseRow';
 
 export interface ProgramDaySectionProps {
@@ -26,6 +33,8 @@ export interface ProgramDaySectionProps {
   onEditWave: (programExerciseId: number, name: string) => void;
   /** Persist a new exercise order for this day (program_exercises row ids). */
   onReorderExercises: (orderedIds: number[]) => void;
+  /** Persist superset group changes for this day's exercises. */
+  onUpdateSupersets: (updates: SupersetUpdate[]) => void;
 }
 
 /** One day of a program: an editable name plus its exercises and an add button. */
@@ -42,7 +51,34 @@ export function ProgramDaySection({
   onRemoveExercise,
   onEditWave,
   onReorderExercises,
+  onUpdateSupersets,
 }: ProgramDaySectionProps) {
+  const badges = useMemo(() => supersetBadges(exercises), [exercises]);
+  const indexById = useMemo(
+    () => new Map(exercises.map((row, index) => [row.id, index])),
+    [exercises],
+  );
+
+  // Read latest rows from a ref so link/unlink handlers stay stable (preserving
+  // the memoized rows) while acting on current data.
+  const exercisesRef = useRef(exercises);
+  useEffect(() => {
+    exercisesRef.current = exercises;
+  }, [exercises]);
+
+  const onLink = useCallback(
+    (id: number) => {
+      const list = exercisesRef.current;
+      const index = list.findIndex((row) => row.id === id);
+      onUpdateSupersets(linkWithPrevious(list, index));
+    },
+    [onUpdateSupersets],
+  );
+  const onUnlink = useCallback(
+    (id: number) => onUpdateSupersets(unlink(exercisesRef.current, id)),
+    [onUpdateSupersets],
+  );
+
   return (
     <View className="gap-3 rounded-2xl border border-border-soft bg-surface-alt/40 p-3">
       <View className="flex-row items-center justify-between gap-2">
@@ -86,11 +122,15 @@ export function ProgramDaySection({
                 row={item}
                 unit={unit}
                 reorderable
+                supersetBadge={badges.get(item.id)}
+                canLink={(indexById.get(item.id) ?? 0) > 0}
                 onSetWeight={onSetWeight}
                 onSetTrainingMax={onSetTrainingMax}
                 onSetE1rm={onSetE1rm}
                 onRemove={onRemoveExercise}
                 onEditWave={onEditWave}
+                onLink={onLink}
+                onUnlink={onUnlink}
               />
             </View>
           )}

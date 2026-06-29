@@ -97,6 +97,12 @@ export const routineExercises = sqliteTable('routine_exercises', {
   targetSets: integer('target_sets').notNull().default(3),
   targetReps: integer('target_reps').notNull().default(10),
   targetWeight: real('target_weight'),
+  /**
+   * Superset grouping: exercises sharing a non-null `supersetGroup` are performed
+   * back-to-back as a superset (labeled A/B/… in order). Null = a standalone
+   * exercise. The value is an opaque per-routine group id, not a global key.
+   */
+  supersetGroup: integer('superset_group'),
 });
 
 /**
@@ -189,6 +195,13 @@ export const programExercises = sqliteTable('program_exercises', {
   tmIncrementKg: real('tm_increment_kg').notNull().default(2.5),
   // Target RPE for the autoregulated (rpe) scheme.
   targetRpe: real('target_rpe'),
+  /**
+   * Superset grouping within a program day: exercises sharing a non-null
+   * `supersetGroup` are performed back-to-back (labeled A/B/… in order). Null =
+   * standalone. The value is an opaque group id (the anchor row's id), unique
+   * across the table so day groups never collide.
+   */
+  supersetGroup: integer('superset_group'),
 });
 
 /**

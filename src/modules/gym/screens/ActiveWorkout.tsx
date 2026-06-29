@@ -23,6 +23,7 @@ import { PRBanner } from '../components/PRBanner';
 import { RestTimerBar } from '../components/RestTimerBar';
 import { SessionNotesField } from '../components/SessionNotesField';
 import { DEFAULT_BAR } from '../plate-math';
+import { supersetBadges } from '../supersets';
 import { warmupSets } from '../warmup';
 import {
   detectPRs,
@@ -202,6 +203,24 @@ export function ActiveWorkout() {
     }
     return map;
   }, [programPlan]);
+
+  // Superset labels (A1, B2, …), keyed by exercise. A session is routine- OR
+  // program-based, so only one plan is populated; apply badges to both.
+  const supersetByExercise = useMemo(() => {
+    const map = new Map<number, string>();
+    const apply = (
+      rows: { id: number; exerciseId: number; supersetGroup: number | null }[],
+    ) => {
+      const badges = supersetBadges(rows);
+      for (const row of rows) {
+        const badge = badges.get(row.id);
+        if (badge) map.set(row.exerciseId, `${badge.letter}${badge.ordinal}`);
+      }
+    };
+    apply(plan);
+    apply(programPlan);
+    return map;
+  }, [plan, programPlan]);
 
   const displayExercises = useMemo<DisplayExercise[]>(() => {
     const removed = new Set(removedIds);
@@ -457,6 +476,7 @@ export function ActiveWorkout() {
               name={exercise.name}
               target={exercise.target}
               reason={reasonByExercise.get(exercise.exerciseId)}
+              supersetLabel={supersetByExercise.get(exercise.exerciseId)}
               sets={setsByExercise.get(exercise.exerciseId) ?? []}
               previous={previousByExercise.get(exercise.exerciseId)}
               unit={weightUnit}

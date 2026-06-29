@@ -1,19 +1,24 @@
-import { CalendarRange, Trash2 } from 'lucide-react-native';
+import { CalendarRange, Link, Link2Off, Trash2 } from 'lucide-react-native';
 import { memo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import type { WeightUnit } from '@/core/settings/schema';
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
-import { Button, Card, Icon, Text, colors, shallowEqual } from '@/ui';
+import { Button, Card, Icon, Text, colors, shallowEqual, tint } from '@/ui';
 
 import { formatWeight } from '../format';
 import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
+import type { SupersetBadge } from '../supersets';
 import { DragHandle } from './DragHandle';
 import { NumberField } from './NumberField';
 
 export interface ProgramExerciseRowProps {
   row: ProgramExerciseRowData;
   unit: WeightUnit;
+  /** Superset badge when this row is part of a multi-exercise group. */
+  supersetBadge?: SupersetBadge;
+  /** Whether this row can be linked into a superset with the one above it. */
+  canLink: boolean;
   /** Commit a new working weight (lp/dp), already converted to canonical kg. */
   onSetWeight: (programExerciseId: number, weightKg: number) => void;
   /** Commit a new training max (percent), already converted to canonical kg. */
@@ -23,6 +28,10 @@ export interface ProgramExerciseRowProps {
   onRemove: (programExerciseId: number) => void;
   /** Open the periodization (week × set wave) editor for this slot. */
   onEditWave: (programExerciseId: number, name: string) => void;
+  /** Link this row into a superset with the previous exercise in the day. */
+  onLink: (programExerciseId: number) => void;
+  /** Remove this row from its superset. */
+  onUnlink: (programExerciseId: number) => void;
   /** Render the drag grip (only valid inside a reorderable list item). */
   reorderable?: boolean;
 }
@@ -72,11 +81,15 @@ function anchorFor(row: ProgramExerciseRowData): {
 function ProgramExerciseRowComponent({
   row,
   unit,
+  supersetBadge,
+  canLink,
   onSetWeight,
   onSetTrainingMax,
   onSetE1rm,
   onRemove,
   onEditWave,
+  onLink,
+  onUnlink,
   reorderable,
 }: ProgramExerciseRowProps) {
   const anchor = anchorFor(row);
@@ -109,20 +122,59 @@ function ProgramExerciseRowComponent({
           </View>
         ) : null}
         <View className="flex-1">
-          <Text variant="heading">{row.exerciseName}</Text>
+          <View className="flex-row items-center gap-2">
+            {supersetBadge ? (
+              <View
+                className="rounded-md px-1.5 py-0.5"
+                style={{ backgroundColor: tint(colors.gym, 0.18) }}
+              >
+                <Text
+                  variant="caption"
+                  style={{ color: colors.gym, fontWeight: '700' }}
+                >
+                  {supersetBadge.letter}
+                  {supersetBadge.ordinal}
+                </Text>
+              </View>
+            ) : null}
+            <Text variant="heading">{row.exerciseName}</Text>
+          </View>
           <Text variant="caption" className="mt-1">
             {schemeSummary(row, unit)}
           </Text>
         </View>
-        <Pressable
-          onPress={() => onRemove(row.id)}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${row.exerciseName}`}
-          className="active:opacity-60"
-        >
-          <Icon icon={Trash2} size={18} color={colors.fgFaint} />
-        </Pressable>
+        <View className="flex-row items-center gap-3">
+          {supersetBadge ? (
+            <Pressable
+              onPress={() => onUnlink(row.id)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${row.exerciseName} from its superset`}
+              className="active:opacity-60"
+            >
+              <Icon icon={Link2Off} size={18} color={colors.gym} />
+            </Pressable>
+          ) : canLink ? (
+            <Pressable
+              onPress={() => onLink(row.id)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`Superset ${row.exerciseName} with the exercise above`}
+              className="active:opacity-60"
+            >
+              <Icon icon={Link} size={18} color={colors.fgFaint} />
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() => onRemove(row.id)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${row.exerciseName}`}
+            className="active:opacity-60"
+          >
+            <Icon icon={Trash2} size={18} color={colors.fgFaint} />
+          </Pressable>
+        </View>
       </View>
 
       <View className="flex-row items-end gap-3">
@@ -169,14 +221,22 @@ function propsEqual(
   prev: ProgramExerciseRowProps,
   next: ProgramExerciseRowProps,
 ): boolean {
+  const a = prev.supersetBadge;
+  const b = next.supersetBadge;
+  const badgeEqual =
+    a?.letter === b?.letter && a?.ordinal === b?.ordinal && a?.size === b?.size;
   return (
     prev.unit === next.unit &&
     prev.reorderable === next.reorderable &&
+    prev.canLink === next.canLink &&
     prev.onSetWeight === next.onSetWeight &&
     prev.onSetTrainingMax === next.onSetTrainingMax &&
     prev.onSetE1rm === next.onSetE1rm &&
     prev.onRemove === next.onRemove &&
     prev.onEditWave === next.onEditWave &&
+    prev.onLink === next.onLink &&
+    prev.onUnlink === next.onUnlink &&
+    badgeEqual &&
     shallowEqual(prev.row, next.row)
   );
 }

@@ -21,6 +21,8 @@ export interface ExerciseSessionCardProps {
   target?: ExerciseTarget;
   /** Program suggestion rationale ("+2.5 kg — hit all reps"), if any. */
   reason?: string | null;
+  /** Superset tag (e.g. "A1") when this exercise is part of a superset. */
+  supersetLabel?: string;
   sets: SetLogRow[];
   /** Last session's sets for this exercise (canonical kg), aligned by index. */
   previous?: { reps: number; weight: number }[];
@@ -47,6 +49,7 @@ export function ExerciseSessionCard({
   name,
   target,
   reason,
+  supersetLabel,
   sets,
   previous,
   unit,
@@ -88,7 +91,22 @@ export function ExerciseSessionCard({
             disabled={!onOpenProgression}
             className="active:opacity-70"
           >
-            <Text variant="heading">{name}</Text>
+            <View className="flex-row items-center gap-2">
+              {supersetLabel ? (
+                <View
+                  className="rounded-md px-1.5 py-0.5"
+                  style={{ backgroundColor: colors.gym }}
+                >
+                  <Text
+                    variant="caption"
+                    style={{ color: colors.bg, fontWeight: '700' }}
+                  >
+                    {supersetLabel}
+                  </Text>
+                </View>
+              ) : null}
+              <Text variant="heading">{name}</Text>
+            </View>
           </Pressable>
           {target ? (
             <Text variant="muted" className="mt-1">
