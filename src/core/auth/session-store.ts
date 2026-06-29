@@ -29,15 +29,30 @@ export const useSessionStore = create<SessionState>((set) => ({
   hasAccount: false,
   user: null,
   init: async () => {
-    const [hasAccount, user] = await Promise.all([
-      accountBackend.hasAccount(),
-      accountBackend.getUser(),
-    ]);
-    set({ initialized: true, hasAccount, user });
+    try {
+      const [hasAccount, user] = await Promise.all([
+        accountBackend.hasAccount(),
+        accountBackend.getUser(),
+      ]);
+      set({ initialized: true, hasAccount, user });
+    } catch (err) {
+      // Never strand the app on the splash gate (`initialized` drives it): on a
+      // read failure fall back to a logged-out, no-account state so the user can
+      // still reach register/login rather than seeing an infinite spinner.
+      console.error('[session-store] init failed', err);
+      set({ initialized: true, hasAccount: false, user: null });
+    }
   },
   setUser: (user) => set({ user, hasAccount: true }),
   logout: async () => {
-    await accountBackend.logout();
-    set({ user: null });
+    try {
+      await accountBackend.logout();
+    } catch (err) {
+      // A failed credential wipe shouldn't leave the user visibly stuck in the
+      // session — clear local state regardless and surface the error.
+      console.error('[session-store] logout failed', err);
+    } finally {
+      set({ user: null });
+    }
   },
 }));

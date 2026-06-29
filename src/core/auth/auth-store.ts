@@ -24,8 +24,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   lockEnabled: false,
   locked: false,
   init: async () => {
-    const lockEnabled = await authBackend.isLockEnabled();
-    set({ initialized: true, lockEnabled, locked: lockEnabled });
+    try {
+      const lockEnabled = await authBackend.isLockEnabled();
+      set({ initialized: true, lockEnabled, locked: lockEnabled });
+    } catch (err) {
+      // Degrade to "no lock" rather than hang the bootstrap gate on a
+      // SecureStore read failure (`initialized` must always reach true).
+      console.error('[auth-store] init failed', err);
+      set({ initialized: true, lockEnabled: false, locked: false });
+    }
   },
   refreshLockEnabled: async () => {
     const lockEnabled = await authBackend.isLockEnabled();
