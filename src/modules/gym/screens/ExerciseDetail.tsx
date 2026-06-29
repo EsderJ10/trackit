@@ -6,10 +6,11 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useSettings } from '@/core/settings/use-settings';
 import { Card, Icon, LineChart, Screen, Stat, Text, colors } from '@/ui';
 
+import { e1rmTrend as computeE1rmTrend } from '../analytics';
 import { MuscleMap } from '../components/MuscleMap';
 import { formatEffort } from '../effort';
 import { formatRelativeDate, formatWeight } from '../format';
-import { computePRs, gatedOneRepMax } from '../progression';
+import { computePRs } from '../progression';
 import {
   setExerciseFavorite,
   useEffortScale,
@@ -74,25 +75,19 @@ export function ExerciseDetail() {
   }, [history]);
 
   // Best estimated 1RM per session, oldest → newest, for the strength trend.
-  const e1rmTrend = useMemo(() => {
-    const bySession = new Map<number, number>();
-    for (const row of history) {
-      // Skip high-rep sets — their 1RM estimate is unreliable (see gatedOneRepMax).
-      const estimate = gatedOneRepMax(row.weight, row.reps);
-      if (estimate === null) continue;
-      bySession.set(
-        row.sessionId,
-        Math.max(bySession.get(row.sessionId) ?? 0, estimate),
-      );
-    }
-    // `history` is newest-first; reverse the session order for chronology.
-    // Drop sessions with no reliable estimate (all sets > 12 reps) rather than
-    // plotting a spurious zero that flat-lines the strength trend.
-    const order = [...new Set(history.map((row) => row.sessionId))].reverse();
-    return order
-      .map((id) => bySession.get(id))
-      .filter((value): value is number => value !== undefined);
-  }, [history]);
+  // Shared with the Progress screen via the pure, unit-tested `analytics`.
+  const e1rmTrend = useMemo(
+    () =>
+      computeE1rmTrend(
+        history.map((row) => ({
+          sessionId: row.sessionId,
+          finishedAt: row.finishedAt?.getTime() ?? 0,
+          reps: row.reps,
+          weight: row.weight,
+        })),
+      ),
+    [history],
+  );
 
   // Group the flat (newest-first) rows back into per-session blocks, preserving
   // the descending date order.
