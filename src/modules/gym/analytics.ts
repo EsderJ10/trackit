@@ -16,6 +16,8 @@ export interface VolumeSet {
   weight: number;
   setType: SetType;
   measurementKind: MeasurementKind;
+  /** The exercise's coarse muscle group — how volume landmarks are keyed. */
+  muscleGroup: string;
 }
 
 /** One point in a weekly series: the week's local-Monday start + its value. */
@@ -99,6 +101,43 @@ export function weeklySetCount(
   nowMs: number,
 ): WeekPoint[] {
   return weeklySeries(sets, fromMs, nowMs, (set) => (isHardSet(set) ? 1 : 0));
+}
+
+/**
+ * Weekly hard-set count for a single muscle group (matching volume-landmark
+ * units, sets/week), zero-filled across that group's training history. Sets are
+ * attributed to the exercise's coarse `muscleGroup`, consistent with the
+ * profile's per-muscle bars and the landmark thresholds.
+ */
+export function weeklySetsByGroup(
+  sets: VolumeSet[],
+  group: string,
+  fromMs: number,
+  nowMs: number,
+): WeekPoint[] {
+  return weeklySetCount(
+    sets.filter((set) => set.muscleGroup === group),
+    fromMs,
+    nowMs,
+  );
+}
+
+/** Muscle groups trained in range with their total hard-set count, busiest first. */
+export function groupsByVolume(
+  sets: VolumeSet[],
+  fromMs: number,
+  nowMs: number,
+): { group: string; sets: number }[] {
+  const counts = new Map<string, number>();
+  for (const set of sets) {
+    if (set.finishedAt < fromMs || set.finishedAt > nowMs || !isHardSet(set)) {
+      continue;
+    }
+    counts.set(set.muscleGroup, (counts.get(set.muscleGroup) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([group, total]) => ({ group, sets: total }))
+    .sort((a, b) => b.sets - a.sets || a.group.localeCompare(b.group));
 }
 
 /**

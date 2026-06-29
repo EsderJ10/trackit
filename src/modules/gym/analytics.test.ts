@@ -4,9 +4,11 @@ import {
   type StrengthSet,
   type VolumeSet,
   e1rmTrend,
+  groupsByVolume,
   seriesPeak,
   seriesTotal,
   weeklySetCount,
+  weeklySetsByGroup,
   weeklyTonnage,
 } from './analytics';
 
@@ -21,6 +23,7 @@ function set(partial: Partial<VolumeSet> & { finishedAt: number }): VolumeSet {
     weight: 100,
     setType: 'working',
     measurementKind: 'weight_reps',
+    muscleGroup: 'Chest',
     ...partial,
   };
 }
@@ -94,6 +97,52 @@ describe('weeklySetCount', () => {
       set({ finishedAt: MON_W1, setType: 'drop' }),
     ];
     expect(weeklySetCount(sets, 0, MON_W1)[0]!.value).toBe(2);
+  });
+});
+
+describe('weeklySetsByGroup', () => {
+  it('counts only the chosen group, zero-filling its weeks', () => {
+    const sets = [
+      set({ finishedAt: MON_W1, muscleGroup: 'Chest' }),
+      set({ finishedAt: MON_W1, muscleGroup: 'Back' }),
+      set({ finishedAt: MON_W2, muscleGroup: 'Chest' }),
+      set({ finishedAt: MON_W2, muscleGroup: 'Chest' }),
+    ];
+    const chest = weeklySetsByGroup(sets, 'Chest', 0, MON_W2);
+    expect(chest.map((p) => p.value)).toEqual([1, 2]);
+  });
+
+  it('excludes warm-ups from the group count', () => {
+    const sets = [
+      set({ finishedAt: MON_W1, muscleGroup: 'Chest' }),
+      set({ finishedAt: MON_W1, muscleGroup: 'Chest', setType: 'warmup' }),
+    ];
+    expect(weeklySetsByGroup(sets, 'Chest', 0, MON_W1)[0]!.value).toBe(1);
+  });
+});
+
+describe('groupsByVolume', () => {
+  it('ranks trained groups by hard-set count, busiest first', () => {
+    const sets = [
+      set({ finishedAt: MON_W1, muscleGroup: 'Back' }),
+      set({ finishedAt: MON_W1, muscleGroup: 'Back' }),
+      set({ finishedAt: MON_W1, muscleGroup: 'Chest' }),
+      set({ finishedAt: MON_W1, muscleGroup: 'Legs', setType: 'warmup' }),
+    ];
+    expect(groupsByVolume(sets, 0, MON_W1)).toEqual([
+      { group: 'Back', sets: 2 },
+      { group: 'Chest', sets: 1 },
+    ]);
+  });
+
+  it('respects the range bounds', () => {
+    const sets = [
+      set({ finishedAt: MON_W1, muscleGroup: 'Chest' }),
+      set({ finishedAt: MON_W4, muscleGroup: 'Back' }),
+    ];
+    expect(groupsByVolume(sets, MON_W2, MON_W4)).toEqual([
+      { group: 'Back', sets: 1 },
+    ]);
   });
 });
 

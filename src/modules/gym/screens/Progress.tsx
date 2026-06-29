@@ -20,9 +20,11 @@ import {
   type StrengthSet,
   type VolumeSet,
   e1rmTrend,
+  groupsByVolume,
   seriesPeak,
   seriesTotal,
   weeklySetCount,
+  weeklySetsByGroup,
   weeklyTonnage,
 } from '../analytics';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
@@ -30,6 +32,7 @@ import { formatWeight } from '../format';
 import {
   useExercisePRs,
   useExerciseSetHistory,
+  useMuscleLandmarks,
   useVolumeHistory,
 } from '../queries';
 
@@ -113,15 +116,91 @@ function ChartCard({
   );
 }
 
+/** Wrapping pills to choose which muscle group's weekly-sets trend to show. */
+function GroupChips({
+  groups,
+  selected,
+  onSelect,
+}: {
+  groups: { group: string; sets: number }[];
+  selected: string | null;
+  onSelect: (group: string) => void;
+}) {
+  return (
+    <View className="flex-row flex-wrap gap-2">
+      {groups.map(({ group }) => {
+        const active = group === selected;
+        return (
+          <Pressable
+            key={group}
+            onPress={() => onSelect(group)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={`Show ${group} weekly sets`}
+            className="rounded-full border px-3 py-1 active:opacity-70"
+            style={{
+              borderColor: active ? colors.gym : colors.border,
+              backgroundColor: active ? colors.gym : 'transparent',
+            }}
+          >
+            <Text
+              style={{
+                color: active ? colors.bg : colors.fgMuted,
+                fontWeight: '600',
+              }}
+            >
+              {group}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Dashed-swatch legend for the MEV/MAV/MRV reference bands. */
+function BandLegend({
+  bands,
+}: {
+  bands: { mev: number; mav: number; mrv: number };
+}) {
+  const items = [
+    { label: 'MEV', value: bands.mev, color: colors.warning },
+    { label: 'MAV', value: bands.mav, color: colors.success },
+    { label: 'MRV', value: bands.mrv, color: colors.danger },
+  ];
+  return (
+    <View className="flex-row flex-wrap gap-x-4 gap-y-1">
+      {items.map((item) => (
+        <View key={item.label} className="flex-row items-center gap-1.5">
+          <View
+            style={{
+              width: 14,
+              borderTopWidth: 2,
+              borderColor: item.color,
+              borderStyle: 'dashed',
+            }}
+          />
+          <Text variant="caption">
+            {item.label} {item.value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export function Progress() {
   const { weightUnit } = useSettings();
   const { data: volume } = useVolumeHistory();
+  const landmarks = useMuscleLandmarks();
   const prs = useExercisePRs(1);
   const [rangeKey, setRangeKey] = useState<RangeKey>('12W');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [picked, setPicked] = useState<{ id: number; name: string } | null>(
     null,
   );
+  const [pickedGroup, setPickedGroup] = useState<string | null>(null);
 
   const range = RANGES.find((r) => r.key === rangeKey) ?? RANGES[1];
 
@@ -143,10 +222,15 @@ export function Progress() {
       weight: row.weight,
       setType: row.setType,
       measurementKind: row.measurementKind,
+      muscleGroup: row.muscleGroup,
     }));
     const tonnage = weeklyTonnage(sets, from, now);
     const setCount = weeklySetCount(sets, from, now);
     return {
+      sets,
+      from,
+      now,
+      groups: groupsByVolume(sets, from, now),
       tonnage,
       setCount,
       tonnageTotal: seriesTotal(tonnage),
@@ -154,6 +238,28 @@ export function Progress() {
       setsTotal: seriesTotal(setCount),
     };
   }, [volume, range.days]);
+
+  const selectedGroup = pickedGroup ?? volumeTrends.groups[0]?.group ?? null;
+  const groupSeries = useMemo(
+    () =>
+      selectedGroup
+        ? weeklySetsByGroup(
+            volumeTrends.sets,
+            selectedGroup,
+            volumeTrends.from,
+            volumeTrends.now,
+          ).map((point) => point.value)
+        : [],
+    [volumeTrends, selectedGroup],
+  );
+  const groupBands = selectedGroup ? landmarks.get(selectedGroup) : undefined;
+  const groupReferenceLines = groupBands
+    ? [
+        { value: groupBands.mev, color: colors.warning },
+        { value: groupBands.mav, color: colors.success },
+        { value: groupBands.mrv, color: colors.danger },
+      ]
+    : [];
 
   const strength = useMemo(() => {
     // eslint-disable-next-line react-hooks/purity
@@ -209,6 +315,44 @@ export function Progress() {
           />
           <Stat label="Hard sets" value={String(volumeTrends.setsTotal)} />
         </ChartCard>
+
+        {volumeTrends.groups.length > 0 ? (
+          <Card className="gap-3">
+            <Text variant="heading">Weekly sets by muscle</Text>
+            <GroupChips
+              groups={volumeTrends.groups}
+              selected={selectedGroup}
+              onSelect={setPickedGroup}
+            />
+            {groupSeries.length >= 2 ? (
+              <>
+                <LineChart
+                  data={groupSeries}
+                  color={colors.gym}
+                  height={120}
+                  referenceLines={groupReferenceLines}
+                />
+                {groupBands ? <BandLegend bands={groupBands} /> : null}
+                <View className="flex-row gap-6">
+                  <Stat
+                    label="This week"
+                    value={`${groupSeries[groupSeries.length - 1] ?? 0} sets`}
+                    accent={colors.gym}
+                  />
+                  <Stat
+                    label="Peak week"
+                    value={`${Math.max(...groupSeries)} sets`}
+                  />
+                </View>
+              </>
+            ) : (
+              <Text variant="muted">
+                Not enough data yet for {selectedGroup ?? 'this muscle'} — log a
+                few more sessions.
+              </Text>
+            )}
+          </Card>
+        ) : null}
 
         <ChartCard title="Estimated 1RM" series={strengthDisplay}>
           <Stat

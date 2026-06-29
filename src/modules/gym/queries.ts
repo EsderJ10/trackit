@@ -561,6 +561,7 @@ export function useVolumeHistory() {
         weight: setLogs.weight,
         setType: setLogs.setType,
         measurementKind: exercises.measurementKind,
+        muscleGroup: exercises.muscleGroup,
       })
       .from(setLogs)
       .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id))
