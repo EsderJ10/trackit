@@ -8,10 +8,12 @@ import { Card, Icon, LineChart, Screen, Stat, Text, colors } from '@/ui';
 
 import { e1rmTrend as computeE1rmTrend } from '../analytics';
 import { MuscleMap } from '../components/MuscleMap';
-import { formatRelativeDate, formatRpe, formatWeight } from '../format';
+import { formatEffort } from '../effort';
+import { formatRelativeDate, formatWeight } from '../format';
 import { computePRs } from '../progression';
 import {
   setExerciseFavorite,
+  useEffortScale,
   useExercise,
   useExerciseSetHistory,
   type ExerciseHistoryRow,
@@ -46,6 +48,7 @@ export function ExerciseDetail() {
   const exercise = useExercise(exerciseId);
   const { data: history } = useExerciseSetHistory(exerciseId);
   const { weightUnit } = useSettings();
+  const effortScale = useEffortScale();
 
   const prs = useMemo(
     () =>
@@ -287,7 +290,9 @@ export function ExerciseDetail() {
                       {set.reps} × {formatWeight(set.weight, weightUnit)}
                     </Text>
                     {set.rpe != null ? (
-                      <Text variant="muted">{formatRpe(set.rpe)}</Text>
+                      <Text variant="muted">
+                        {formatEffort(set.rpe, effortScale)}
+                      </Text>
                     ) : null}
                   </View>
                 ))}

@@ -24,6 +24,7 @@ import {
   type MuscleLandmarkBands,
 } from './landmarks';
 import type { CsvSetRow } from './csv-export';
+import type { EffortScale } from './effort';
 import { EMPTY_BESTS, type ExerciseBests, foldBests } from './pr-detect';
 import { sessionLabelLine } from './session-label';
 import {
@@ -212,6 +213,27 @@ export function setWeeklyGoal(weeklyWorkoutGoal: number): void {
   db.insert(gymSettings)
     .values({ id: 1, weeklyWorkoutGoal })
     .onConflictDoUpdate({ target: gymSettings.id, set: { weeklyWorkoutGoal } })
+    .run();
+}
+
+const DEFAULT_EFFORT_SCALE: EffortScale = 'rpe';
+
+/** Live effort scale (RPE/RIR) for the logging UI; defaults to RPE pre-write. */
+export function useEffortScale(): EffortScale {
+  const { data } = useLiveQuery(
+    db
+      .select({ effortScale: gymSettings.effortScale })
+      .from(gymSettings)
+      .where(eq(gymSettings.id, 1)),
+  );
+  return data[0]?.effortScale ?? DEFAULT_EFFORT_SCALE;
+}
+
+/** Persist the effort scale; upserts so the row is created on first write. */
+export function setEffortScale(effortScale: EffortScale): void {
+  db.insert(gymSettings)
+    .values({ id: 1, effortScale })
+    .onConflictDoUpdate({ target: gymSettings.id, set: { effortScale } })
     .run();
 }
 
