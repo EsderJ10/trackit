@@ -1,3 +1,0 @@
-# Build artifacts produced by the Docker APK builder — never commit these.
-*
-!.gitignore
