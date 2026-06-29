@@ -109,34 +109,79 @@ export function seedExerciseSets(
   return rows.length;
 }
 
+interface SessionContext {
+  routineId: number | null;
+  programId: number | null;
+  programDayId: number | null;
+}
+
 /**
- * The completed working sets (reps + weight, in order) from the most recent prior
- * finished session with this exercise; empty when there's no history.
+ * The id of the most recent prior finished session containing this exercise. When
+ * `context` is given, the match is scoped to the same routine (or program day);
+ * `context` undefined searches chronologically across everything. A program/
+ * routine `context` with no routine and no program (freestyle) returns undefined,
+ * so the caller falls back to the unscoped search.
+ */
+function findLastSessionId(
+  exerciseId: number,
+  excludeSessionId: number,
+  context?: SessionContext,
+): number | undefined {
+  const conditions = [
+    eq(setLogs.exerciseId, exerciseId),
+    // Working sets only — never pre-fill a warmup as the work set.
+    eq(setLogs.setType, 'working'),
+    isNotNull(setLogs.completedAt),
+    // Finished sessions only, not an abandoned in-progress one.
+    isNotNull(workoutSessions.finishedAt),
+    ne(workoutSessions.id, excludeSessionId),
+  ];
+  if (context !== undefined) {
+    if (context.routineId != null) {
+      conditions.push(eq(workoutSessions.routineId, context.routineId));
+    } else if (context.programId != null && context.programDayId != null) {
+      conditions.push(eq(workoutSessions.programId, context.programId));
+      conditions.push(eq(workoutSessions.programDayId, context.programDayId));
+    } else {
+      return undefined; // freestyle session → nothing to scope to.
+    }
+  }
+  const rows = db
+    .select({ sessionId: setLogs.sessionId })
+    .from(setLogs)
+    .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+    .where(and(...conditions))
+    .orderBy(desc(setLogs.completedAt))
+    .limit(1)
+    .all();
+  return rows[0]?.sessionId;
+}
+
+/**
+ * The completed working sets (reps + weight, in order) to surface as "previous".
+ * Scoped to the session being logged: prefer the last time this exercise was done
+ * in the SAME routine / program day (so a Push-day lift never shows a Pull-day
+ * number), falling back to the chronologically latest. Empty when no history.
  */
 export function getLastPerformance(
   exerciseId: number,
   excludeSessionId: number,
 ): { reps: number; weight: number }[] {
-  const last = db
-    .select({ sessionId: setLogs.sessionId })
-    .from(setLogs)
-    .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
-    .where(
-      and(
-        eq(setLogs.exerciseId, exerciseId),
-        // Working sets only — never pre-fill a warmup as the work set.
-        eq(setLogs.setType, 'working'),
-        isNotNull(setLogs.completedAt),
-        // Finished sessions only, not an abandoned in-progress one.
-        isNotNull(workoutSessions.finishedAt),
-      ),
-    )
-    .orderBy(desc(setLogs.completedAt))
-    .limit(1)
-    .all();
+  const context = db
+    .select({
+      routineId: workoutSessions.routineId,
+      programId: workoutSessions.programId,
+      programDayId: workoutSessions.programDayId,
+    })
+    .from(workoutSessions)
+    .where(eq(workoutSessions.id, excludeSessionId))
+    .all()[0];
 
-  const lastSessionId = last[0]?.sessionId;
-  if (lastSessionId == null || lastSessionId === excludeSessionId) return [];
+  const lastSessionId =
+    (context != null
+      ? findLastSessionId(exerciseId, excludeSessionId, context)
+      : undefined) ?? findLastSessionId(exerciseId, excludeSessionId);
+  if (lastSessionId == null) return [];
 
   return db
     .select({ reps: setLogs.reps, weight: setLogs.weight })
