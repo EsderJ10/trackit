@@ -113,6 +113,13 @@
       "when": 1782745783218,
       "tag": "0015_lyrical_blue_shield",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1782750569957,
+      "tag": "0016_dry_thing",
+      "breakpoints": true
     }
   ]
 }

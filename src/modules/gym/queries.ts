@@ -69,6 +69,7 @@ export interface RoutineExerciseRow {
   targetSets: number;
   targetReps: number;
   targetWeight: number | null;
+  supersetGroup: number | null;
   exerciseId: number;
   exerciseName: string;
   muscleGroup: string;
@@ -83,6 +84,7 @@ export function useRoutineExercises(routineId: number) {
         targetSets: routineExercises.targetSets,
         targetReps: routineExercises.targetReps,
         targetWeight: routineExercises.targetWeight,
+        supersetGroup: routineExercises.supersetGroup,
         exerciseId: exercises.id,
         exerciseName: exercises.name,
         muscleGroup: exercises.muscleGroup,
@@ -153,6 +155,24 @@ export function reorderRoutineExercises(orderedIds: number[]): void {
         .where(eq(routineExercises.id, id))
         .run();
     });
+  });
+}
+
+/**
+ * Apply superset group changes for a routine's exercises in one transaction.
+ * Each update sets one row's `superset_group` (null clears it). The grouping
+ * itself is decided by the pure `supersets` helpers.
+ */
+export function updateRoutineSupersets(
+  updates: { id: number; supersetGroup: number | null }[],
+): void {
+  db.transaction((tx) => {
+    for (const update of updates) {
+      tx.update(routineExercises)
+        .set({ supersetGroup: update.supersetGroup })
+        .where(eq(routineExercises.id, update.id))
+        .run();
+    }
   });
 }
 

@@ -17,6 +17,7 @@ import m0012 from './0012_windy_calypso.sql';
 import m0013 from './0013_fixed_aqueduct.sql';
 import m0014 from './0014_skinny_emma_frost.sql';
 import m0015 from './0015_lyrical_blue_shield.sql';
+import m0016 from './0016_dry_thing.sql';
 
   export default {
     journal,
@@ -36,7 +37,8 @@ m0011,
 m0012,
 m0013,
 m0014,
-m0015
+m0015,
+m0016
     }
   }
   

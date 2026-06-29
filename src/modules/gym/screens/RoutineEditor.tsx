@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 
 import { useSettings } from '@/core/settings/use-settings';
@@ -15,9 +15,11 @@ import {
   renameRoutine,
   startWorkout,
   updateRoutineExercise,
+  updateRoutineSupersets,
   useRoutine,
   useRoutineExercises,
 } from '../queries';
+import { linkWithPrevious, supersetBadges, unlink } from '../supersets';
 
 export function RoutineEditor() {
   const { routineId: routineParam } = useLocalSearchParams<{
@@ -29,6 +31,25 @@ export function RoutineEditor() {
   const { data: exercises } = useRoutineExercises(routineId);
   const { weightUnit } = useSettings();
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const badges = useMemo(() => supersetBadges(exercises), [exercises]);
+
+  // Read the latest rows from a ref so the link/unlink handlers stay stable
+  // (preserving the memoized rows) while still acting on current data.
+  const exercisesRef = useRef(exercises);
+  useEffect(() => {
+    exercisesRef.current = exercises;
+  }, [exercises]);
+
+  const onLink = useCallback((id: number) => {
+    const list = exercisesRef.current;
+    const index = list.findIndex((row) => row.id === id);
+    updateRoutineSupersets(linkWithPrevious(list, index));
+  }, []);
+
+  const onUnlink = useCallback((id: number) => {
+    updateRoutineSupersets(unlink(exercisesRef.current, id));
+  }, []);
 
   function remove() {
     deleteRoutine(routineId);
@@ -75,13 +96,17 @@ export function RoutineEditor() {
               description="Add exercises to build out this routine."
             />
           ) : (
-            exercises.map((row) => (
+            exercises.map((row, index) => (
               <RoutineExerciseRow
                 key={row.id}
                 row={row}
                 unit={weightUnit}
+                supersetBadge={badges.get(row.id)}
+                canLink={index > 0}
                 onUpdate={updateRoutineExercise}
                 onRemove={removeRoutineExercise}
+                onLink={onLink}
+                onUnlink={onUnlink}
               />
             ))
           )}
