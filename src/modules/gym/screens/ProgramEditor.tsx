@@ -1,8 +1,13 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
-import { ScrollViewContainer } from 'react-native-reorderable-list';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import {
+  NestedReorderableList,
+  type ReorderableListReorderEvent,
+  ScrollViewContainer,
+  reorderItems,
+} from 'react-native-reorderable-list';
 
 import { useSettings } from '@/core/settings/use-settings';
 import {
@@ -30,7 +35,9 @@ import {
   removeProgramDay,
   removeProgramExercise,
   removeProgramWeek,
+  reorderProgramDays,
   reorderProgramExercises,
+  reorderProgramWeeks,
   renameProgram,
   renameProgramDay,
   renameProgramWeek,
@@ -176,6 +183,9 @@ export function ProgramEditor() {
             onToggleDeload={setProgramWeekDeload}
             onDuplicateWeek={(weekId) => duplicateProgramWeek(programId, weekId)}
             onRemoveWeek={(weekId) => removeProgramWeek(programId, weekId)}
+            onReorderWeeks={(orderedIds) =>
+              reorderProgramWeeks(programId, orderedIds)
+            }
           />
 
           {days.length === 0 ? (
@@ -184,25 +194,39 @@ export function ProgramEditor() {
               description="Add a training day, then fill it with lifts and how each progresses."
             />
           ) : (
-            days.map((day) => (
-              <ProgramDaySection
-                key={day.id}
-                day={day}
-                exercises={exercisesByDay.get(day.id) ?? []}
-                unit={weightUnit}
-                onRenameDay={(name) => renameProgramDay(day.id, name)}
-                onDuplicateDay={() => duplicateProgramDay(programId, day.id)}
-                onRemoveDay={() => removeProgramDay(programId, day.id)}
-                onAddExercise={() => setPickerDayId(day.id)}
-                onSetWeight={setProgramExerciseWeight}
-                onSetTrainingMax={setProgramExerciseTrainingMax}
-                onSetE1rm={setProgramExerciseE1rm}
-                onRemoveExercise={removeProgramExercise}
-                onEditWave={openWaveEditor}
-                onReorderExercises={reorderProgramExercises}
-                onUpdateSupersets={updateProgramSupersets}
-              />
-            ))
+            <NestedReorderableList
+              data={days}
+              scrollable={false}
+              keyExtractor={(day) => String(day.id)}
+              onReorder={({ from, to }: ReorderableListReorderEvent) =>
+                reorderProgramDays(
+                  reorderItems(days, from, to).map((day) => day.id),
+                )
+              }
+              renderItem={({ item: day }) => (
+                // Bottom gap restores the inter-card spacing the content gap
+                // gave, and reads as the drop gap while dragging.
+                <View style={{ paddingBottom: 16 }}>
+                  <ProgramDaySection
+                    day={day}
+                    exercises={exercisesByDay.get(day.id) ?? []}
+                    unit={weightUnit}
+                    reorderable
+                    onRenameDay={(name) => renameProgramDay(day.id, name)}
+                    onDuplicateDay={() => duplicateProgramDay(programId, day.id)}
+                    onRemoveDay={() => removeProgramDay(programId, day.id)}
+                    onAddExercise={() => setPickerDayId(day.id)}
+                    onSetWeight={setProgramExerciseWeight}
+                    onSetTrainingMax={setProgramExerciseTrainingMax}
+                    onSetE1rm={setProgramExerciseE1rm}
+                    onRemoveExercise={removeProgramExercise}
+                    onEditWave={openWaveEditor}
+                    onReorderExercises={reorderProgramExercises}
+                    onUpdateSupersets={updateProgramSupersets}
+                  />
+                </View>
+              )}
+            />
           )}
 
           {pending ? (

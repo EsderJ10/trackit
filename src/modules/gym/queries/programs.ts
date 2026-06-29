@@ -884,6 +884,89 @@ export function reorderProgramExercises(orderedIds: number[]): void {
   });
 }
 
+/** Rewrite each day's `dayIndex` to its position in `orderedDayIds`, in one transaction. */
+export function reorderProgramDays(orderedDayIds: number[]): void {
+  db.transaction((tx) => {
+    orderedDayIds.forEach((id, index) => {
+      tx.update(programDays)
+        .set({ dayIndex: index })
+        .where(eq(programDays.id, id))
+        .run();
+    });
+  });
+}
+
+// Disjoint range to park `program_sets.weekIndex` mid-reorder, so an arbitrary
+// permutation can't collide on a value another week is moving into.
+const WEEK_REORDER_OFFSET = 100_000;
+
+/**
+ * Reassign `weekIndex` to 1..n by position in `orderedWeekIds`, moving each
+ * week's `program_sets` (joined by integer `weekIndex`, no FK) in lockstep so
+ * prescriptions stay attached to their week.
+ */
+export function reorderProgramWeeks(
+  programId: number,
+  orderedWeekIds: number[],
+): void {
+  db.transaction((tx) => {
+    const currentById = new Map(
+      tx
+        .select({ id: programWeeks.id, weekIndex: programWeeks.weekIndex })
+        .from(programWeeks)
+        .where(eq(programWeeks.programId, programId))
+        .all()
+        .map((w) => [w.id, w.weekIndex]),
+    );
+    const slotIds = tx
+      .select({ id: programExercises.id })
+      .from(programExercises)
+      .where(eq(programExercises.programId, programId))
+      .all()
+      .map((r) => r.id);
+
+    // old weekIndex → new weekIndex (1-based by position).
+    const remap = new Map<number, number>();
+    orderedWeekIds.forEach((id, index) => {
+      const old = currentById.get(id);
+      if (old != null) remap.set(old, index + 1);
+    });
+
+    // Week rows reindex by id, so they never collide among themselves.
+    orderedWeekIds.forEach((id, index) => {
+      tx.update(programWeeks)
+        .set({ weekIndex: index + 1 })
+        .where(eq(programWeeks.id, id))
+        .run();
+    });
+
+    if (slotIds.length === 0 || remap.size === 0) return;
+    // Park every prescription in the offset range, then map down to its target.
+    for (const old of remap.keys()) {
+      tx.update(programSets)
+        .set({ weekIndex: old + WEEK_REORDER_OFFSET })
+        .where(
+          and(
+            inArray(programSets.programExerciseId, slotIds),
+            eq(programSets.weekIndex, old),
+          ),
+        )
+        .run();
+    }
+    for (const [old, next] of remap) {
+      tx.update(programSets)
+        .set({ weekIndex: next })
+        .where(
+          and(
+            inArray(programSets.programExerciseId, slotIds),
+            eq(programSets.weekIndex, old + WEEK_REORDER_OFFSET),
+          ),
+        )
+        .run();
+    }
+  });
+}
+
 /** Apply superset_group changes (null clears) for a program day's exercises in one transaction. */
 export function updateProgramSupersets(
   updates: { id: number; supersetGroup: number | null }[],

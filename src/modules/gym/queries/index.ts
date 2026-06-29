@@ -37,6 +37,8 @@ export {
   setProgramExerciseE1rm,
   removeProgramExercise,
   reorderProgramExercises,
+  reorderProgramDays,
+  reorderProgramWeeks,
   updateProgramSupersets,
   removeProgramSet,
   startProgramWorkout,

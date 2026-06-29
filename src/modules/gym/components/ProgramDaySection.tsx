@@ -17,6 +17,7 @@ import {
   supersetBadges,
   unlink,
 } from '../supersets';
+import { DragHandle } from './DragHandle';
 import { ProgramExerciseRow } from './ProgramExerciseRow';
 
 export interface ProgramDaySectionProps {
@@ -36,6 +37,8 @@ export interface ProgramDaySectionProps {
   onReorderExercises: (orderedIds: number[]) => void;
   /** Persist superset group changes for this day's exercises. */
   onUpdateSupersets: (updates: SupersetUpdate[]) => void;
+  /** Render the day's drag grip (only valid inside a reorderable list item). */
+  reorderable?: boolean;
 }
 
 /** One day of a program: an editable name plus its exercises and an add button. */
@@ -54,6 +57,7 @@ export function ProgramDaySection({
   onEditWave,
   onReorderExercises,
   onUpdateSupersets,
+  reorderable,
 }: ProgramDaySectionProps) {
   const badges = useMemo(() => supersetBadges(exercises), [exercises]);
   const indexById = useMemo(
@@ -84,6 +88,11 @@ export function ProgramDaySection({
   return (
     <View className="gap-3 rounded-2xl border border-border-soft bg-surface-alt/40 p-3">
       <View className="flex-row items-center justify-between gap-2">
+        {reorderable ? (
+          <View className="-ml-1">
+            <DragHandle />
+          </View>
+        ) : null}
         <TextInput
           defaultValue={day.name}
           placeholder="Day name"
