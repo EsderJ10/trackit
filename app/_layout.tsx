@@ -4,7 +4,7 @@ import { ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, AppState, View } from 'react-native';
+import { ActivityIndicator, AppState, LogBox, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -14,6 +14,14 @@ import { useSessionStore } from '@/core/auth/session-store';
 import { useDatabaseReady } from '@/core/db/ready';
 import { MODULES } from '@/core/module-registry';
 import { colors, navigationTheme, Text } from '@/ui';
+
+// react-native-reorderable-list mounts its drag lists inside ScrollViewContainer
+// (a ScrollView), which trips RN's nested-VirtualizedList check. Those lists are
+// short and render every row (no windowing to break), so the warning is a false
+// positive here — silence just that one message.
+LogBox.ignoreLogs([
+  'VirtualizedLists should never be nested inside plain ScrollViews',
+]);
 
 export default function RootLayout() {
   const { ready, error } = useDatabaseReady();
