@@ -25,6 +25,8 @@ import {
   addProgramExercise,
   addProgramWeek,
   deleteProgram,
+  duplicateProgramDay,
+  duplicateProgramWeek,
   removeProgramDay,
   removeProgramExercise,
   removeProgramWeek,
@@ -172,6 +174,7 @@ export function ProgramEditor() {
             onAddWeek={() => addProgramWeek(programId)}
             onRenameWeek={renameProgramWeek}
             onToggleDeload={setProgramWeekDeload}
+            onDuplicateWeek={(weekId) => duplicateProgramWeek(programId, weekId)}
             onRemoveWeek={(weekId) => removeProgramWeek(programId, weekId)}
           />
 
@@ -188,6 +191,7 @@ export function ProgramEditor() {
                 exercises={exercisesByDay.get(day.id) ?? []}
                 unit={weightUnit}
                 onRenameDay={(name) => renameProgramDay(day.id, name)}
+                onDuplicateDay={() => duplicateProgramDay(programId, day.id)}
                 onRemoveDay={() => removeProgramDay(programId, day.id)}
                 onAddExercise={() => setPickerDayId(day.id)}
                 onSetWeight={setProgramExerciseWeight}

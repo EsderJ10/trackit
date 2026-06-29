@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Copy, Plus, Trash2 } from 'lucide-react-native';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { Button, Icon, Text, colors, tint } from '@/ui';
@@ -10,6 +10,7 @@ export interface ProgramWeekSectionProps {
   onAddWeek: () => void;
   onRenameWeek: (weekId: number, name: string) => void;
   onToggleDeload: (weekId: number, isDeload: boolean) => void;
+  onDuplicateWeek: (weekId: number) => void;
   onRemoveWeek: (weekId: number) => void;
 }
 
@@ -22,6 +23,7 @@ export function ProgramWeekSection({
   onAddWeek,
   onRenameWeek,
   onToggleDeload,
+  onDuplicateWeek,
   onRemoveWeek,
 }: ProgramWeekSectionProps) {
   return (
@@ -61,6 +63,15 @@ export function ProgramWeekSection({
             >
               Deload
             </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onDuplicateWeek(week.id)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Duplicate week"
+            className="active:opacity-60"
+          >
+            <Icon icon={Copy} size={18} color={colors.fgFaint} />
           </Pressable>
           <Pressable
             onPress={() => onRemoveWeek(week.id)}

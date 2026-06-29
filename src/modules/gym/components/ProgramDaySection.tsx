@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Copy, Plus, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import {
@@ -24,6 +24,7 @@ export interface ProgramDaySectionProps {
   exercises: ProgramExerciseRowData[];
   unit: WeightUnit;
   onRenameDay: (name: string) => void;
+  onDuplicateDay: () => void;
   onRemoveDay: () => void;
   onAddExercise: () => void;
   onSetWeight: (programExerciseId: number, weightKg: number) => void;
@@ -43,6 +44,7 @@ export function ProgramDaySection({
   exercises,
   unit,
   onRenameDay,
+  onDuplicateDay,
   onRemoveDay,
   onAddExercise,
   onSetWeight,
@@ -89,6 +91,15 @@ export function ProgramDaySection({
           onEndEditing={(event) => onRenameDay(event.nativeEvent.text)}
           className="flex-1 text-base font-semibold text-fg"
         />
+        <Pressable
+          onPress={onDuplicateDay}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Duplicate day"
+          className="active:opacity-60"
+        >
+          <Icon icon={Copy} size={18} color={colors.fgFaint} />
+        </Pressable>
         <Pressable
           onPress={onRemoveDay}
           hitSlop={8}
