@@ -21,6 +21,7 @@ import {
   setLogs,
   workoutSessions,
 } from '../schema';
+import type { MeasurementKind, SetType } from '../schema';
 
 import { advanceProgram } from './programs';
 
@@ -299,12 +300,9 @@ export function useSession(sessionId: number) {
   return data[0];
 }
 
-export type SetType = 'warmup' | 'working' | 'drop' | 'failure';
-export type MeasurementKind =
-  | 'weight_reps'
-  | 'bodyweight'
-  | 'duration'
-  | 'distance_time';
+// Single source of truth is the schema column (imported above for local use);
+// re-exported here so consumers keep importing these from the query barrel.
+export type { MeasurementKind, SetType };
 
 export interface SetLogRow {
   id: number;

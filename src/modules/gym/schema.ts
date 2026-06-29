@@ -437,3 +437,8 @@ export type ProgramExercise = typeof programExercises.$inferSelect;
 export type ProgramSet = typeof programSets.$inferSelect;
 export type ExerciseTrainingState = typeof exerciseTrainingState.$inferSelect;
 export type GymSettings = typeof gymSettings.$inferSelect;
+
+// Column-derived enum unions — the single source of truth for these literals,
+// so callers (queries, seed, UI) never re-declare the membership by hand.
+export type SetType = SetLog['setType'];
+export type MeasurementKind = Exercise['measurementKind'];

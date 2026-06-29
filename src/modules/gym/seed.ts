@@ -5,12 +5,7 @@ import type { AppDatabase } from '@/core/db/client';
 import { DEFAULT_MUSCLE_LANDMARKS } from './landmarks';
 import type { Muscle } from './muscles';
 import { exercises, muscleLandmarks } from './schema';
-
-type MeasurementKind =
-  | 'weight_reps'
-  | 'bodyweight'
-  | 'duration'
-  | 'distance_time';
+import type { MeasurementKind } from './schema';
 
 type Mechanic = 'compound' | 'isolation';
 type ForceType = 'push' | 'pull' | 'static';
