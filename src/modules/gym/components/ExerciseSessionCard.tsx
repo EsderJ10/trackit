@@ -5,6 +5,7 @@ import { Alert, Pressable, View } from 'react-native';
 import type { WeightUnit } from '@/core/settings/schema';
 import { Button, Card, Icon, Text, colors } from '@/ui';
 
+import type { EffortScale } from '../effort';
 import { formatWeight } from '../format';
 import type { SetLogRow, SetPatch } from '../queries';
 import { SetRow } from './SetRow';
@@ -24,6 +25,8 @@ export interface ExerciseSessionCardProps {
   /** Last session's sets for this exercise (canonical kg), aligned by index. */
   previous?: { reps: number; weight: number }[];
   unit: WeightUnit;
+  /** Which effort scale (RPE/RIR) the set rows surface. */
+  effortScale: EffortScale;
   onAddSet: () => void;
   onUpdateSet: (id: number, patch: SetPatch) => void;
   onToggleSet: (id: number, completed: boolean) => void;
@@ -47,6 +50,7 @@ export function ExerciseSessionCard({
   sets,
   previous,
   unit,
+  effortScale,
   onAddSet,
   onUpdateSet,
   onToggleSet,
@@ -119,6 +123,7 @@ export function ExerciseSessionCard({
               set={set}
               displayNumber={workingNumbers[index] ?? 0}
               unit={unit}
+              effortScale={effortScale}
               // Prev cue aligns to the working-set ordinal (history is working
               // sets only) and never shows on a warm-up/drop row.
               previous={

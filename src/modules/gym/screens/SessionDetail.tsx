@@ -6,8 +6,14 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useSettings } from '@/core/settings/use-settings';
 import { Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 
-import { formatRpe, formatWeight } from '../format';
-import { useSessionSets, useSessionSummary, type SetLogRow } from '../queries';
+import { formatEffort } from '../effort';
+import { formatWeight } from '../format';
+import {
+  useEffortScale,
+  useSessionSets,
+  useSessionSummary,
+  type SetLogRow,
+} from '../queries';
 import { sessionLabel } from '../session-label';
 
 interface ExerciseGroup {
@@ -26,6 +32,7 @@ export function SessionDetail() {
   const session = useSessionSummary(sessionId);
   const { data: sets } = useSessionSets(sessionId);
   const { weightUnit } = useSettings();
+  const effortScale = useEffortScale();
 
   // Group the actually-completed sets by exercise, preserving insertion order.
   const groups = useMemo<ExerciseGroup[]>(() => {
@@ -137,7 +144,9 @@ export function SessionDetail() {
                       {set.reps} × {formatWeight(set.weight, weightUnit)}
                     </Text>
                     {set.rpe != null ? (
-                      <Text variant="muted">{formatRpe(set.rpe)}</Text>
+                      <Text variant="muted">
+                        {formatEffort(set.rpe, effortScale)}
+                      </Text>
                     ) : null}
                   </View>
                 ))}

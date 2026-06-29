@@ -7,6 +7,13 @@ import type { WeightUnit } from '@/core/settings/schema';
 import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { Icon, Text, cn, colors, glow } from '@/ui';
 
+import {
+  type EffortScale,
+  effortBounds,
+  effortInputValue,
+  effortLabel,
+  parseEffortInput,
+} from '../effort';
 import { formatWeight } from '../format';
 import type { SetLogRow, SetPatch, SetType } from '../queries';
 import { compareToPrevious } from '../set-comparison';
@@ -17,6 +24,8 @@ export interface SetRowProps {
   /** 1-based ordinal *among working sets* — shown on the badge for working sets. */
   displayNumber: number;
   unit: WeightUnit;
+  /** Which effort scale (RPE/RIR) the effort field reads and writes. */
+  effortScale: EffortScale;
   /** The matching set from the last session (canonical kg), if any. */
   previous?: { reps: number; weight: number };
   onUpdate: (id: number, patch: SetPatch) => void;
@@ -32,14 +41,6 @@ function toInt(value: string, fallback: number): number {
 function toFloat(value: string, fallback: number): number {
   const parsed = Number.parseFloat(value);
   return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-/** Empty input clears RPE; otherwise parse and clamp to the 1–10 scale. */
-function toRpe(value: string): number | null {
-  if (value.trim() === '') return null;
-  const parsed = Number.parseFloat(value);
-  if (Number.isNaN(parsed)) return null;
-  return Math.min(10, Math.max(1, parsed));
 }
 
 /** The set-type cycle order when tapping the badge; working is the default. */
@@ -77,6 +78,7 @@ function SetRowComponent({
   set,
   displayNumber,
   unit,
+  effortScale,
   previous,
   onUpdate,
   onToggle,
@@ -87,7 +89,8 @@ function SetRowComponent({
   const [weight, setWeight] = useState(
     String(toDisplayWeight(set.weight, unit)),
   );
-  const [rpe, setRpe] = useState(set.rpe != null ? String(set.rpe) : '');
+  // The field edits in the chosen effort scale; storage stays canonical RPE.
+  const [rpe, setRpe] = useState(effortInputValue(set.rpe, effortScale));
   const [duration, setDuration] = useState(
     set.durationSec != null ? String(set.durationSec) : '',
   );
@@ -203,6 +206,7 @@ function SetRowComponent({
               <RpeField
                 rpe={rpe}
                 setRpe={setRpe}
+                scale={effortScale}
                 onUpdate={onUpdate}
                 setId={set.id}
               />
@@ -222,6 +226,7 @@ function SetRowComponent({
               <RpeField
                 rpe={rpe}
                 setRpe={setRpe}
+                scale={effortScale}
                 onUpdate={onUpdate}
                 setId={set.id}
               />
@@ -251,6 +256,7 @@ function SetRowComponent({
               <RpeField
                 rpe={rpe}
                 setRpe={setRpe}
+                scale={effortScale}
                 onUpdate={onUpdate}
                 setId={set.id}
               />
@@ -313,6 +319,7 @@ function setRowPropsEqual(prev: SetRowProps, next: SetRowProps): boolean {
   if (
     prev.displayNumber !== next.displayNumber ||
     prev.unit !== next.unit ||
+    prev.effortScale !== next.effortScale ||
     prev.onUpdate !== next.onUpdate ||
     prev.onToggle !== next.onToggle ||
     prev.onDelete !== next.onDelete ||
@@ -339,40 +346,49 @@ function setRowPropsEqual(prev: SetRowProps, next: SetRowProps): boolean {
 /** Memoized so a commit re-renders only the changed row (see comparator). */
 export const SetRow = memo(SetRowComponent, setRowPropsEqual);
 
-/** The optional RPE field; sits inline on the number row, kept narrow since the
-    scale is only 1–10 so reps/weight keep the lion's share of the width. */
+/** The optional effort field (RPE or RIR); sits inline on the number row, kept
+    narrow since the scale is single-digit so reps/weight keep the width. The
+    field edits in the chosen scale; `onUpdate` always receives canonical RPE. */
 function RpeField({
   rpe,
   setRpe,
+  scale,
   onUpdate,
   setId,
 }: {
   rpe: string;
   setRpe: (text: string) => void;
+  scale: EffortScale;
   onUpdate: (id: number, patch: SetPatch) => void;
   setId: number;
 }) {
   const parsed = Number.parseFloat(rpe);
-  // Flag anything outside the 1–10 scale so the user sees it before it's
-  // silently clamped on blur.
+  // Flag anything outside the scale's range so the user sees it before it's
+  // silently clamped on blur (RPE 1–10, RIR 0–9).
+  const { min, max } = effortBounds(scale);
   const invalid =
-    rpe.trim() !== '' && (Number.isNaN(parsed) || parsed < 1 || parsed > 10);
+    rpe.trim() !== '' && (Number.isNaN(parsed) || parsed < min || parsed > max);
 
   function commit() {
-    const value = toRpe(rpe);
-    // Reflect the clamped value (e.g. 15 → 10) so the field shows what was kept.
-    setRpe(value == null ? '' : String(value));
+    const value = parseEffortInput(rpe, scale);
+    // Reflect the clamped value (e.g. RPE 15 → 10) so the field shows what was
+    // kept, converted back into the display scale.
+    setRpe(effortInputValue(value, scale));
     onUpdate(setId, { rpe: value });
   }
 
   return (
     <NumberField
       value={rpe}
-      placeholder="RPE"
+      placeholder={effortLabel(scale)}
       onChangeText={setRpe}
       onEndEditing={commit}
       invalid={invalid}
-      accessibilityLabel="RPE, rate of perceived exertion"
+      accessibilityLabel={
+        scale === 'rir'
+          ? 'RIR, reps in reserve'
+          : 'RPE, rate of perceived exertion'
+      }
       className="w-14"
     />
   );

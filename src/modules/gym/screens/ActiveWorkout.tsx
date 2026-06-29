@@ -45,6 +45,7 @@ import {
   setSetCompleted,
   updateSessionNotes,
   updateSet,
+  useEffortScale,
   useExercises,
   useProgramDayExercises,
   useRoutineExercises,
@@ -81,6 +82,7 @@ export function ActiveWorkout() {
   const { data: sets } = useSessionSets(sessionId);
   const { data: catalog } = useExercises();
   const { weightUnit } = useSettings();
+  const effortScale = useEffortScale();
   const startRest = useRestTimer((state) => state.start);
   const stopRest = useRestTimer((state) => state.stop);
   const setRestDuration = useRestTimer((state) => state.setDuration);
@@ -458,6 +460,7 @@ export function ActiveWorkout() {
               sets={setsByExercise.get(exercise.exerciseId) ?? []}
               previous={previousByExercise.get(exercise.exerciseId)}
               unit={weightUnit}
+              effortScale={effortScale}
               dragHandle={<DragHandle />}
               onAddSet={() => addSetTo(exercise.exerciseId)}
               onUpdateSet={updateSet}

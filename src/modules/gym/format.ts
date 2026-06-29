@@ -8,11 +8,6 @@ export function formatWeight(weightKg: number, unit: WeightUnit): string {
   return `${value} ${unit}`;
 }
 
-/** Render a set's logged RPE, or an empty string when none was recorded. */
-export function formatRpe(rpe: number | null): string {
-  if (rpe == null) return '';
-  return `RPE ${Number.isInteger(rpe) ? rpe : rpe.toFixed(1)}`;
-}
 
 /** Format a duration in milliseconds as `m:ss` (used by the rest timer). */
 export function formatDuration(ms: number): string {
