@@ -1,13 +1,8 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
-import {
-  NestedReorderableList,
-  type ReorderableListReorderEvent,
-  ScrollViewContainer,
-  reorderItems,
-} from 'react-native-reorderable-list';
+import { KeyboardAvoidingView, Platform } from 'react-native';
+import { ScrollViewContainer } from 'react-native-reorderable-list';
 
 import { useSettings } from '@/core/settings/use-settings';
 import {
@@ -104,6 +99,17 @@ export function ProgramEditor() {
     [],
   );
 
+  // Days reorder via up/down buttons (not drag): each day card already hosts a
+  // reorderable exercise list, and the library can't nest one inside another.
+  function moveDay(from: number, to: number) {
+    if (to < 0 || to >= days.length) return;
+    const ids = days.map((day) => day.id);
+    const [moved] = ids.splice(from, 1);
+    if (moved == null) return;
+    ids.splice(to, 0, moved);
+    reorderProgramDays(ids);
+  }
+
   function chooseScheme(option: SchemePreset) {
     if (pending == null) return;
     addProgramExercise({
@@ -174,42 +180,32 @@ export function ProgramEditor() {
               description="Add a training day, then fill it with lifts and how each progresses."
             />
           ) : (
-            <NestedReorderableList
-              data={days}
-              scrollable={false}
-              keyExtractor={(day) => String(day.id)}
-              onReorder={({ from, to }: ReorderableListReorderEvent) =>
-                reorderProgramDays(
-                  reorderItems(days, from, to).map((day) => day.id),
-                )
-              }
-              renderItem={({ item: day }) => (
-                // Bottom gap restores the inter-card spacing the content gap
-                // gave, and reads as the drop gap while dragging.
-                <View style={{ paddingBottom: 16 }}>
-                  <ProgramDaySection
-                    day={day}
-                    exercises={exercisesByDay.get(day.id) ?? []}
-                    unit={weightUnit}
-                    reorderable
-                    onRenameDay={(name) => renameProgramDay(day.id, name)}
-                    onDuplicateDay={() =>
-                      duplicateProgramDay(programId, day.id)
-                    }
-                    onRemoveDay={() => removeProgramDay(programId, day.id)}
-                    onAddExercise={() => setPickerDayId(day.id)}
-                    onSetWeight={setProgramExerciseWeight}
-                    onSetTrainingMax={setProgramExerciseTrainingMax}
-                    onSetE1rm={setProgramExerciseE1rm}
-                    onRemoveExercise={removeProgramExercise}
-                    onEditWave={openWaveEditor}
-                    onChangeScheme={updateProgramExerciseScheme}
-                    onReorderExercises={reorderProgramExercises}
-                    onUpdateSupersets={updateProgramSupersets}
-                  />
-                </View>
-              )}
-            />
+            days.map((day, index) => (
+              <ProgramDaySection
+                key={day.id}
+                day={day}
+                exercises={exercisesByDay.get(day.id) ?? []}
+                unit={weightUnit}
+                onRenameDay={(name) => renameProgramDay(day.id, name)}
+                onDuplicateDay={() => duplicateProgramDay(programId, day.id)}
+                onRemoveDay={() => removeProgramDay(programId, day.id)}
+                onAddExercise={() => setPickerDayId(day.id)}
+                onSetWeight={setProgramExerciseWeight}
+                onSetTrainingMax={setProgramExerciseTrainingMax}
+                onSetE1rm={setProgramExerciseE1rm}
+                onRemoveExercise={removeProgramExercise}
+                onEditWave={openWaveEditor}
+                onChangeScheme={updateProgramExerciseScheme}
+                onReorderExercises={reorderProgramExercises}
+                onUpdateSupersets={updateProgramSupersets}
+                onMoveUp={index > 0 ? () => moveDay(index, index - 1) : null}
+                onMoveDown={
+                  index < days.length - 1
+                    ? () => moveDay(index, index + 1)
+                    : null
+                }
+              />
+            ))
           )}
 
           {pending ? (
