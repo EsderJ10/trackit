@@ -13,41 +13,26 @@ import {
 } from './types';
 
 /**
- * The identity seam. v1 is a purely-local account: one username/email + password
- * account per device, hashed on-device. The core only ever talks to this
- * interface — a cloud provider (Supabase/Clerk) can be dropped in later by
- * implementing `AccountBackend` without touching the login UI or session store.
- *
- * This is the IDENTITY counterpart to `backend.ts`'s `AuthBackend`, which owns
- * the orthogonal device LOCK (PIN/biometric). Password establishes who you are;
- * the lock is a fast re-unlock for the already-logged-in user.
+ * Identity seam (IDENTITY counterpart to `backend.ts`'s device-LOCK `AuthBackend`).
+ * v1 is local-only: one account per device, hashed on-device. A cloud provider
+ * (Supabase/Clerk) can implement this without touching login UI or session store.
  */
 export interface AccountBackend {
-  /** Whether an account has been created on this device. */
   hasAccount(): Promise<boolean>;
-  /** The signed-in user id, or null when logged out. Persists across restarts. */
+  /** Signed-in user id, or null when logged out. Persists across restarts. */
   getSessionUserId(): Promise<string | null>;
-  /** Create the device's account and start a session. */
   register(input: RegisterInput): Promise<User>;
-  /** Verify credentials and start a session. */
   login(input: LoginInput): Promise<User>;
-  /** End the session (keeps the account and all data). */
   logout(): Promise<void>;
-  /** Replace the password after verifying the current one. */
   changePassword(input: { current: string; next: string }): Promise<void>;
-  /** The signed-in user's profile, or null when logged out. */
   getUser(): Promise<User | null>;
 }
 
 const CREDENTIAL_KEY = 'trackit.account.v1';
 const SESSION_KEY = 'trackit.session.v1';
 
-/**
- * SHA-256 stretching rounds. expo-crypto exposes no PBKDF2/bcrypt, so we iterate
- * a salted digest (the PIN lock does a single round; a password is higher-value
- * so we stretch). Kept modest so register/login stay responsive on-device — real
- * KDF-grade hashing is a concern for the future cloud backend, not this local gate.
- */
+// expo-crypto has no PBKDF2/bcrypt, so stretch a salted SHA-256. Modest count to
+// stay responsive on-device — real KDF hashing is the future cloud backend's job.
 const HASH_ROUNDS = 600;
 
 interface StoredCredential {
@@ -86,7 +71,6 @@ async function readCredential(): Promise<StoredCredential | null> {
   return raw ? (JSON.parse(raw) as StoredCredential) : null;
 }
 
-/** Local-only implementation: profile in SQLite, salted+stretched hash in SecureStore. */
 class LocalAccountBackend implements AccountBackend {
   async hasAccount(): Promise<boolean> {
     return (await readCredential()) !== null;

@@ -43,7 +43,6 @@ function toFloat(value: string, fallback: number): number {
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 
-/** The set-type cycle order when tapping the badge; working is the default. */
 const SET_TYPE_CYCLE: readonly SetType[] = [
   'working',
   'warmup',
@@ -51,7 +50,6 @@ const SET_TYPE_CYCLE: readonly SetType[] = [
   'failure',
 ];
 
-/** Glanceable badge per set-type: a letter + accent so the type reads at a glance. */
 function setTypeBadge(
   setType: SetType,
   workingNumber: number,

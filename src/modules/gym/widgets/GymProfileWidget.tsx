@@ -11,7 +11,6 @@ import { MuscleVolumeBars } from '../components/MuscleVolumeBars';
 import { formatWeight } from '../format';
 import { useExercisePRs, useGymProfileStats, useWeeklyGoal } from '../queries';
 
-/** Compact thousands formatting (e.g. 12.4k) for big lifetime counters. */
 function compact(n: number): string {
   if (n < 1000) return String(n);
   return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;

@@ -26,22 +26,13 @@ import { DEFAULT_BAR } from '../plate-math';
 import { supersetBadges } from '../supersets';
 import { warmupSets } from '../warmup';
 import {
-  detectPRs,
-  type ExerciseBests,
-  foldBests,
-  prMessage,
-} from '../pr-detect';
-import {
   addSet,
   addWarmupSets,
   deleteExerciseSets,
   deleteSetLog,
   finishWorkout,
   getDefaultRestSec,
-  getExerciseBests,
   getLastPerformance,
-  reorderProgramExercises,
-  reorderRoutineExercises,
   seedExerciseSets,
   setSetCompleted,
   updateSessionNotes,
@@ -59,6 +50,8 @@ import {
   ensureRestPermissions,
 } from '../rest-notifications';
 import { useRestTimer } from '../rest-timer-store';
+import { useExerciseReorder } from '../hooks/use-exercise-reorder';
+import { usePRCelebration } from '../hooks/use-pr-celebration';
 
 interface DisplayExercise {
   exerciseId: number;
@@ -74,8 +67,7 @@ export function ActiveWorkout() {
   const router = useRouter();
 
   const session = useSession(sessionId);
-  // 0 never matches an autoincrement id, so these yield no rows when the session
-  // isn't routine- / program-based. A session is one or the other, never both.
+  // 0 never matches an autoincrement id; a session is routine- OR program-based.
   const { data: plan } = useRoutineExercises(session?.routineId ?? 0);
   const { data: programPlan } = useProgramDayExercises(
     session?.programDayId ?? 0,
@@ -88,9 +80,6 @@ export function ActiveWorkout() {
   const stopRest = useRestTimer((state) => state.stop);
   const setRestDuration = useRestTimer((state) => state.setDuration);
 
-  // Set up the rest-timer notification channel/handler, request permission once
-  // (contextually, on entering a workout), and hydrate the timer's default
-  // length from the persisted setting.
   useEffect(() => {
     configureRestNotifications();
     void ensureRestPermissions();
@@ -99,33 +88,20 @@ export function ActiveWorkout() {
 
   const [extraIds, setExtraIds] = useState<number[]>([]);
   const [removedIds, setRemovedIds] = useState<number[]>([]);
-  // A session-local exercise order (by exerciseId). Null until the user drags;
-  // once set, it overrides the plan order for this workout only — the saved
-  // program/routine is touched only if they confirm on finish.
-  const [orderOverride, setOrderOverride] = useState<number[] | null>(null);
+  // Drag order overrides plan order session-local; persisted only on confirm.
+  const { orderOverride, applyReorder, planOrderChanged, persistPlanOrder } =
+    useExerciseReorder({ plan, programPlan, session });
   const [pickerOpen, setPickerOpen] = useState(false);
-  // Live PR celebration: the current banner message (cleared on a timer) and the
-  // per-exercise all-time bests, fetched lazily and folded as sets complete.
-  const [prMsg, setPrMsg] = useState<string | null>(null);
-  const bestsRef = useRef(new Map<number, ExerciseBests>());
+  const { prMsg, celebrate } = usePRCelebration();
   // Plate calculator target, in the display unit (null = closed).
   const [plateTarget, setPlateTarget] = useState<number | null>(null);
 
-  // Latest live sets, read by the stable `toggleSet` below without closing over
-  // `sets` (which changes identity every commit) — so the handler passed down to
-  // every memoized SetRow stays referentially stable and rows don't all re-render.
-  // Synced in an effect (not during render) so the ref write is commit-safe; the
-  // ref is only read later from the toggle handler, well after commit.
+  // Stable toggleSet reads sets from this ref (not a closure) so memoized rows
+  // don't all re-render; synced in an effect so the write is commit-safe.
   const setsRef = useRef(sets);
   useEffect(() => {
     setsRef.current = sets;
   }, [sets]);
-
-  useEffect(() => {
-    if (prMsg == null) return;
-    const timer = setTimeout(() => setPrMsg(null), 2800);
-    return () => clearTimeout(timer);
-  }, [prMsg]);
 
   const catalogById = useMemo(
     () => new Map(catalog.map((exercise) => [exercise.id, exercise])),
@@ -139,8 +115,8 @@ export function ActiveWorkout() {
       list.push(set);
       map.set(set.exerciseId, list);
     }
-    // Float warm-ups to the top of each exercise (stable within each group), so a
-    // warm-up generated after the working sets still reads as the ramp-up.
+    // Float warm-ups to the top of each exercise so a warm-up added after the
+    // working sets still reads as the ramp-up.
     for (const list of map.values()) {
       list.sort((a, b) => {
         const aw = a.setType === 'warmup' ? 0 : 1;
@@ -161,9 +137,8 @@ export function ActiveWorkout() {
       });
     }
     for (const row of programPlan) {
-      // lp/dp have a single working weight worth summarising; percent/rpe carry
-      // their load per set (already pre-filled), so a one-line target would be
-      // misleading — let the set rows speak instead.
+      // Only lp/dp have a single summarisable working weight; percent/rpe carry
+      // per-set load already, so let the set rows speak for those.
       if (row.schemeType === 'lp' || row.schemeType === 'dp') {
         map.set(row.exerciseId, {
           sets: row.targetSets,
@@ -175,8 +150,7 @@ export function ActiveWorkout() {
     return map;
   }, [plan, programPlan]);
 
-  // The working weight to seed plate/warm-up tools: the heaviest working set, or
-  // the exercise's target, in canonical kg.
+  // Seed weight (kg) for plate/warm-up tools: heaviest working set, else target.
   function workWeightKg(exerciseId: number): number {
     const logged = setsByExercise.get(exerciseId) ?? [];
     const heaviest = logged
@@ -195,7 +169,6 @@ export function ActiveWorkout() {
     );
   }
 
-  // Program suggestion rationale, surfaced under each exercise's target.
   const reasonByExercise = useMemo(() => {
     const map = new Map<number, string>();
     for (const row of programPlan) {
@@ -204,8 +177,7 @@ export function ActiveWorkout() {
     return map;
   }, [programPlan]);
 
-  // Superset labels (A1, B2, …), keyed by exercise. A session is routine- OR
-  // program-based, so only one plan is populated; apply badges to both.
+  // Superset labels (A1, B2, …) by exercise; only one plan is populated.
   const supersetByExercise = useMemo(() => {
     const map = new Map<number, string>();
     const apply = (
@@ -244,8 +216,7 @@ export function ActiveWorkout() {
       });
     }
     if (orderOverride == null) return list;
-    // Apply the user's drag order; exercises added after the last drag aren't
-    // in the override, so they fall (stably) to the end of the list.
+    // Apply drag order; exercises added after the last drag fall stably to the end.
     const rank = new Map(orderOverride.map((id, index) => [id, index]));
     return [...list].sort(
       (a, b) =>
@@ -263,9 +234,7 @@ export function ActiveWorkout() {
     orderOverride,
   ]);
 
-  // Last session's sets per exercise, to show "prev 5 × 80 kg" + a beat-it cue
-  // beside each input. Prior finished sessions don't change mid-workout, so this
-  // is a plain (non-reactive) read keyed on the exercise set, not the live sets.
+  // Prior sessions don't change mid-workout, so key on the exercise set, not live sets.
   const exerciseIdsKey = displayExercises
     .map((exercise) => exercise.exerciseId)
     .join(',');
@@ -276,6 +245,7 @@ export function ActiveWorkout() {
       if (prev.length > 0) map.set(exercise.exerciseId, prev);
     }
     return map;
+    // displayExercises folded into exerciseIdsKey; intentionally non-reactive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseIdsKey, sessionId]);
 
@@ -312,61 +282,19 @@ export function ActiveWorkout() {
   }
 
   function handleReorder({ from, to }: ReorderableListReorderEvent) {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setOrderOverride(
+    applyReorder(
       reorderItems(displayExercises, from, to).map((ex) => ex.exerciseId),
     );
   }
 
-  // The plan's exercises (routine or program — a session is one or the other)
-  // as {row id, exerciseId}, in their saved order. Used to offer "save the new
-  // order" on finish; extra/removed exercises aren't part of the saved plan.
-  const planSlots = useMemo(
-    () =>
-      (plan.length > 0 ? plan : programPlan).map((row) => ({
-        id: row.id,
-        exerciseId: row.exerciseId,
-      })),
-    [plan, programPlan],
-  );
-
-  // Those same plan slots, sorted into the user's current display order.
-  function planSlotsInDisplayOrder() {
-    if (orderOverride == null) return planSlots;
-    const rank = new Map(orderOverride.map((id, index) => [id, index]));
-    return [...planSlots].sort(
-      (a, b) =>
-        (rank.get(a.exerciseId) ?? Number.POSITIVE_INFINITY) -
-        (rank.get(b.exerciseId) ?? Number.POSITIVE_INFINITY),
-    );
-  }
-
-  // Has the drag actually moved a *plan* exercise (vs. only extras)?
-  function planOrderChanged(): boolean {
-    if (orderOverride == null || planSlots.length === 0) return false;
-    const reordered = planSlotsInDisplayOrder();
-    return planSlots.some((slot, index) => reordered[index]?.id !== slot.id);
-  }
-
-  function persistPlanOrder() {
-    const ids = planSlotsInDisplayOrder().map((slot) => slot.id);
-    if (session?.routineId != null) reorderRoutineExercises(ids);
-    else if (session?.programDayId != null) reorderProgramExercises(ids);
-  }
-
   function commitFinish() {
-    // Clear any in-flight rest so its "rest over" notification can't fire after
-    // the workout's done (common path: complete last set → tap Finish).
+    // Clear in-flight rest so its "rest over" notification can't fire post-finish.
     stopRest();
     finishWorkout(sessionId);
-    // Cross-navigator hop: collapse the gym stack and select the History tab.
-    // `navigate` pops back to the existing tab (and drops the finished workout
-    // from the back stack) — `replace`/`push` would mis-stack across navigators.
+    // Cross-navigator hop: `navigate` pops back to the History tab; replace/push mis-stack.
     router.navigate('/history');
   }
 
-  // If the user reordered plan exercises, offer to save that order back to the
-  // program/routine before finishing; otherwise the reorder stays session-local.
   function finishWithOrderPrompt() {
     if (!planOrderChanged()) {
       commitFinish();
@@ -390,8 +318,7 @@ export function ActiveWorkout() {
   }
 
   function finish() {
-    // Warn before finishing if any logged sets are still unchecked — finishing
-    // is irreversible from here, and incomplete sets are easy to overlook.
+    // Warn on unchecked sets before the irreversible finish.
     const incomplete = displayExercises.reduce(
       (n, ex) =>
         n +
@@ -428,34 +355,13 @@ export function ActiveWorkout() {
     (id: number, completed: boolean) => {
       setSetCompleted(id, completed);
       if (!completed) return;
-      // Checking off a set kicks off the between-sets rest countdown + a tap.
       startRest();
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Live PR check — working sets only; warmups/drops/timed-vs-load never PR.
       const set = setsRef.current.find((s) => s.id === id);
-      if (set == null || set.setType !== 'working') return;
-      const candidate = {
-        reps: set.reps,
-        weightKg: set.weight,
-        durationSec: set.durationSec,
-        measurementKind: set.measurementKind,
-      };
-      let bests = bestsRef.current.get(set.exerciseId);
-      if (bests == null) {
-        bests = getExerciseBests(set.exerciseId);
-      }
-      const kinds = detectPRs(candidate, bests);
-      // Fold the set in so the same record can't re-fire on a repeat tap.
-      bestsRef.current.set(set.exerciseId, foldBests(bests, candidate));
-      if (kinds.length > 0) {
-        void Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success,
-        );
-        setPrMsg(prMessage(set.exerciseName, kinds));
-      }
+      if (set != null) celebrate(set);
     },
-    [startRest],
+    [startRest, celebrate],
   );
 
   return (
@@ -469,8 +375,7 @@ export function ActiveWorkout() {
         contentContainerStyle={{ padding: 20 }}
         onReorder={handleReorder}
         renderItem={({ item: exercise }) => (
-          // Spacing baked into the cell (not a content gap) so the drag library's
-          // offset math stays exact; reads as the drop gap while dragging.
+          // Spacing baked into the cell (not a content gap) so the drag offset math stays exact.
           <View style={{ paddingBottom: 16 }}>
             <ExerciseSessionCard
               name={exercise.name}

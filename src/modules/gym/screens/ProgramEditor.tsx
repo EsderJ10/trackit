@@ -46,7 +46,7 @@ import {
   type ProgramSchemeChoice,
 } from '../queries';
 
-// Default starting weight (canonical kg) — the user adjusts it per exercise.
+// Default starting weight (canonical kg); adjusted per exercise.
 const DEFAULT_START_KG = 20;
 
 const SCHEMES: { label: string; scheme: ProgramSchemeChoice; reps?: number }[] =
@@ -72,14 +72,12 @@ const SCHEMES: { label: string; scheme: ProgramSchemeChoice; reps?: number }[] =
     },
   ];
 
-/** The exercise awaiting a scheme choice, tagged with the day it belongs to. */
 interface Pending {
   dayId: number;
   exerciseId: number;
   name: string;
 }
 
-/** The slot whose periodization wave is being edited. */
 interface WaveTarget {
   programExerciseId: number;
   name: string;
@@ -97,10 +95,8 @@ export function ProgramEditor() {
   const { data: exercises } = useProgramExercises(programId);
   const { weightUnit } = useSettings();
 
-  // Which day's picker is open, and the exercise awaiting a scheme choice.
   const [pickerDayId, setPickerDayId] = useState<number | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
-  // The slot whose periodization wave is open in the editor modal.
   const [waveTarget, setWaveTarget] = useState<WaveTarget | null>(null);
 
   const exercisesByDay = useMemo(() => {
@@ -113,8 +109,7 @@ export function ProgramEditor() {
     return map;
   }, [exercises]);
 
-  // Stable so the memoized program-exercise rows don't re-render when an
-  // unrelated slot is edited (setWaveTarget is a stable state setter).
+  // Stable so memoized rows don't re-render when an unrelated slot is edited.
   const openWaveEditor = useCallback(
     (programExerciseId: number, name: string) => {
       setWaveTarget({ programExerciseId, name });
@@ -138,7 +133,7 @@ export function ProgramEditor() {
 
   function remove() {
     deleteProgram(programId);
-    // Land on the programs list, never back on the now-deleted roadmap.
+    // replace, not back: avoid landing on the now-deleted roadmap.
     router.replace('/modules/gym/programs');
   }
 

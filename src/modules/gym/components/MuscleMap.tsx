@@ -9,7 +9,6 @@ import { muscleLabel } from '../muscles';
 import { bodyBack, bodyFront, type BodyPart } from './body-data';
 import { MUSCLE_SLUG } from './muscle-slugs';
 
-/** How brightly a body region is painted. */
 type Intensity = 'primary' | 'secondary' | 'base';
 
 // Both silhouettes are authored in one 1448-wide canvas (see body-data); each
@@ -18,7 +17,7 @@ const VIEW_BOX: Readonly<Record<MuscleView, string>> = {
   front: '0 0 724 1448',
   back: '724 0 724 1448',
 };
-const ASPECT = 724 / 1448; // width / height
+const ASPECT = 724 / 1448;
 
 const FILL: Readonly<Record<Intensity, { fill: string; opacity: number }>> = {
   primary: { fill: colors.gym, opacity: 1 },
@@ -26,10 +25,8 @@ const FILL: Readonly<Record<Intensity, { fill: string; opacity: number }>> = {
   base: { fill: colors.surfaceHi, opacity: 1 },
 };
 
-/**
- * Build the slug → intensity map for one view. Secondary is laid down first so a
- * muscle tagged primary always wins when the two overlap on the same slug.
- */
+// Secondary is laid first so a muscle tagged primary always wins when the two
+// overlap on the same slug.
 function highlightFor(
   view: MuscleView,
   primary: readonly Muscle[],
@@ -54,7 +51,6 @@ interface BodyViewProps {
   height: number;
 }
 
-/** One silhouette (front or back) with its worked muscles painted. */
 function BodyView({ parts, view, highlight, height }: BodyViewProps) {
   return (
     <Svg width={height * ASPECT} height={height} viewBox={VIEW_BOX[view]}>
@@ -122,12 +118,7 @@ export interface MuscleMapProps {
   className?: string;
 }
 
-/**
- * Anatomy diagram: front + back silhouettes with the worked muscles glowing in
- * the gym accent (primary bright, secondary dim). Fully offline — the geometry
- * is bundled (see body-data) and nothing fetches at runtime. Untagged exercises
- * still render the plain silhouette.
- */
+/** Front + back silhouettes with worked muscles glowing in the gym accent. */
 export function MuscleMap({
   primary,
   secondary = [],

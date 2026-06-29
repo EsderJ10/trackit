@@ -4,40 +4,46 @@ import { accountBackend } from './account-backend';
 import type { User } from './types';
 
 interface SessionState {
-  /** True once the initial session has been resolved (read from SecureStore). */
   initialized: boolean;
-  /** Whether an account exists on this device at all (drives login vs register). */
+  /** Whether an account exists on this device (drives login vs register). */
   hasAccount: boolean;
-  /** The signed-in user, or null when logged out. */
   user: User | null;
-  /** Resolve the persisted session on startup so the app reopens logged-in. */
   init: () => Promise<void>;
-  /** Adopt a freshly authenticated user (after register/login). */
   setUser: (user: User) => void;
-  /** End the session and return to the logged-out state. */
   logout: () => Promise<void>;
 }
 
-/**
- * Identity/session state. Lives in Zustand (not the DB) because it is
- * runtime-only — the durable account profile is in SQLite and the credential is
- * in SecureStore via `accountBackend`. Kept separate from the lock `auth-store`:
- * identity (who you are) and the device lock (fast re-unlock) are two seams.
- */
+// Runtime-only session state, separate from the lock `auth-store`: identity and
+// the device lock are two distinct seams. Durable profile in SQLite, credential
+// in SecureStore via `accountBackend`.
 export const useSessionStore = create<SessionState>((set) => ({
   initialized: false,
   hasAccount: false,
   user: null,
   init: async () => {
-    const [hasAccount, user] = await Promise.all([
-      accountBackend.hasAccount(),
-      accountBackend.getUser(),
-    ]);
-    set({ initialized: true, hasAccount, user });
+    try {
+      const [hasAccount, user] = await Promise.all([
+        accountBackend.hasAccount(),
+        accountBackend.getUser(),
+      ]);
+      set({ initialized: true, hasAccount, user });
+    } catch (err) {
+      // Never strand the splash gate (`initialized` drives it): fall back to
+      // logged-out/no-account so the user can still reach register/login.
+      console.error('[session-store] init failed', err);
+      set({ initialized: true, hasAccount: false, user: null });
+    }
   },
   setUser: (user) => set({ user, hasAccount: true }),
   logout: async () => {
-    await accountBackend.logout();
-    set({ user: null });
+    try {
+      await accountBackend.logout();
+    } catch (err) {
+      // Clear local state regardless so a failed credential wipe can't strand
+      // the user in the session.
+      console.error('[session-store] logout failed', err);
+    } finally {
+      set({ user: null });
+    }
   },
 }));

@@ -3,19 +3,13 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 
 /**
- * The authentication seam. v1 is a purely-local PIN + biometric lock, but the
- * core only ever talks to this interface — a cloud provider (Supabase/Clerk)
- * can be dropped in later by implementing `AuthBackend` without touching the
- * lock UI or the store.
+ * Device-lock seam (PIN + biometric). v1 is local-only; a cloud provider can
+ * implement this without touching the lock UI or store.
  */
 export interface AuthBackend {
-  /** Whether an app-lock PIN has been configured. */
   isLockEnabled(): Promise<boolean>;
-  /** Set (or replace) the app-lock PIN. */
   setPin(pin: string): Promise<void>;
-  /** Remove the app lock entirely. */
   clearLock(): Promise<void>;
-  /** Check a PIN against the stored credential. */
   verifyPin(pin: string): Promise<boolean>;
   /** Whether device biometrics are available and enrolled. */
   canUseBiometrics(): Promise<boolean>;
@@ -41,7 +35,6 @@ async function hashPin(pin: string, salt: string): Promise<string> {
   );
 }
 
-/** Local-only implementation: salted SHA-256 PIN in SecureStore + biometrics. */
 class LocalAuthBackend implements AuthBackend {
   async isLockEnabled(): Promise<boolean> {
     return (await SecureStore.getItemAsync(LOCK_KEY)) !== null;

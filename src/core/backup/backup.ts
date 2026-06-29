@@ -9,14 +9,11 @@ import {
   serializeBackup,
 } from './format';
 
-/**
- * Tables excluded from backups:
- * - `users` — identity. The credential (salt+hash) lives in SecureStore, not the
- *   DB, so restoring a stale profile row onto a fresh install can't re-create a
- *   login and its UNIQUE username would block re-registering. Tracking data is
- *   not user-scoped, so it restores under whatever account exists on the device.
- * - `__drizzle_migrations` / `sqlite_%` — engine + migration bookkeeping.
- */
+// Excluded from backups:
+// - `users` — credential lives in SecureStore, so a restored profile can't re-create
+//   a login and its UNIQUE username would block re-registering. Tracking data isn't
+//   user-scoped, so it restores under whatever account exists on the device.
+// - `__drizzle_migrations` / `sqlite_%` — engine + migration bookkeeping.
 const EXCLUDED_TABLES = new Set(['users', '__drizzle_migrations']);
 
 /** The latest applied migration tag; a backup only restores onto a matching one. */
@@ -33,7 +30,6 @@ function backedUpTableNames(): string[] {
     .sort();
 }
 
-/** Dump every backed-up table to a versioned JSON envelope. */
 export function exportBackup(now: number): string {
   const tables: BackupTables = {};
   for (const name of backedUpTableNames()) {
@@ -51,11 +47,10 @@ export type RestoreResult =
   | { ok: false; error: string };
 
 /**
- * Replace all tracking/preference data with a backup's contents. Validates
- * first (schema-version gated), then wipes and re-inserts inside a transaction.
- * FK enforcement is toggled OFF around it — the pragma is a no-op mid-transaction
- * in SQLite, so it's set outside, and a `finally` guarantees it's restored even
- * if the transaction throws.
+ * Replace all tracking data with a backup (schema-version gated), wiping and
+ * re-inserting in one transaction. FK enforcement is toggled OFF *outside* the
+ * transaction (the pragma is a no-op mid-transaction in SQLite); `finally`
+ * restores it even if the transaction throws.
  */
 export function restoreBackup(json: string): RestoreResult {
   const parsed = parseBackup(json, SCHEMA_VERSION);
@@ -94,8 +89,7 @@ function insertRow(table: string, row: BackupRow): void {
   if (columns.length === 0) return;
   const columnList = columns.map((column) => `"${column}"`).join(', ');
   const placeholders = columns.map(() => '?').join(', ');
-  // Insert explicit ids (not autoincrement) so the restored rows keep the FK
-  // relationships the backup captured.
+  // Explicit ids (not autoincrement) so restored rows keep their FK relationships.
   const values: SqlValue[] = columns.map((column) => row[column] ?? null);
   sqlite.runSync(
     `INSERT INTO "${table}" (${columnList}) VALUES (${placeholders})`,

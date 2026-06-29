@@ -8,13 +8,17 @@ export function formatWeight(weightKg: number, unit: WeightUnit): string {
   return `${value} ${unit}`;
 }
 
-
 /** Format a duration in milliseconds as `m:ss` (used by the rest timer). */
 export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/** Format a rest interval given in seconds as `m:ss`. */
+export function formatRestSeconds(sec: number): string {
+  return formatDuration(sec * 1000);
 }
 
 /** Compact relative date for workout history. */

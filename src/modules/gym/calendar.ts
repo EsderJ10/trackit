@@ -1,6 +1,5 @@
-// Pure calendar helpers for the history month view. DB/native-free so they
-// unit-test directly, like `streak` (whose Monday-week + day-key helpers these
-// build on). All dates are local-time; weeks are Monday-first to match `streak`.
+// Pure calendar helpers for the history month view. Dates are local-time; weeks
+// are Monday-first to match `streak` (whose helpers these build on).
 
 import { dayKey, startOfWeek } from './streak';
 
@@ -20,9 +19,8 @@ export function addMonths(d: Date, n: number): Date {
 }
 
 /**
- * Six Monday-first weeks of dates covering `month` plus the leading/trailing
- * days needed to fill whole weeks. A fixed 6×7 grid keeps the calendar's height
- * stable across months; callers dim days whose month differs from `month`.
+ * Six Monday-first weeks covering `month` plus leading/trailing fill days. The
+ * fixed 6×7 grid keeps height stable; callers dim days outside `month`.
  */
 export function monthGrid(month: Date): Date[][] {
   const gridStart = startOfWeek(startOfMonth(month));

@@ -1,7 +1,6 @@
-// Pure superset grouping logic for routine templates. DB/native-free so it
-// unit-tests directly. A `supersetGroup` is an opaque per-routine id shared by
-// exercises performed back-to-back; rows sharing one (with ≥2 members) form a
-// superset, labeled A/B/… in order of first appearance.
+// Pure superset grouping for routine templates. A `supersetGroup` is an opaque id
+// shared by back-to-back exercises; rows sharing one (≥2 members) form a superset,
+// labeled A/B/… in order of first appearance.
 
 export interface SupersetRow {
   id: number;
@@ -22,11 +21,7 @@ export interface SupersetUpdate {
   supersetGroup: number | null;
 }
 
-/**
- * Badges for rows that belong to a real superset (group of ≥2), keyed by row id.
- * Singleton groups are ignored (a lone exercise isn't a superset). Letters are
- * assigned by the order groups first appear in `rows`.
- */
+/** Badges keyed by row id for rows in a real superset (group of ≥2); singletons ignored. */
 export function supersetBadges(
   rows: SupersetRow[],
 ): Map<number, SupersetBadge> {
@@ -60,11 +55,9 @@ export function supersetBadges(
 }
 
 /**
- * Link the row at `index` into a superset with the row above it. Joins the
- * previous row's group when it has one, otherwise creates a new group for both —
- * keyed by the previous row's id, which is a globally unique row PK, so group
- * ids never collide across days/programs. Returns the updates to persist (empty
- * for `index <= 0`).
+ * Link the row at `index` into a superset with the row above it: joins the prev
+ * row's group, else creates one keyed by the prev row's id (a globally unique PK,
+ * so group ids never collide). Returns updates to persist (empty for `index <= 0`).
  */
 export function linkWithPrevious(
   rows: SupersetRow[],

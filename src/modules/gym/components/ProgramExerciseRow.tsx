@@ -36,7 +36,6 @@ export interface ProgramExerciseRowProps {
   reorderable?: boolean;
 }
 
-/** One-line summary of the progression rule, e.g. "Double · 3 × 8–12 · +2.5 kg". */
 function schemeSummary(row: ProgramExerciseRowData, unit: WeightUnit): string {
   const step = `+${formatWeight(row.incrementKg, unit)}`;
   switch (row.schemeType) {
@@ -77,7 +76,6 @@ function anchorFor(row: ProgramExerciseRowData): {
   };
 }
 
-/** Editable program-template row: scheme summary, anchor weight, next-up hint. */
 function ProgramExerciseRowComponent({
   row,
   unit,

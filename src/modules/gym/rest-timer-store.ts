@@ -26,16 +26,11 @@ interface RestTimerState {
 }
 
 /**
- * The between-sets rest timer. Lives in Zustand — the countdown is ephemeral,
- * runtime-only UI state. Storing an absolute `endsAt` (rather than a decrementing
- * counter) means it survives re-renders and background/foreground transitions.
- *
- * Two durable side effects hang off the timer's lifecycle and are coordinated
- * here so there is one owner: a scheduled LOCAL notification (the "rest over"
- * alert that fires even when the app is backgrounded — see `rest-notifications`)
- * and the persisted default length (the ±30s controls "stick" — see
- * `setDefaultRestSec`). `endsAt` is always set synchronously so the bar appears
- * instantly; the async schedule patches `notificationId` when it resolves.
+ * The between-sets rest timer (ephemeral Zustand state). An absolute `endsAt`
+ * (not a decrementing counter) survives re-renders and background transitions.
+ * Two durable side effects are coordinated here so there's one owner: the LOCAL
+ * "rest over" notification and the persisted default length. `endsAt` is set
+ * synchronously (bar appears instantly); the async schedule patches `notificationId`.
  */
 export const useRestTimer = create<RestTimerState>((set, get) => ({
   durationMs: DEFAULT_REST_MS,
@@ -50,8 +45,7 @@ export const useRestTimer = create<RestTimerState>((set, get) => ({
     const endsAt = Date.now() + durationMs;
     set({ endsAt, notificationId: null });
     void scheduleRestEnd(Math.round(durationMs / 1000)).then((id) => {
-      // A skip/restart may have landed before this resolved — only keep the id
-      // if it still belongs to this rest, else cancel the now-orphaned alert.
+      // Keep the id only if this rest is still current, else cancel the orphan.
       if (get().endsAt === endsAt) set({ notificationId: id });
       else void cancelRestEnd(id);
     });
@@ -74,9 +68,8 @@ export const useRestTimer = create<RestTimerState>((set, get) => ({
   },
 
   stop: () => {
-    // Always cancel: an early skip suppresses the alert before it fires; a
-    // natural completion only reaches here at-or-after `endsAt`, by when the OS
-    // has already delivered, so the cancel is a harmless no-op.
+    // Always cancel: suppresses an early skip; a natural completion's alert has
+    // already fired by `endsAt`, so the cancel is then a harmless no-op.
     void cancelRestEnd(get().notificationId);
     set({ endsAt: null, notificationId: null });
   },

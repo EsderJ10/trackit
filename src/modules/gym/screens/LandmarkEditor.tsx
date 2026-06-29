@@ -113,7 +113,7 @@ function LandmarkRow({
 export function LandmarkEditor() {
   const landmarks = useMuscleLandmarks();
 
-  // Show the canonical muscle order first, then any custom groups, alphabetical.
+  // Canonical muscle order first, then custom groups alphabetically.
   const defaultOrder = Object.keys(DEFAULT_MUSCLE_LANDMARKS);
   const extras = [...landmarks.keys()]
     .filter((m) => !defaultOrder.includes(m))
@@ -144,8 +144,8 @@ export function LandmarkEditor() {
       >
         <Text variant="muted">
           Weekly working sets per muscle. These are research-backed starting
-          points — tune them to your own recovery. Bands always stay ordered
-          MV ≤ MEV ≤ MAV ≤ MRV.
+          points — tune them to your own recovery. Bands always stay ordered MV
+          ≤ MEV ≤ MAV ≤ MRV.
         </Text>
 
         {muscles.map((muscle) => {

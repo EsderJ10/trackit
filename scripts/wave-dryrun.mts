@@ -154,7 +154,10 @@ assert(weekRpe(4) === 10, `wave week 4 prescribes RPE 10 (got ${weekRpe(4)})`);
 // Returns { newAnchor, oldAnchor } — NEW uses the per-week prescribed RPE, OLD
 // uses the fixed target (the bug). Logs the prescribed weights with rpe = NULL
 // (the common pre-fill path), exactly as the app does.
-function runWeek(weekIndex: number, anchorIn: number): { neu: number; alt: number } {
+function runWeek(
+  weekIndex: number,
+  anchorIn: number,
+): { neu: number; alt: number } {
   const sessionId = run(
     `INSERT INTO workout_sessions (program_id, program_week_index, program_day_index, program_day_id)
      VALUES (?, ?, 0, ?)`,
@@ -184,7 +187,12 @@ function runWeek(weekIndex: number, anchorIn: number): { neu: number; alt: numbe
         intensityValue: p.intensity_value,
         amrap: p.amrap === 1,
       },
-      { currentWeightKg: 0, trainingMaxKg: null, e1rmKg: anchorIn, stepKg: STEP },
+      {
+        currentWeightKg: 0,
+        trainingMaxKg: null,
+        e1rmKg: anchorIn,
+        stepKg: STEP,
+      },
     );
     run(
       `INSERT INTO set_logs
@@ -200,7 +208,12 @@ function runWeek(weekIndex: number, anchorIn: number): { neu: number; alt: numbe
   }
 
   // advanceProgram rpe branch: working sets only, re-anchor at the rendered RPE.
-  const logged = all<{ set_number: number; reps: number; weight: number; rpe: number | null }>(
+  const logged = all<{
+    set_number: number;
+    reps: number;
+    weight: number;
+    rpe: number | null;
+  }>(
     `SELECT set_number, reps, weight, rpe FROM set_logs
      WHERE session_id = ? AND exercise_id = ? AND set_type = 'working' AND completed_at IS NOT NULL
      ORDER BY set_number`,
@@ -218,12 +231,18 @@ function runWeek(weekIndex: number, anchorIn: number): { neu: number; alt: numbe
   }
   const neu = Math.max(
     ...logged.map((s) =>
-      e1rmFromLoggedSet(s.weight, s.reps, s.rpe ?? presMap.get(s.set_number) ?? TARGET_RPE),
+      e1rmFromLoggedSet(
+        s.weight,
+        s.reps,
+        s.rpe ?? presMap.get(s.set_number) ?? TARGET_RPE,
+      ),
     ),
   );
   // The OLD (buggy) path: re-anchor every set at the single target RPE.
   const alt = Math.max(
-    ...logged.map((s) => e1rmFromLoggedSet(s.weight, s.reps, s.rpe ?? TARGET_RPE)),
+    ...logged.map((s) =>
+      e1rmFromLoggedSet(s.weight, s.reps, s.rpe ?? TARGET_RPE),
+    ),
   );
   return { neu, alt };
 }
@@ -239,7 +258,8 @@ for (let w = 1; w <= rules.weekCount; w++) {
     `week ${w} (RPE ${weekRpe(w)}): NEW re-anchor stays flat — ${neu.toFixed(2)} ≈ ${ANCHOR0}`,
   );
   // Discriminating check: the OLD path must drift on any week whose RPE ≠ target.
-  if (weekRpe(w) !== TARGET_RPE && !approx(alt, ANCHOR0, tol)) anchorDrifted = true;
+  if (weekRpe(w) !== TARGET_RPE && !approx(alt, ANCHOR0, tol))
+    anchorDrifted = true;
 }
 assert(
   anchorDrifted,
@@ -251,15 +271,28 @@ assert(
 {
   const w = 1;
   const render = renderPrescribedSet(
-    { reps: REPS, intensityKind: 'rpe', intensityValue: weekRpe(w), amrap: false },
+    {
+      reps: REPS,
+      intensityKind: 'rpe',
+      intensityValue: weekRpe(w),
+      amrap: false,
+    },
     { currentWeightKg: 0, trainingMaxKg: null, e1rmKg: ANCHOR0, stepKg: STEP },
   );
   const beat = e1rmFromLoggedSet(render.weightKg, REPS + 1, weekRpe(w));
-  assert(beat > ANCHOR0, `beating the prescription (+1 rep) raises the anchor — ${beat.toFixed(2)} > ${ANCHOR0}`);
+  assert(
+    beat > ANCHOR0,
+    `beating the prescription (+1 rep) raises the anchor — ${beat.toFixed(2)} > ${ANCHOR0}`,
+  );
 }
 
 // --- summary ---------------------------------------------------------------
-console.log('\n' + (failures.length === 0 ? '✅ wave path OK' : `❌ ${failures.length} failure(s)`));
+console.log(
+  '\n' +
+    (failures.length === 0
+      ? '✅ wave path OK'
+      : `❌ ${failures.length} failure(s)`),
+);
 if (failures.length > 0) {
   for (const f of failures) console.log('  - ' + f);
   process.exit(1);

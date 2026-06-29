@@ -15,7 +15,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.';
 }
 
-/** Settings panel: export the full dataset to a JSON file, or restore from one. */
 export function BackupSettings() {
   const [busy, setBusy] = useState<Busy>(null);
 

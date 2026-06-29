@@ -8,10 +8,7 @@ import { authBackend } from './backend';
 import { useAuthStore } from './auth-store';
 import { PinPad } from './PinPad';
 
-/**
- * Full-screen lock overlay shown by the root layout while the app is locked.
- * Rendered above the navigator (not a route) so there is no redirect dance.
- */
+// Lock overlay rendered above the navigator (not a route) to avoid a redirect dance.
 export function LockScreen() {
   const unlock = useAuthStore((state) => state.unlock);
   const [error, setError] = useState<string>();

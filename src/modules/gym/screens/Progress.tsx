@@ -7,6 +7,7 @@ import { useSettings } from '@/core/settings/use-settings';
 import { toDisplayWeight } from '@/core/settings/units';
 import {
   Card,
+  Chip,
   EmptyState,
   Icon,
   LineChart,
@@ -47,12 +48,11 @@ const RANGES = [
 
 type RangeKey = (typeof RANGES)[number]['key'];
 
-/** The lower bound (ms) for a range relative to now; 0 days means all-time. */
+// 0 days means all-time.
 function rangeFrom(days: number, now: number): number {
   return days === 0 ? 0 : now - days * DAY_MS;
 }
 
-/** Segmented range selector — same shape as the gym settings toggles. */
 function RangeTabs({
   value,
   onChange,
@@ -65,14 +65,13 @@ function RangeTabs({
       {RANGES.map((range) => {
         const active = range.key === value;
         return (
-          <Pressable
+          <Chip
             key={range.key}
+            shape="segment"
+            active={active}
+            accent={colors.gym}
             onPress={() => onChange(range.key)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
             accessibilityLabel={`Show last ${range.label}`}
-            className="rounded-lg px-3 py-1.5 active:opacity-70"
-            style={active ? { backgroundColor: colors.gym } : undefined}
           >
             <Text
               style={{
@@ -82,14 +81,13 @@ function RangeTabs({
             >
               {range.label}
             </Text>
-          </Pressable>
+          </Chip>
         );
       })}
     </View>
   );
 }
 
-/** A titled chart card with a fallback when there aren't enough points yet. */
 function ChartCard({
   title,
   series,
@@ -116,7 +114,6 @@ function ChartCard({
   );
 }
 
-/** Wrapping pills to choose which muscle group's weekly-sets trend to show. */
 function GroupChips({
   groups,
   selected,
@@ -131,17 +128,12 @@ function GroupChips({
       {groups.map(({ group }) => {
         const active = group === selected;
         return (
-          <Pressable
+          <Chip
             key={group}
+            active={active}
+            accent={colors.gym}
             onPress={() => onSelect(group)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
             accessibilityLabel={`Show ${group} weekly sets`}
-            className="rounded-full border px-3 py-1 active:opacity-70"
-            style={{
-              borderColor: active ? colors.gym : colors.border,
-              backgroundColor: active ? colors.gym : 'transparent',
-            }}
           >
             <Text
               style={{
@@ -151,14 +143,13 @@ function GroupChips({
             >
               {group}
             </Text>
-          </Pressable>
+          </Chip>
         );
       })}
     </View>
   );
 }
 
-/** Dashed-swatch legend for the MEV/MAV/MRV reference bands. */
 function BandLegend({
   bands,
 }: {
@@ -211,8 +202,7 @@ export function Progress() {
   const { data: history } = useExerciseSetHistory(selectedId);
 
   const volumeTrends = useMemo(() => {
-    // Intentional current-time read for the rolling range; the memo recomputes
-    // when the data or range changes, which is when it matters.
+    // Intentional current-time read for the rolling range; recomputes on data/range change.
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const from = rangeFrom(range.days, now);

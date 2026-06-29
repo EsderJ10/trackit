@@ -12,7 +12,11 @@ export interface SectionHeaderProps {
 }
 
 /** Small uppercase group label used above a settings/profile section. */
-export function SectionHeader({ children, right, className }: SectionHeaderProps) {
+export function SectionHeader({
+  children,
+  right,
+  className,
+}: SectionHeaderProps) {
   return (
     <View className={cn('flex-row items-center justify-between', className)}>
       <Text variant="caption" className="uppercase tracking-wider">

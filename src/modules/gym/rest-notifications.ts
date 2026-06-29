@@ -1,21 +1,16 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-/**
- * Thin, impure wrapper around `expo-notifications` for the rest timer's
- * "rest over" alert. Isolated here so the rest-timer store stays a simple state
- * container and so the native dependency has a single seam. Only LOCAL
- * notifications are used (no push tokens) — these work in Expo Go on SDK 54.
- */
+// Thin wrapper around `expo-notifications` for the rest timer's "rest over" alert
+// (the native seam). LOCAL notifications only (no push tokens) — work in Expo Go on SDK 54.
 
 const CHANNEL_ID = 'rest-timer';
 
 let configured = false;
 
 /**
- * Set the foreground presentation handler and (on Android) the notification
- * channel. Idempotent — safe to call on every workout mount. Android sound +
- * heads-up come from the channel, not the payload, so the channel must exist.
+ * Set the foreground handler and (on Android) the notification channel. Idempotent.
+ * Android sound + heads-up come from the channel, not the payload, so it must exist.
  */
 export function configureRestNotifications(): void {
   if (configured) return;
@@ -39,10 +34,7 @@ export function configureRestNotifications(): void {
   }
 }
 
-/**
- * Ensure notification permission, requesting it once if undetermined. Returns
- * whether it's granted. Called on workout mount so the prompt is contextual.
- */
+/** Ensure notification permission (requesting once if undetermined); returns whether granted. */
 export async function ensureRestPermissions(): Promise<boolean> {
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
@@ -53,10 +45,7 @@ export async function ensureRestPermissions(): Promise<boolean> {
   return requested.granted;
 }
 
-/**
- * Schedule the "rest over" alert `seconds` from now. Returns its id (to cancel
- * on skip/reschedule) or null if it couldn't be scheduled.
- */
+/** Schedule the "rest over" alert `seconds` out; returns its id (to cancel) or null. */
 export async function scheduleRestEnd(seconds: number): Promise<string | null> {
   if (seconds < 1) return null;
   try {

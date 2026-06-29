@@ -13,15 +13,9 @@ import {
   programWeeks,
 } from './schema';
 
-/**
- * Built-in program templates — ready-to-start examples that showcase the four
- * progression schemes and the Days × Weeks roadmap. Unlike the exercise catalog
- * (reconciled every launch because defaults can't be deleted), templates are
- * user-owned, deletable objects: they are seeded **once, on first install**, so a
- * user can edit or delete a template and it stays gone. (Trade-off: templates
- * added in a later version won't reach an already-seeded install.) Exercises are
- * referenced by their canonical catalog name and resolved at seed time.
- */
+// Built-in program templates showcasing the four schemes + the Days × Weeks
+// roadmap. Seeded once per template (see `seedProgramTemplates`), not reconciled,
+// so deletions stick. Exercises referenced by catalog name, resolved at seed time.
 
 type SchemeType = 'lp' | 'dp' | 'percent' | 'rpe';
 
@@ -64,8 +58,7 @@ interface ProgramTemplate {
   days: TemplateDay[];
 }
 
-// --- The classic 5/3/1 percentage wave (of training max) -------------------
-
+// The classic 5/3/1 percentage wave (of training max).
 const FIVE_THREE_ONE_WEEKS: Record<number, TemplateSet[]> = {
   1: [
     { reps: 5, intensityKind: 'pct', intensityValue: 0.65 },
@@ -129,15 +122,10 @@ function rpeLift(
   };
 }
 
-// --- 5-day PPLUL strength + hypertrophy mesocycle --------------------------
-// One block = 4 accumulation weeks + 1 deload. Each day opens with a heavy
-// compound on a percentage-of-training-max strength wave (load climbs 80→87.5%
-// as reps drop 5→3), then autoregulated (RPE) hypertrophy accessories whose
-// weekly SET COUNT ramps MEV→MRV across the block and pulls back on the deload.
-// The descending per-week RIR cue (4→3→2→1) lives in the week names + program
-// description: accessory load is anchored to a single working-week RPE so the
-// e1RM re-anchor stays drift-free (a per-week RPE wave would mis-anchor the
-// pre-filled, RPE-less sets — see `[[gym-programs-design]]`).
+// 5-day PPLUL strength + hypertrophy mesocycle (4 accumulation weeks + 1 deload).
+// Accessories anchor to a single working-week RPE so the e1RM re-anchor stays
+// drift-free — a per-week RPE wave would mis-anchor pre-filled, RPE-less sets
+// (see `[[gym-programs-design]]`).
 
 const PPLUL_WEEKS: ProgramTemplate['weeks'] = [
   { name: 'Week 1 — Accumulate · RIR 4' },
@@ -147,7 +135,6 @@ const PPLUL_WEEKS: ProgramTemplate['weeks'] = [
   { name: 'Week 5 — Deload', isDeload: true },
 ];
 
-/** N identical percentage-of-training-max sets for the heavy strength wave. */
 function pctSets(count: number, reps: number, pct: number): TemplateSet[] {
   return Array.from({ length: count }, () => ({
     reps,
@@ -165,7 +152,6 @@ const STRENGTH_WAVE: Record<number, TemplateSet[]> = {
   5: pctSets(2, 5, 0.5),
 };
 
-/** A heavy compound on the strength wave; its training max bumps each cycle. */
 function strengthLift(
   exercise: string,
   trainingMaxKg: number,
@@ -187,11 +173,9 @@ const ACCESSORY_RPE = 8;
 const ACCESSORY_SET_RAMP = [3, 4, 4, 5, 2] as const;
 
 /**
- * A hypertrophy accessory: RPE-anchored sets at a fixed rep target whose weekly
- * SET COUNT ramps across the block (volume periodization) and drops to 2 lighter
- * (RPE 5) sets on the deload week. Load auto-tracks the estimated 1RM via the rpe
- * scheme; the deload week's lower RPE is safe because progression is skipped there
- * (no re-anchor), so it never fights the constant working-week RPE.
+ * Hypertrophy accessory: RPE-anchored sets at a fixed rep target whose weekly set
+ * count ramps across the block, dropping to 2 lighter (RPE 5) sets on the deload.
+ * The deload's lower RPE is safe because progression (re-anchor) is skipped there.
  */
 function accessory(
   exercise: string,
@@ -500,17 +484,13 @@ const TEMPLATES: ProgramTemplate[] = [
   },
 ];
 
-/** A per-template seed marker — its own `module_seed_state` row, independent of
- * the catalog's `gym` row (which predates templates and is always present). */
+/** Per-template seed marker (its own `module_seed_state` row). */
 const templateMarker = (name: string) => `gym-tpl:${name}`;
 
 /**
- * Insert each built-in template once, keyed by its own seed marker. Seeding once
- * (not reconciling every launch like the exercise catalog) means a user can
- * delete a template and it stays gone; per-template markers (rather than one
- * module-wide flag) let templates added in a later version still reach an
- * already-seeded install. A name-existence guard avoids duplicating a template
- * that somehow exists without a marker.
+ * Insert each built-in template once, keyed by its own seed marker — so a deleted
+ * template stays gone, yet templates added in a later version still reach an
+ * already-seeded install. A name-existence guard avoids duplicating a markerless one.
  */
 export function seedProgramTemplates(db: AppDatabase): void {
   const byName = new Map(

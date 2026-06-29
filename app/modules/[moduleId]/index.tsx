@@ -3,11 +3,8 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { getModule } from '@/core/module-registry';
 import { EmptyState, Screen } from '@/ui';
 
-/**
- * Generic mount point for a module's single root screen. Modules that ship
- * their own route files under `app/modules/<id>/` override this automatically
- * (static segments win over the dynamic `[moduleId]` segment).
- */
+// Generic mount for a module's root screen; static route files under
+// app/modules/<id>/ override this (static segments beat dynamic [moduleId]).
 export default function ModuleRoute() {
   const { moduleId } = useLocalSearchParams<{ moduleId: string }>();
   const module = getModule(moduleId);

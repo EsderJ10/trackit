@@ -4,7 +4,6 @@ import { cn } from './cn';
 import { Text } from './Text';
 import { colors } from './theme';
 
-/** Palette an avatar's accent is picked from — deterministic per name. */
 const AVATAR_COLORS = [
   colors.gym,
   colors.finance,
@@ -14,7 +13,6 @@ const AVATAR_COLORS = [
   colors.warning,
 ] as const;
 
-/** Up to two letters: first of the first and last word, else the first two. */
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const first = parts[0];
@@ -25,7 +23,6 @@ function initials(name: string): string {
   return (first[0]! + last[0]!).toUpperCase();
 }
 
-/** Stable color choice from a name, so the same user always gets the same hue. */
 function colorFor(seed: string): string {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -42,10 +39,7 @@ export interface AvatarProps {
   className?: string;
 }
 
-/**
- * A generated initials avatar — a soft accent circle with the user's initials.
- * No image, no storage; the color is derived deterministically from `name`.
- */
+/** Generated initials avatar — color derived deterministically from `name`, no image/storage. */
 export function Avatar({ name, size = 64, className }: AvatarProps) {
   const color = colorFor(name);
   return (

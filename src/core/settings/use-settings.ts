@@ -20,7 +20,7 @@ const DEFAULTS: AppSettings = {
   updatedAt: new Date(0),
 };
 
-/** Live, reactive read of the singleton settings row. */
+/** Live read of the singleton settings row. */
 export function useSettings(): AppSettings {
   const { data } = useLiveQuery(
     db.select().from(appSettings).where(eq(appSettings.id, 1)),
@@ -35,10 +35,7 @@ export function setWeightUnit(weightUnit: WeightUnit): void {
     .run();
 }
 
-/**
- * Live, reconciled dashboard layout — stored order/visibility merged against the
- * currently-registered modules (new modules appended visible, removed dropped).
- */
+/** Live dashboard layout, reconciled against currently-registered modules. */
 export function useDashboardLayout(): DashboardLayoutEntry[] {
   const settings = useSettings();
   return useMemo(

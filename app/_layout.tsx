@@ -12,6 +12,7 @@ import { useAuthStore } from '@/core/auth/auth-store';
 import { LockScreen } from '@/core/auth/LockScreen';
 import { useSessionStore } from '@/core/auth/session-store';
 import { useDatabaseReady } from '@/core/db/ready';
+import { MODULES } from '@/core/module-registry';
 import { colors, navigationTheme, Text } from '@/ui';
 
 export default function RootLayout() {
@@ -47,7 +48,7 @@ export default function RootLayout() {
   }, []);
 
   const bootstrapped = ready && authInitialized && sessionInitialized;
-  // The PIN lock overlays the app only once the user is signed in.
+  // PIN lock overlays the app only once signed in.
   const showLock = isAuthed && lockEnabled && locked;
 
   return (
@@ -73,9 +74,18 @@ export default function RootLayout() {
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Protected guard={isAuthed}>
                   <Stack.Screen name="(tabs)" />
-                  {/* No app/modules/_layout — these nested stacks are root
-                      screens, so gate them by their full segment names. */}
-                  <Stack.Screen name="modules/gym" />
+                  {/* No app/modules/_layout: nested module stacks are root
+                      screens, gated by full segment name. Registry-driven so a
+                      new nav-owning module needs no edit; modules/[moduleId] is
+                      the fallback for simple ModuleScreen-only modules. */}
+                  {MODULES.filter((module) => module.ownsRouteStack).map(
+                    (module) => (
+                      <Stack.Screen
+                        key={module.meta.id}
+                        name={`modules/${module.meta.id}`}
+                      />
+                    ),
+                  )}
                   <Stack.Screen name="modules/[moduleId]" />
                   <Stack.Screen
                     name="settings"

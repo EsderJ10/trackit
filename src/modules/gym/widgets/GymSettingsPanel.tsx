@@ -16,6 +16,7 @@ import { Button, Card, Icon, Text, colors, tint } from '@/ui';
 
 import { toWorkoutCsv } from '../csv-export';
 import { type EffortScale, effortLabel } from '../effort';
+import { formatRestSeconds } from '../format';
 import {
   getWorkoutCsvRows,
   setDefaultRestSec,
@@ -105,7 +106,6 @@ function StepperRow({
 
 const EFFORT_SCALES: readonly EffortScale[] = ['rpe', 'rir'];
 
-/** Two-option segmented control choosing how sets surface effort (RPE vs RIR). */
 function EffortScaleRow({
   scale,
   onChange,
@@ -146,12 +146,6 @@ function EffortScaleRow({
       </View>
     </Card>
   );
-}
-
-function formatRest(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 /** Gym preferences slotted into the core Settings screen. */
@@ -209,7 +203,7 @@ export function GymSettingsPanel() {
       <StepperRow
         title="Default rest timer"
         subtitle="Auto-starts after each set"
-        value={formatRest(rest)}
+        value={formatRestSeconds(rest)}
         onDec={() => setDefaultRestSec(Math.max(MIN_REST, rest - REST_STEP))}
         onInc={() => setDefaultRestSec(Math.min(MAX_REST, rest + REST_STEP))}
         canDec={rest > MIN_REST}

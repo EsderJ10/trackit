@@ -1,14 +1,5 @@
-/**
- * Resolves the human-readable label for a workout session — the single source of
- * truth so History, Session detail, the dashboard widget and the resume hero stop
- * each owning a `?? 'Freestyle'` fallback.
- *
- * Precedence: a **program** session (the periodized roadmap) names the specific
- * day plus "Week X of Y"; a **routine** session names the routine; only a truly
- * ad-hoc session (no program, no routine) is "Freestyle". Program provenance
- * lives on the session row (`programId`/`programDayId`/`programWeekIndex`); the
- * program/day names + length come from joining `programs`/`program_days`.
- */
+// Single source of truth for a session's label. Precedence: program (day name +
+// "Week X of Y") > routine (its name) > "Freestyle" (ad-hoc).
 export interface SessionLabelFields {
   routineName: string | null;
   programName: string | null;

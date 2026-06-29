@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# APK build output — the Docker builder (running as root) writes the apk here
+# and recreates the dir, so ignore the whole folder at the root rather than rely
+# on a tracked build-output/.gitignore that the builder wipes.
+/build-output/

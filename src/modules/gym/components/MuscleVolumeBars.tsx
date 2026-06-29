@@ -10,7 +10,6 @@ import {
 } from '../landmarks';
 import { useMuscleLandmarks } from '../queries';
 
-/** Fill color per volume zone, low→high stimulus. */
 const ZONE_COLOR: Record<VolumeZone, string> = {
   'below-mv': colors.fgFaint,
   maintenance: colors.warning,
@@ -28,9 +27,8 @@ export interface MuscleVolumeBarsProps {
 
 /**
  * This week's working-set volume per muscle, each bar framed against the user's
- * editable MEV/MAV/MRV bands (red/amber/green). The research's #1 UX move —
- * surface volume where you train, not buried in a profile tab. Counts exclude
- * warm-ups (see the setType filters feeding the breakdown).
+ * editable MEV/MAV/MRV bands. Counts exclude warm-ups (see the setType filters
+ * feeding the breakdown).
  */
 export function MuscleVolumeBars({
   breakdown,
@@ -47,7 +45,9 @@ export function MuscleVolumeBars({
         <Text variant="muted">No sets logged in the last 7 days.</Text>
       ) : (
         <>
-          <Text variant="caption">Weekly sets vs your MEV · MAV · MRV bands</Text>
+          <Text variant="caption">
+            Weekly sets vs your MEV · MAV · MRV bands
+          </Text>
           {breakdown.map((m) => (
             <MuscleVolumeRow
               key={m.muscleGroup}

@@ -9,7 +9,6 @@ interface AuthScreenProps {
   children: ReactNode;
 }
 
-/** Shared scaffold for the login/register screens: centered, keyboard-aware. */
 export function AuthScreen({ title, subtitle, children }: AuthScreenProps) {
   return (
     <Screen>

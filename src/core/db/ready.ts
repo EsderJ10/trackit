@@ -11,10 +11,7 @@ export interface DatabaseReadyState {
   error: Error | undefined;
 }
 
-/**
- * Applies pending Drizzle migrations on startup and guarantees the singleton
- * settings row exists. The app should render a splash until `ready` is true.
- */
+/** Applies pending migrations on startup and ensures the singleton settings row exists. */
 export function useDatabaseReady(): DatabaseReadyState {
   const { success, error } = useMigrations(db, migrations);
 

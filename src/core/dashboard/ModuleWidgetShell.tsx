@@ -9,16 +9,14 @@ export interface ModuleWidgetShellProps {
   icon: LucideIcon;
   /** Module accent (hex) — tints the icon chip. */
   accent: string;
-  /** Optional handler — makes the header row tappable (e.g. open the module). */
+  /** Optional handler — makes the header row tappable. */
   onPress?: () => void;
   children?: ReactNode;
 }
 
 /**
- * Consistent visual frame for a module's dashboard widget: accented icon chip,
- * title, a "tap to open" chevron, and the module's own content below. Pass
- * `onPress` to make the header row navigate; the module's own content (e.g. a
- * primary CTA button) stays independently interactive.
+ * Visual frame for a module's dashboard widget. `onPress` makes only the header
+ * row navigate; `children` (e.g. a CTA) stays independently interactive.
  */
 export function ModuleWidgetShell({
   title,

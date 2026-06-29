@@ -25,12 +25,10 @@ interface SessionBlock {
   sets: ExerciseHistoryRow[];
 }
 
-/** Capitalize an enum value for display (e.g. `compound` → `Compound`). */
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-/** A small bordered pill for a single attribute (muscle group, equipment). */
 function Chip({ label }: { label: string }) {
   return (
     <View className="rounded-full border border-border-soft bg-surface-alt px-3 py-1">
@@ -58,7 +56,7 @@ export function ExerciseDetail() {
     [history],
   );
 
-  // Total reps ever, and the heaviest single-session tonnage (Σ reps×weight).
+  // Total reps ever + heaviest single-session tonnage (Σ reps×weight).
   const totals = useMemo(() => {
     if (history.length === 0) return null;
     const volumeBySession = new Map<number, number>();
@@ -74,8 +72,7 @@ export function ExerciseDetail() {
     return { totalReps, bestSessionVolumeKg };
   }, [history]);
 
-  // Best estimated 1RM per session, oldest → newest, for the strength trend.
-  // Shared with the Progress screen via the pure, unit-tested `analytics`.
+  // Best e1RM per session, oldest → newest; shared with Progress via `analytics`.
   const e1rmTrend = useMemo(
     () =>
       computeE1rmTrend(
@@ -89,8 +86,7 @@ export function ExerciseDetail() {
     [history],
   );
 
-  // Group the flat (newest-first) rows back into per-session blocks, preserving
-  // the descending date order.
+  // Group the flat newest-first rows into per-session blocks, keeping date order.
   const sessions = useMemo<SessionBlock[]>(() => {
     const byId = new Map<number, SessionBlock>();
     const order: number[] = [];
@@ -148,7 +144,6 @@ export function ExerciseDetail() {
         }}
       />
       <ScrollView contentContainerClassName="gap-4 p-5">
-        {/* About — what the movement is, what it works */}
         <Card className="gap-4">
           {exercise?.description ? (
             <Text variant="body" className="text-fg-muted">
@@ -160,7 +155,9 @@ export function ExerciseDetail() {
               <Chip label={exercise.muscleGroup} />
             ) : null}
             {exercise?.equipment ? <Chip label={exercise.equipment} /> : null}
-            {exercise?.mechanic ? <Chip label={titleCase(exercise.mechanic)} /> : null}
+            {exercise?.mechanic ? (
+              <Chip label={titleCase(exercise.mechanic)} />
+            ) : null}
             {exercise?.forceType ? (
               <Chip label={titleCase(exercise.forceType)} />
             ) : null}
@@ -170,7 +167,6 @@ export function ExerciseDetail() {
           ) : null}
         </Card>
 
-        {/* How to perform — ordered form cues */}
         {cues.length > 0 ? (
           <Card className="gap-3">
             <Text variant="label">How to perform</Text>
@@ -193,7 +189,6 @@ export function ExerciseDetail() {
           </Card>
         ) : null}
 
-        {/* Common mistakes — what to avoid */}
         {mistakes.length > 0 ? (
           <Card className="gap-3">
             <Text variant="label">Common mistakes</Text>
@@ -216,7 +211,6 @@ export function ExerciseDetail() {
           </Card>
         ) : null}
 
-        {/* Records */}
         {prs && totals && showLoadRecords ? (
           <Card className="gap-4">
             <Text variant="label">Records</Text>
@@ -255,7 +249,6 @@ export function ExerciseDetail() {
           </Card>
         ) : null}
 
-        {/* Strength trend */}
         {e1rmTrend.length >= 2 ? (
           <Card className="gap-2">
             <Text variant="label">Est. 1RM trend</Text>
@@ -263,7 +256,6 @@ export function ExerciseDetail() {
           </Card>
         ) : null}
 
-        {/* Set history */}
         {sessions.length === 0 ? (
           <Text variant="muted" className="px-1">
             No history yet — complete sets of this exercise to track your PRs

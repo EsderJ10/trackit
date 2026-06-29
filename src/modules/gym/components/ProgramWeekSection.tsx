@@ -14,9 +14,8 @@ export interface ProgramWeekSectionProps {
 }
 
 /**
- * The program's mesocycle timeline — one row per week with a deload toggle. The
- * descending-RIR / set-ramp wave is authored per exercise (see ProgramWaveEditor);
- * this section just controls how many weeks the cycle runs and which is a deload.
+ * Mesocycle timeline — one row per week with a deload toggle. Controls how many
+ * weeks the cycle runs; the per-exercise wave is authored in ProgramWaveEditor.
  */
 export function ProgramWeekSection({
   weeks,

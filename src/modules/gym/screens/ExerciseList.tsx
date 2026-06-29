@@ -9,7 +9,16 @@ import {
   View,
 } from 'react-native';
 
-import { Card, EmptyState, Icon, Screen, Text, colors, tint } from '@/ui';
+import {
+  Chip,
+  EmptyState,
+  Icon,
+  PressableCard,
+  Screen,
+  Text,
+  colors,
+  tint,
+} from '@/ui';
 
 import { muscleLabel } from '../muscles';
 import { useExercises, useRecentExerciseIds } from '../queries';
@@ -20,8 +29,8 @@ interface MuscleSection {
   exercises: Exercise[];
 }
 
-/** A flattened section row; the key namespaces the exercise by its section so the
-    same exercise can appear under Favorites/Recent and its muscle group. */
+// key namespaces the exercise by section so it can appear under Favorites/Recent
+// and its muscle group at once.
 interface ExerciseRowItem {
   key: string;
   exercise: Exercise;
@@ -32,7 +41,6 @@ interface ExerciseSection {
   data: ExerciseRowItem[];
 }
 
-/** Bucket a (muscle-group, name)-ordered list into per-group sections. */
 function groupByMuscle(list: Exercise[]): MuscleSection[] {
   const byName = new Map<string, MuscleSection>();
   const order: string[] = [];
@@ -48,7 +56,6 @@ function groupByMuscle(list: Exercise[]): MuscleSection[] {
   return order.map((name) => byName.get(name)!);
 }
 
-/** Wrap a group's exercises as section rows with section-namespaced keys. */
 function toSection(title: string, exercises: Exercise[]): ExerciseSection {
   return {
     title,
@@ -59,7 +66,6 @@ function toSection(title: string, exercises: Exercise[]): ExerciseSection {
   };
 }
 
-/** A selectable pill for the muscle-group / equipment filter bars. */
 function FilterChip({
   label,
   active,
@@ -70,16 +76,7 @@ function FilterChip({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      className="rounded-full border px-3 py-1.5 active:opacity-70"
-      style={{
-        backgroundColor: active ? colors.gym : 'transparent',
-        borderColor: active ? colors.gym : colors.borderSoft,
-      }}
-    >
+    <Chip active={active} accent={colors.gym} onPress={onPress}>
       <Text
         variant="caption"
         className="uppercase tracking-wider"
@@ -87,11 +84,10 @@ function FilterChip({
       >
         {label}
       </Text>
-    </Pressable>
+    </Chip>
   );
 }
 
-/** A single exercise row: accent medallion, name, worked-muscle subtitle. */
 const ExerciseRow = memo(function ExerciseRow({
   exercise,
   onPress,
@@ -105,29 +101,28 @@ const ExerciseRow = memo(function ExerciseRow({
       : (exercise.equipment ?? exercise.muscleGroup);
 
   return (
-    <Pressable
+    <PressableCard
       onPress={() => onPress(exercise.id)}
-      className="active:opacity-70"
+      accessibilityLabel={exercise.name}
+      className="flex-row items-center gap-3"
     >
-      <Card className="flex-row items-center gap-3">
-        <View
-          className="h-9 w-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: tint(colors.gym, 0.13) }}
-        >
-          <Icon icon={Dumbbell} size={18} color={colors.gym} />
-        </View>
-        <View className="flex-1">
-          <Text variant="body">{exercise.name}</Text>
-          <Text variant="caption" className="text-fg-muted">
-            {subtitle}
-          </Text>
-        </View>
-        {exercise.isFavorite ? (
-          <Icon icon={Star} size={16} color={colors.gym} fill={colors.gym} />
-        ) : null}
-        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
-      </Card>
-    </Pressable>
+      <View
+        className="h-9 w-9 items-center justify-center rounded-full"
+        style={{ backgroundColor: tint(colors.gym, 0.13) }}
+      >
+        <Icon icon={Dumbbell} size={18} color={colors.gym} />
+      </View>
+      <View className="flex-1">
+        <Text variant="body">{exercise.name}</Text>
+        <Text variant="caption" className="text-fg-muted">
+          {subtitle}
+        </Text>
+      </View>
+      {exercise.isFavorite ? (
+        <Icon icon={Star} size={16} color={colors.gym} fill={colors.gym} />
+      ) : null}
+      <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+    </PressableCard>
   );
 });
 
@@ -210,8 +205,7 @@ export function ExerciseList() {
     setEquipmentFilter(null);
   }
 
-  // An empty catalog has nothing to search or filter — show the plain prompt
-  // rather than an empty search bar over empty filter rows.
+  // Empty catalog: show a plain prompt, not search/filter chrome over nothing.
   if (exercises.length === 0) {
     return (
       <Screen>
@@ -227,7 +221,6 @@ export function ExerciseList() {
 
   const listHeader = (
     <View className="gap-4 pb-2">
-      {/* Search */}
       <View className="flex-row items-center gap-3 rounded-xl border border-border bg-surface-hi px-4 py-3.5">
         <Icon icon={Search} size={18} color={colors.fgFaint} />
         <TextInput
@@ -252,7 +245,6 @@ export function ExerciseList() {
         ) : null}
       </View>
 
-      {/* Muscle-group filter */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -275,7 +267,6 @@ export function ExerciseList() {
         ))}
       </ScrollView>
 
-      {/* Equipment filter */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -326,7 +317,12 @@ export function ExerciseList() {
         ListEmptyComponent={
           <View className="gap-3 px-1 pt-2">
             <Text variant="muted">No exercises match your filters.</Text>
-            <Pressable onPress={clearFilters} className="active:opacity-70">
+            <Pressable
+              onPress={clearFilters}
+              accessibilityRole="button"
+              accessibilityLabel="Clear filters"
+              className="active:opacity-70"
+            >
               <Text variant="label" style={{ color: colors.gym }}>
                 Clear filters
               </Text>

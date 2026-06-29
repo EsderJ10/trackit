@@ -1,7 +1,5 @@
-// CSV export of workout history — a portable, spreadsheet-friendly view of every
-// logged set (the full restore-able backup is the core JSON one; this is for
-// interop / analysis elsewhere). Pure and unit-tested; the screen gathers rows
-// from the DB and shares the string as a file.
+// CSV export of workout history — spreadsheet-friendly, for interop/analysis
+// (the restore-able backup is the core JSON one, not this).
 
 export interface CsvSetRow {
   /** Session finish time (ms epoch) or null if unfinished. */
@@ -35,7 +33,6 @@ function escapeField(value: string): string {
   return value;
 }
 
-/** ISO date (YYYY-MM-DD) for a row's timestamp, or empty when unfinished. */
 function isoDate(ms: number | null): string {
   if (ms == null) return '';
   return new Date(ms).toISOString().slice(0, 10);
@@ -46,11 +43,7 @@ function cell(value: string | number | null): string {
   return escapeField(String(value));
 }
 
-/**
- * Serialize logged sets to a CSV string (header + one row per set). Rows should
- * already be ordered (e.g. newest session first); this does not sort. Empty input
- * still emits the header row.
- */
+/** Serialize logged sets to CSV (header + one row per set). Does not sort; emits the header even when empty. */
 export function toWorkoutCsv(rows: CsvSetRow[]): string {
   const lines = [HEADER.join(',')];
   for (const r of rows) {

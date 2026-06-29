@@ -46,10 +46,7 @@ function IconButton({
   );
 }
 
-/**
- * Customize which module widgets show on Home and in what order. Operates
- * directly on the persisted layout (live query re-renders after each change).
- */
+/** Reorder/show-hide Home widgets; mutates the persisted layout directly (live query re-renders). */
 export function DashboardEditor() {
   const router = useRouter();
   const layout = useDashboardLayout();
@@ -103,13 +100,17 @@ export function DashboardEditor() {
                     icon={ChevronUp}
                     label={`Move ${name} up`}
                     disabled={index === 0}
-                    onPress={() => setDashboardLayout(moveEntry(layout, index, -1))}
+                    onPress={() =>
+                      setDashboardLayout(moveEntry(layout, index, -1))
+                    }
                   />
                   <IconButton
                     icon={ChevronDown}
                     label={`Move ${name} down`}
                     disabled={index === layout.length - 1}
-                    onPress={() => setDashboardLayout(moveEntry(layout, index, 1))}
+                    onPress={() =>
+                      setDashboardLayout(moveEntry(layout, index, 1))
+                    }
                   />
                   <IconButton
                     icon={entry.hidden ? EyeOff : Eye}

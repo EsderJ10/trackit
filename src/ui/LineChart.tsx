@@ -25,12 +25,7 @@ export interface LineChartProps {
   className?: string;
 }
 
-/**
- * A minimal, dependency-light trend line. Stretches to fill its container width
- * (`preserveAspectRatio="none"`) with a non-scaling stroke, so it stays crisp at
- * any width. Module-agnostic — give it numbers, it draws the shape. Optional
- * reference lines render behind the series on the same scale.
- */
+/** Minimal trend line; fills container width (`preserveAspectRatio="none"`) with a non-scaling stroke so it stays crisp at any width. */
 export function LineChart({
   data,
   color = colors.primaryBright,

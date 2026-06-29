@@ -15,7 +15,7 @@ services:
     # Resource caps so a runaway build kills *itself* (OOM inside the cgroup)
     # instead of thrashing the host into a freeze. Tuned for a 15 GB / 6-core
     # machine — leaves the desktop ~5 GB and 2 cores to stay responsive.
-    cpus: "4"
+    cpus: '4'
     mem_limit: 10g
     memswap_limit: 10g # no extra container swap on top of mem_limit
     environment:

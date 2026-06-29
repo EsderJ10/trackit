@@ -3,15 +3,18 @@ import { describe, expect, it } from 'vitest';
 import {
   advance,
   advanceCursor,
+  advanceSlot,
   type DpScheme,
   e1rmFromLoggedSet,
   generateWave,
+  type LoggedWorkingSet,
   type LpScheme,
   type ProgramCursor,
   type ProgressionState,
   renderPrescribedSet,
   roundKg,
   rpePct,
+  type SlotProgressionConfig,
   suggestNext,
   type WaveRules,
 } from './progression-engine';
@@ -33,7 +36,6 @@ const state = (over: Partial<ProgressionState> = {}): ProgressionState => ({
   ...over,
 });
 
-// All sets at the working weight and at least `reps` reps.
 const sets = (count: number, reps: number, weightKg = 100) =>
   Array.from({ length: count }, () => ({ reps, weightKg }));
 
@@ -374,5 +376,132 @@ describe('generateWave — mesocycle periodization', () => {
       expect(s.intensityKind).toBe('rpe');
       expect((s.intensityValue * 2) % 1).toBe(0);
     }
+  });
+});
+
+describe('advanceSlot — fold one slot into its next state', () => {
+  const config = (
+    over: Partial<SlotProgressionConfig> = {},
+  ): SlotProgressionConfig => ({
+    schemeType: 'lp',
+    incrementKg: 2.5,
+    minReps: 8,
+    maxReps: 12,
+    failThreshold: 3,
+    deloadPct: 0.1,
+    targetSets: 3,
+    targetRpe: 8,
+    ...over,
+  });
+
+  const logged = (
+    rows: { reps: number; weightKg: number; rpe?: number | null }[],
+  ): LoggedWorkingSet[] =>
+    rows.map((r, i) => ({
+      setNumber: i + 1,
+      reps: r.reps,
+      weightKg: r.weightKg,
+      rpe: r.rpe ?? null,
+    }));
+
+  it('delegates lp success to advance (kind: state)', () => {
+    const result = advanceSlot(
+      config({ schemeType: 'lp' }),
+      state({ currentWeightKg: 100, currentReps: 5 }),
+      logged([
+        { reps: 5, weightKg: 100 },
+        { reps: 5, weightKg: 100 },
+        { reps: 5, weightKg: 100 },
+      ]),
+      new Map(),
+    );
+    expect(result.kind).toBe('state');
+    if (result.kind !== 'state') throw new Error('expected state');
+    expect(result.state.currentWeightKg).toBe(102.5);
+    expect(result.reason).toContain('+2.5');
+  });
+
+  it('delegates dp clearing the top of the range (kind: state)', () => {
+    const result = advanceSlot(
+      config({ schemeType: 'dp', minReps: 8, maxReps: 12 }),
+      state({ currentWeightKg: 100, currentReps: 12 }),
+      logged([
+        { reps: 12, weightKg: 100 },
+        { reps: 12, weightKg: 100 },
+        { reps: 12, weightKg: 100 },
+      ]),
+      new Map(),
+    );
+    expect(result.kind).toBe('state');
+    if (result.kind !== 'state') throw new Error('expected state');
+    expect(result.state.currentWeightKg).toBe(102.5);
+    expect(result.state.currentReps).toBe(8); // reset to the bottom of the range
+  });
+
+  // The rpe re-anchor is the exact inverse of the render path, so a set logged
+  // at e1rm·rpePct(rpe, reps) holds the anchor flat.
+  it('rpe re-anchors the e1rm from a set logged at its prescribed load', () => {
+    const e1rm = 100;
+    const reps = 5;
+    const rpe = 8;
+    const weightKg = e1rm * rpePct(rpe, reps);
+    const result = advanceSlot(
+      config({ schemeType: 'rpe', targetRpe: rpe }),
+      state(),
+      logged([{ reps, weightKg, rpe }]),
+      new Map(),
+    );
+    expect(result.kind).toBe('e1rm');
+    if (result.kind !== 'e1rm') throw new Error('expected e1rm');
+    expect(result.e1rmKg).toBeCloseTo(e1rm, 6);
+    expect(result.reason).toContain('autoregulated');
+  });
+
+  it('rpe uses the prescribed-per-set RPE when a set logged none', () => {
+    const reps = 5;
+    const prescribedRpe = 8;
+    const weightKg = 100 * rpePct(prescribedRpe, reps);
+    // Logged rpe is null; the slot target (10) would give a different anchor, so
+    // matching ≈100 proves the prescribed map (8) was used, not the target.
+    const result = advanceSlot(
+      config({ schemeType: 'rpe', targetRpe: 10 }),
+      state(),
+      logged([{ reps, weightKg, rpe: null }]),
+      new Map([[1, prescribedRpe]]),
+    );
+    if (result.kind !== 'e1rm') throw new Error('expected e1rm');
+    expect(result.e1rmKg).toBeCloseTo(100, 6);
+  });
+
+  it('rpe falls back to the slot target when neither logged nor prescribed', () => {
+    const reps = 5;
+    const targetRpe = 8;
+    const weightKg = 100 * rpePct(targetRpe, reps);
+    const result = advanceSlot(
+      config({ schemeType: 'rpe', targetRpe }),
+      state(),
+      logged([{ reps, weightKg, rpe: null }]),
+      new Map(),
+    );
+    if (result.kind !== 'e1rm') throw new Error('expected e1rm');
+    expect(result.e1rmKg).toBeCloseTo(100, 6);
+  });
+
+  it('rpe takes the best (max e1rm) across logged sets', () => {
+    const reps = 5;
+    const rpe = 8;
+    const light = 100 * rpePct(rpe, reps);
+    const heavy = 110 * rpePct(rpe, reps);
+    const result = advanceSlot(
+      config({ schemeType: 'rpe', targetRpe: rpe }),
+      state(),
+      logged([
+        { reps, weightKg: light, rpe },
+        { reps, weightKg: heavy, rpe },
+      ]),
+      new Map(),
+    );
+    if (result.kind !== 'e1rm') throw new Error('expected e1rm');
+    expect(result.e1rmKg).toBeCloseTo(110, 6);
   });
 });

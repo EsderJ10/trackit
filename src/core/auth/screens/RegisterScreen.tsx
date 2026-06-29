@@ -21,7 +21,6 @@ interface FieldErrors {
   form?: string;
 }
 
-/** Create the device's single local account. */
 export function RegisterScreen() {
   const router = useRouter();
   const setUser = useSessionStore((state) => state.setUser);

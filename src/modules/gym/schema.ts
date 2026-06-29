@@ -1,11 +1,16 @@
 import { sql } from 'drizzle-orm';
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+} from 'drizzle-orm/sqlite-core';
 
 import type { Muscle } from './muscles';
 
 // NOTE: relative imports only in schema files — drizzle-kit bundles them with
-// esbuild, which does not resolve tsconfig path aliases. (`Muscle` is a
-// type-only import, erased before bundling, so it adds no runtime dependency.)
+// esbuild, which ignores tsconfig path aliases.
 
 const now = sql`(unixepoch() * 1000)`;
 
@@ -17,58 +22,35 @@ export const exercises = sqliteTable('exercises', {
   equipment: text('equipment'),
   isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(false),
   /**
-   * How a set of this exercise is measured. `weight_reps` (the default) is the
-   * classic load×reps lift; `bodyweight` adds optional load to a rep count;
-   * `duration` is timed work (planks, carries); `distance_time` pairs metres with
-   * seconds (cardio). Gates the logging UI and excludes non-load kinds from 1RM
-   * PRs and tonnage. See research.txt Part 1 #7.
+   * How a set is measured: `weight_reps` (load×reps), `bodyweight` (+optional
+   * load), `duration` (timed), `distance_time` (cardio). Gates the logging UI and
+   * excludes non-load kinds from 1RM PRs and tonnage. See research.txt Part 1 #7.
    */
   measurementKind: text('measurement_kind', {
     enum: ['weight_reps', 'bodyweight', 'duration', 'distance_time'],
   })
     .notNull()
     .default('weight_reps'),
-  /** One-line "what is this" summary shown atop the exercise detail screen. */
+  /** One-line summary shown atop the exercise detail screen. */
   description: text('description'),
-  /**
-   * Whether the movement crosses multiple joints (`compound`) or one
-   * (`isolation`). Shown as a chip; helps a beginner understand what a lift is
-   * for. Null for user-created exercises until they classify their own.
-   */
+  /** Multi-joint (`compound`) vs single-joint (`isolation`). Null for custom rows. */
   mechanic: text('mechanic', { enum: ['compound', 'isolation'] }),
-  /**
-   * The resistance direction: `push`, `pull`, or `static` (isometric). Drives a
-   * chip today and enables future push/pull/legs auto-categorization. Null where
-   * it doesn't cleanly apply (e.g. rotational core work) or for custom rows.
-   */
+  /** Resistance direction; null where push/pull/static doesn't fit (e.g. rotation) or for custom rows. */
   forceType: text('force_type', { enum: ['push', 'pull', 'static'] }),
-  /**
-   * Ordered form cues (setup → execution). Stored as a JSON string array; the
-   * detail screen renders them as a checklist. Hand-authored for seeded rows,
-   * null for user-created exercises until they add their own.
-   */
+  /** Ordered form cues (setup → execution), JSON string array. Null for custom rows. */
   cues: text('cues', { mode: 'json' }).$type<string[]>(),
-  /**
-   * Common mistakes to avoid, as a JSON string array — rendered as a cautionary
-   * checklist under the form cues. Hand-authored for seeded rows; the highest-
-   * value teaching content for the mid-to-zero-knowledge audience. Null until set.
-   */
+  /** Common mistakes, JSON string array. Null for custom rows. */
   commonMistakes: text('common_mistakes', { mode: 'json' }).$type<string[]>(),
   /**
-   * Fine muscles this movement trains, split by emphasis — JSON arrays of
-   * `Muscle` ids (see `./muscles`). The anatomy diagram lights `primaryMuscles`
-   * bright and `secondaryMuscles` dim. Independent of the coarse `muscleGroup`
-   * bucket, but every id rolls up to one group via `MUSCLES`.
+   * Fine muscles trained, split by emphasis — JSON arrays of `Muscle` ids (see
+   * `./muscles`); diagram lights primary bright, secondary dim. Every id rolls up
+   * to one `muscleGroup` via `MUSCLES`.
    */
   primaryMuscles: text('primary_muscles', { mode: 'json' }).$type<Muscle[]>(),
   secondaryMuscles: text('secondary_muscles', {
     mode: 'json',
   }).$type<Muscle[]>(),
-  /**
-   * User-pinned flag. Client state living on the catalog row (the table is
-   * local-only); the reseed reconcile never touches it, so favourites survive
-   * catalog updates.
-   */
+  /** User-pinned flag; the reseed reconcile never touches it, so favourites survive catalog updates. */
   isFavorite: integer('is_favorite', { mode: 'boolean' })
     .notNull()
     .default(false),
@@ -85,37 +67,33 @@ export const routines = sqliteTable('routines', {
 });
 
 /** An exercise within a routine template, with its targets. */
-export const routineExercises = sqliteTable('routine_exercises', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  routineId: integer('routine_id')
-    .notNull()
-    .references(() => routines.id, { onDelete: 'cascade' }),
-  exerciseId: integer('exercise_id')
-    .notNull()
-    .references(() => exercises.id, { onDelete: 'cascade' }),
-  position: integer('position').notNull().default(0),
-  targetSets: integer('target_sets').notNull().default(3),
-  targetReps: integer('target_reps').notNull().default(10),
-  targetWeight: real('target_weight'),
-  /**
-   * Superset grouping: exercises sharing a non-null `supersetGroup` are performed
-   * back-to-back as a superset (labeled A/B/… in order). Null = a standalone
-   * exercise. The value is an opaque per-routine group id, not a global key.
-   */
-  supersetGroup: integer('superset_group'),
-});
+export const routineExercises = sqliteTable(
+  'routine_exercises',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    routineId: integer('routine_id')
+      .notNull()
+      .references(() => routines.id, { onDelete: 'cascade' }),
+    exerciseId: integer('exercise_id')
+      .notNull()
+      .references(() => exercises.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull().default(0),
+    targetSets: integer('target_sets').notNull().default(3),
+    targetReps: integer('target_reps').notNull().default(10),
+    targetWeight: real('target_weight'),
+    // Superset grouping: rows sharing a non-null value run back-to-back (A/B/…);
+    // null = standalone. Value is an opaque per-routine group id, not a global key.
+    supersetGroup: integer('superset_group'),
+  },
+  (t) => [index('routine_exercises_routine_id_idx').on(t.routineId)],
+);
 
 /**
- * A program: an opt-in, periodized plan that drives progression suggestions.
- * Parallel to (not a replacement for) routines — a session is freestyle, from a
- * routine, OR from a program.
- *
- * A program is a roadmap, not a flat list: it owns **days** (the split, e.g.
- * Push/Pull/Legs — `program_days`) and **weeks** (the periodization, e.g. an
- * undulating or deload wave — `program_weeks`). The cursor (`currentWeek` +
- * `currentDayIndex`, wrapping into `currentCycle`) tracks where the lifter is
- * and advances as sessions are logged. `roundingStepKg` is the loadable
- * increment that suggested weights snap to.
+ * An opt-in periodized plan driving progression suggestions — parallel to
+ * routines (a session is freestyle, from a routine, OR from a program). Owns
+ * **days** (the split, `program_days`) and **weeks** (periodization,
+ * `program_weeks`); the cursor (`currentWeek` + `currentDayIndex`, wrapping into
+ * `currentCycle`) advances as sessions are logged.
  */
 export const programs = sqliteTable('programs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -135,182 +113,217 @@ export const programs = sqliteTable('programs', {
 });
 
 /** A day within a program (the split slot, e.g. "Push") — shared across weeks. */
-export const programDays = sqliteTable('program_days', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  programId: integer('program_id')
-    .notNull()
-    .references(() => programs.id, { onDelete: 'cascade' }),
-  dayIndex: integer('day_index').notNull().default(0),
-  name: text('name').notNull(),
-});
+export const programDays = sqliteTable(
+  'program_days',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    programId: integer('program_id')
+      .notNull()
+      .references(() => programs.id, { onDelete: 'cascade' }),
+    dayIndex: integer('day_index').notNull().default(0),
+    name: text('name').notNull(),
+  },
+  (t) => [index('program_days_program_id_idx').on(t.programId)],
+);
 
 /**
- * A week within a program — the periodization axis. `weekIndex` (1-based) is the
- * stable key that `program_sets` prescriptions reference; `isDeload` marks a
- * week where progression is skipped (Liftosaur's `progress: none`).
+ * A week within a program. `weekIndex` (1-based) is the stable key that
+ * `program_sets` reference; `isDeload` skips progression (Liftosaur `progress: none`).
  */
-export const programWeeks = sqliteTable('program_weeks', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  programId: integer('program_id')
-    .notNull()
-    .references(() => programs.id, { onDelete: 'cascade' }),
-  weekIndex: integer('week_index').notNull().default(1),
-  name: text('name'),
-  isDeload: integer('is_deload', { mode: 'boolean' }).notNull().default(false),
-});
+export const programWeeks = sqliteTable(
+  'program_weeks',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    programId: integer('program_id')
+      .notNull()
+      .references(() => programs.id, { onDelete: 'cascade' }),
+    weekIndex: integer('week_index').notNull().default(1),
+    name: text('name'),
+    isDeload: integer('is_deload', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+  },
+  (t) => [index('program_weeks_program_id_idx').on(t.programId)],
+);
 
 /**
- * An exercise slot in a program day with its progression *rule* (config that
- * rarely changes). The mutable per-session state lives in
- * `exerciseTrainingState` (1:1, keyed by this slot's id); the per-week × per-set
- * prescription lives in `programSets`. `schemeType` discriminates the rule.
+ * An exercise slot in a program day with its progression *rule* (`schemeType`
+ * discriminates). Mutable per-session state lives in `exerciseTrainingState`
+ * (1:1, keyed by this slot's id); the per-week × per-set prescription in `programSets`.
  */
-export const programExercises = sqliteTable('program_exercises', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  // `programId` is kept (denormalized) for cheap program-wide queries; the day
-  // is the real parent.
-  programId: integer('program_id')
-    .notNull()
-    .references(() => programs.id, { onDelete: 'cascade' }),
-  programDayId: integer('program_day_id')
-    .notNull()
-    .references(() => programDays.id, { onDelete: 'cascade' }),
-  exerciseId: integer('exercise_id')
-    .notNull()
-    .references(() => exercises.id, { onDelete: 'cascade' }),
-  position: integer('position').notNull().default(0),
-  schemeType: text('scheme_type', {
-    enum: ['lp', 'dp', 'percent', 'rpe'],
-  }).notNull(),
-  targetSets: integer('target_sets').notNull().default(3),
-  // Weight added on success (lp) / on clearing the rep ceiling (dp).
-  incrementKg: real('increment_kg').notNull().default(2.5),
-  // Double-progression rep range (null for non-dp schemes).
-  minReps: integer('min_reps'),
-  maxReps: integer('max_reps'),
-  // Linear-progression deload trigger + size.
-  failThreshold: integer('fail_threshold').notNull().default(3),
-  deloadPct: real('deload_pct').notNull().default(0.1),
-  // Per-cycle training-max bump (percent scheme).
-  tmIncrementKg: real('tm_increment_kg').notNull().default(2.5),
-  // Target RPE for the autoregulated (rpe) scheme.
-  targetRpe: real('target_rpe'),
-  /**
-   * Superset grouping within a program day: exercises sharing a non-null
-   * `supersetGroup` are performed back-to-back (labeled A/B/… in order). Null =
-   * standalone. The value is an opaque group id (the anchor row's id), unique
-   * across the table so day groups never collide.
-   */
-  supersetGroup: integer('superset_group'),
-});
+export const programExercises = sqliteTable(
+  'program_exercises',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    // Denormalized for cheap program-wide queries; the day is the real parent.
+    programId: integer('program_id')
+      .notNull()
+      .references(() => programs.id, { onDelete: 'cascade' }),
+    programDayId: integer('program_day_id')
+      .notNull()
+      .references(() => programDays.id, { onDelete: 'cascade' }),
+    exerciseId: integer('exercise_id')
+      .notNull()
+      .references(() => exercises.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull().default(0),
+    schemeType: text('scheme_type', {
+      enum: ['lp', 'dp', 'percent', 'rpe'],
+    }).notNull(),
+    targetSets: integer('target_sets').notNull().default(3),
+    // Weight added on success (lp) / on clearing the rep ceiling (dp).
+    incrementKg: real('increment_kg').notNull().default(2.5),
+    // Double-progression rep range (null for non-dp schemes).
+    minReps: integer('min_reps'),
+    maxReps: integer('max_reps'),
+    // Linear-progression deload trigger + size.
+    failThreshold: integer('fail_threshold').notNull().default(3),
+    deloadPct: real('deload_pct').notNull().default(0.1),
+    // Per-cycle training-max bump (percent scheme).
+    tmIncrementKg: real('tm_increment_kg').notNull().default(2.5),
+    // Target RPE for the autoregulated (rpe) scheme.
+    targetRpe: real('target_rpe'),
+    // Superset grouping within a program day: shared non-null value runs
+    // back-to-back (A/B/…); null = standalone. Value is the anchor row's id,
+    // unique across the table so day groups never collide.
+    supersetGroup: integer('superset_group'),
+  },
+  (t) => [
+    index('program_exercises_program_day_id_idx').on(t.programDayId),
+    index('program_exercises_program_id_idx').on(t.programId),
+  ],
+);
 
 /**
- * The per-week × per-set prescription for a program-exercise — the keystone that
- * expresses every scheme and arbitrary weekly waves in one table. `intensityKind`
- * says how to read `intensityValue`: `abs` = canonical kg, `pct` = fraction of
- * the training max (0.85 = 85%), `rpe` = target RPE. For lp/dp, per-week rows are
- * optional — when absent the engine derives `targetSets × currentReps` from the
- * scheme + state (weight comes from state), so simple schemes need no authoring.
+ * The per-week × per-set prescription for a program-exercise. `intensityKind`
+ * reads `intensityValue`: `abs` = canonical kg, `pct` = fraction of TM (0.85 =
+ * 85%), `rpe` = target RPE. For lp/dp, per-week rows are optional — absent, the
+ * engine derives sets from scheme + state, so simple schemes need no authoring.
  */
-export const programSets = sqliteTable('program_sets', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  programExerciseId: integer('program_exercise_id')
-    .notNull()
-    .references(() => programExercises.id, { onDelete: 'cascade' }),
-  weekIndex: integer('week_index').notNull().default(1),
-  setNumber: integer('set_number').notNull(),
-  reps: integer('reps').notNull(),
-  intensityKind: text('intensity_kind', {
-    enum: ['abs', 'pct', 'rpe'],
-  })
-    .notNull()
-    .default('abs'),
-  intensityValue: real('intensity_value').notNull().default(0),
-  amrap: integer('amrap', { mode: 'boolean' }).notNull().default(false),
-  restSec: integer('rest_sec'),
-});
+export const programSets = sqliteTable(
+  'program_sets',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    programExerciseId: integer('program_exercise_id')
+      .notNull()
+      .references(() => programExercises.id, { onDelete: 'cascade' }),
+    weekIndex: integer('week_index').notNull().default(1),
+    setNumber: integer('set_number').notNull(),
+    reps: integer('reps').notNull(),
+    intensityKind: text('intensity_kind', {
+      enum: ['abs', 'pct', 'rpe'],
+    })
+      .notNull()
+      .default('abs'),
+    intensityValue: real('intensity_value').notNull().default(0),
+    amrap: integer('amrap', { mode: 'boolean' }).notNull().default(false),
+    restSec: integer('rest_sec'),
+  },
+  (t) => [
+    index('program_sets_program_exercise_id_idx').on(t.programExerciseId),
+  ],
+);
 
 /**
- * Mutable progression state, 1:1 with a program-exercise slot — the bit that
- * carries across sessions and cycles and lives in no set log. `trainingMaxKg`
+ * Mutable progression state, 1:1 with a program-exercise slot. `trainingMaxKg`
  * drives percent schemes; `e1rmKg` anchors rpe; the rest drives lp/dp.
  */
-export const exerciseTrainingState = sqliteTable('exercise_training_state', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  programExerciseId: integer('program_exercise_id')
-    .notNull()
-    .references(() => programExercises.id, { onDelete: 'cascade' }),
-  currentWeightKg: real('current_weight_kg').notNull().default(0),
-  currentReps: integer('current_reps').notNull().default(5),
-  successStreak: integer('success_streak').notNull().default(0),
-  failStreak: integer('fail_streak').notNull().default(0),
-  trainingMaxKg: real('training_max_kg'),
-  // Estimated 1RM anchor (kg) for the rpe scheme; refreshed on advance.
-  e1rmKg: real('e1rm_kg'),
-  // The human-readable explanation of the current suggestion (suggest+confirm).
-  lastReason: text('last_reason'),
-});
+export const exerciseTrainingState = sqliteTable(
+  'exercise_training_state',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    programExerciseId: integer('program_exercise_id')
+      .notNull()
+      .references(() => programExercises.id, { onDelete: 'cascade' }),
+    currentWeightKg: real('current_weight_kg').notNull().default(0),
+    currentReps: integer('current_reps').notNull().default(5),
+    successStreak: integer('success_streak').notNull().default(0),
+    failStreak: integer('fail_streak').notNull().default(0),
+    trainingMaxKg: real('training_max_kg'),
+    // Estimated 1RM anchor (kg) for the rpe scheme; refreshed on advance.
+    e1rmKg: real('e1rm_kg'),
+    // The human-readable explanation of the current suggestion (suggest+confirm).
+    lastReason: text('last_reason'),
+  },
+  (t) => [
+    index('exercise_training_state_program_exercise_id_idx').on(
+      t.programExerciseId,
+    ),
+  ],
+);
 
 /** A logged workout instance (a session of actually doing the work). */
-export const workoutSessions = sqliteTable('workout_sessions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  // Null routine = freestyle workout. Keep the session if the routine is deleted.
-  routineId: integer('routine_id').references(() => routines.id, {
-    onDelete: 'set null',
-  }),
-  // Program provenance (all null = freestyle/routine, i.e. pre-M5 behavior).
-  // Keep the session if the program is deleted.
-  programId: integer('program_id').references(() => programs.id, {
-    onDelete: 'set null',
-  }),
-  programWeekIndex: integer('program_week_index'),
-  programDayIndex: integer('program_day_index'),
-  // Which program day this session was generated from (null = freestyle/routine).
-  // No enforced FK: added via ALTER, where SQLite drops the ON DELETE clause.
-  programDayId: integer('program_day_id'),
-  startedAt: integer('started_at', { mode: 'timestamp_ms' })
-    .notNull()
-    .default(now),
-  finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
-  notes: text('notes'),
-});
+export const workoutSessions = sqliteTable(
+  'workout_sessions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    // Null = freestyle. set null on delete: keep the session if the routine goes.
+    routineId: integer('routine_id').references(() => routines.id, {
+      onDelete: 'set null',
+    }),
+    // Program provenance (all null = freestyle/routine). set null: keep on delete.
+    programId: integer('program_id').references(() => programs.id, {
+      onDelete: 'set null',
+    }),
+    programWeekIndex: integer('program_week_index'),
+    programDayIndex: integer('program_day_index'),
+    // No enforced FK: added via ALTER, where SQLite drops the ON DELETE clause.
+    programDayId: integer('program_day_id'),
+    startedAt: integer('started_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(now),
+    finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
+    notes: text('notes'),
+  },
+  (t) => [
+    // Finished lists order by finishedAt; active-session lookup filters it NULL and orders by startedAt.
+    index('workout_sessions_finished_at_idx').on(t.finishedAt),
+    index('workout_sessions_started_at_idx').on(t.startedAt),
+  ],
+);
 
 /** A single logged set within a session. */
-export const setLogs = sqliteTable('set_logs', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  sessionId: integer('session_id')
-    .notNull()
-    .references(() => workoutSessions.id, { onDelete: 'cascade' }),
-  exerciseId: integer('exercise_id')
-    .notNull()
-    .references(() => exercises.id, { onDelete: 'cascade' }),
-  setNumber: integer('set_number').notNull(),
-  reps: integer('reps').notNull(),
-  weight: real('weight').notNull().default(0),
-  rpe: real('rpe'),
-  /**
-   * What kind of set this is. Only `working` counts toward 1RM PRs and program
-   * progression; `warmup` is excluded from weekly volume while `drop`/`failure`
-   * still count as hard volume. See research.txt Part 1 #3 and landmarks.ts.
-   */
-  setType: text('set_type', {
-    enum: ['warmup', 'working', 'drop', 'failure'],
-  })
-    .notNull()
-    .default('working'),
-  // Non-`weight_reps` measurements land here (null otherwise): seconds of timed
-  // work, and metres of distance work.
-  durationSec: integer('duration_sec'),
-  distanceM: real('distance_m'),
-  // Null = planned/incomplete set; a timestamp is written when it's checked off.
-  completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
-});
+export const setLogs = sqliteTable(
+  'set_logs',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    sessionId: integer('session_id')
+      .notNull()
+      .references(() => workoutSessions.id, { onDelete: 'cascade' }),
+    exerciseId: integer('exercise_id')
+      .notNull()
+      .references(() => exercises.id, { onDelete: 'cascade' }),
+    setNumber: integer('set_number').notNull(),
+    reps: integer('reps').notNull(),
+    weight: real('weight').notNull().default(0),
+    rpe: real('rpe'),
+    /**
+     * Only `working` counts toward 1RM PRs and progression; `warmup` is excluded
+     * from weekly volume, `drop`/`failure` still count as hard volume. See
+     * research.txt Part 1 #3 and landmarks.ts.
+     */
+    setType: text('set_type', {
+      enum: ['warmup', 'working', 'drop', 'failure'],
+    })
+      .notNull()
+      .default('working'),
+    // Non-`weight_reps` measurements (null otherwise): timed seconds, distance metres.
+    durationSec: integer('duration_sec'),
+    distanceM: real('distance_m'),
+    // Null = planned/incomplete; timestamped when checked off.
+    completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    // Hot path: per-session reads + last-performance/PR lookups (exercise + set type, by completion time).
+    index('set_logs_session_id_idx').on(t.sessionId),
+    index('set_logs_exercise_set_type_completed_idx').on(
+      t.exerciseId,
+      t.setType,
+      t.completedAt,
+    ),
+  ],
+);
 
-/**
- * Gym-module preferences. Single-row table (id pinned to 1), mirroring core
- * `app_settings` — module-specific prefs live in the module's own table, not in
- * core. Captured by the M2 backup/restore like every other table.
- */
+/** Gym-module preferences. Single-row table (id pinned to 1); module prefs live here, not in core. */
 export const gymSettings = sqliteTable('gym_settings', {
   id: integer('id').primaryKey().default(1),
   /** Default between-sets rest, in seconds. The ±30s timer controls write here. */
@@ -318,20 +331,16 @@ export const gymSettings = sqliteTable('gym_settings', {
   /** Target finished workouts per week — drives the profile's weekly-goal ring. */
   weeklyWorkoutGoal: integer('weekly_workout_goal').notNull().default(3),
   /**
-   * Which effort scale the logging/review UI surfaces: RPE (1–10) or RIR (reps
-   * in reserve, 0–9). The two are the same stored value (`rir = 10 − rpe`), so
-   * this is a pure display preference — sets always persist canonical RPE in
-   * `set_logs.rpe`. See `./effort`.
+   * Display preference only: RPE (1–10) or RIR (0–9), same stored value
+   * (`rir = 10 − rpe`). Sets always persist canonical RPE in `set_logs.rpe`. See `./effort`.
    */
   effortScale: text('effort_scale', { enum: ['rpe', 'rir'] })
     .notNull()
     .default('rpe'),
   /**
-   * The single program the user is currently following ("everything revolves
-   * around it" — Train/Home surface its next workout). Null = no program picked,
-   * fall back to ad-hoc training. Distinct from `programs.active` (which means
-   * "in my library / not archived"). Set null on delete so the pointer can never
-   * dangle.
+   * The single program currently being followed (Train/Home surface its next
+   * workout); null = ad-hoc. Distinct from `programs.active` ("in my library").
+   * set null on delete so the pointer can't dangle.
    */
   currentProgramId: integer('current_program_id').references(
     () => programs.id,
@@ -342,11 +351,9 @@ export const gymSettings = sqliteTable('gym_settings', {
 });
 
 /**
- * Per-muscle weekly volume landmarks (MV ≤ MEV ≤ MAV ≤ MRV, in sets/week) from
- * Renaissance Periodization. Keyed by the coarse `exercises.muscle_group` value
- * (e.g. 'Chest', 'Legs'). Seeded with editable defaults (`seedMuscleLandmarks`)
- * so a later settings panel can let users tune them to their own recovery —
- * captured by backup/restore like every other table.
+ * Per-muscle weekly volume landmarks (MV ≤ MEV ≤ MAV ≤ MRV, sets/week) from
+ * Renaissance Periodization, keyed by `exercises.muscle_group`. Seeded with
+ * editable defaults (`seedMuscleLandmarks`).
  */
 export const muscleLandmarks = sqliteTable('muscle_landmarks', {
   /** Matches `exercises.muscle_group` exactly. */
@@ -374,3 +381,8 @@ export type ProgramExercise = typeof programExercises.$inferSelect;
 export type ProgramSet = typeof programSets.$inferSelect;
 export type ExerciseTrainingState = typeof exerciseTrainingState.$inferSelect;
 export type GymSettings = typeof gymSettings.$inferSelect;
+
+// Column-derived enum unions — single source of truth, so callers never
+// re-declare these literals by hand.
+export type SetType = SetLog['setType'];
+export type MeasurementKind = Exercise['measurementKind'];

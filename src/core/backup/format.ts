@@ -1,11 +1,7 @@
-/**
- * Pure (de)serialization + validation for backup files. No SQLite or native
- * imports live here, so this layer is unit-testable. The IO half — reading the
- * database and writing it back — lives in `backup.ts`.
- */
+// Pure (de)serialization + validation, no native imports — unit-testable. The IO
+// half (reading/writing the DB) lives in `backup.ts`.
 
-/** A SQLite scalar as returned/accepted by the driver. Booleans are stored as
- * integers, so there is no boolean case; blobs aren't used in our schema. */
+/** SQLite scalar per the driver. No boolean case (booleans stored as ints); no blobs in our schema. */
 export type SqlValue = string | number | null;
 export type BackupRow = Record<string, SqlValue>;
 export type BackupTables = Record<string, BackupRow[]>;
@@ -43,10 +39,9 @@ export function serializeBackup(input: {
 }
 
 /**
- * Parse and validate a backup file against the device's current schema. Rejects
- * (rather than partially restoring) on anything unexpected — most importantly a
- * `schemaVersion` mismatch, which would otherwise fail mid-INSERT against a
- * changed table shape.
+ * Validate a backup against the current schema, rejecting (not partially
+ * restoring) on anything unexpected — chiefly a `schemaVersion` mismatch, which
+ * would otherwise fail mid-INSERT against a changed table shape.
  */
 export function parseBackup(
   json: string,

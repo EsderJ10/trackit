@@ -1,8 +1,6 @@
-// Plate calculator — which plates to load per side of the bar for a target
-// weight, given an available plate inventory. Pure and unit-tested; the modal
-// renders the result. All weights are in the DISPLAY unit (kg or lb) since
-// plates are physical denominations the lifter actually owns — the caller passes
-// the unit-appropriate bar weight and plate set.
+// Plate calculator — plates per side of the bar for a target weight. All weights
+// are in the DISPLAY unit (kg or lb), not canonical kg: plates are physical
+// denominations the lifter owns, so the caller passes a unit-appropriate bar/set.
 
 /** Default bar weight by unit (Olympic bar). */
 export const DEFAULT_BAR: Record<'kg' | 'lb', number> = { kg: 20, lb: 45 };
@@ -23,11 +21,9 @@ export interface PlatePlan {
 }
 
 /**
- * Greedy per-side plate breakdown for `target` total weight. Assumes an
- * effectively unlimited count of each denomination (the common home/commercial
- * case). When the remainder can't be matched exactly, returns the closest
- * achievable *at or below* the target (never loads more than asked) and flags
- * `exact: false` — mirroring Hevy's "closest possible weight" behaviour.
+ * Greedy per-side plate breakdown for `target`, assuming unlimited plates. When
+ * the remainder can't match exactly, returns the closest achievable AT OR BELOW
+ * target (never overloads) with `exact: false`.
  */
 export function platesPerSide(
   target: number,

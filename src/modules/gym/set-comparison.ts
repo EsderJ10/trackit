@@ -17,9 +17,8 @@ export interface ComparableSet {
 const EPSILON = 1e-9;
 
 /**
- * Compare a set against its previous-session counterpart by estimated 1RM
- * (Epley) — the same metric M3's PR view uses, so heavier-fewer vs lighter-more
- * (82.5×3 vs 80×5) ranks consistently. Pure; unit-tested without a DB harness.
+ * Compare a set to its previous-session counterpart by Epley 1RM — so heavier-fewer
+ * vs lighter-more (82.5×3 vs 80×5) ranks consistently with the PR view.
  */
 export function compareToPrevious(
   current: ComparableSet,

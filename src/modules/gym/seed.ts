@@ -5,12 +5,7 @@ import type { AppDatabase } from '@/core/db/client';
 import { DEFAULT_MUSCLE_LANDMARKS } from './landmarks';
 import type { Muscle } from './muscles';
 import { exercises, muscleLandmarks } from './schema';
-
-type MeasurementKind =
-  | 'weight_reps'
-  | 'bodyweight'
-  | 'duration'
-  | 'distance_time';
+import type { MeasurementKind } from './schema';
 
 type Mechanic = 'compound' | 'isolation';
 type ForceType = 'push' | 'pull' | 'static';
@@ -39,22 +34,10 @@ interface SeedExercise {
 
 /**
  * Canonical default catalog — the target end-state, not a one-shot insert list.
- *
- * Names follow `Base Movement (Discriminator)` so the many ways to do one
- * movement (Bench Press: Barbell / Dumbbell / Smith / Incline…) each get their
- * own row. That matters because set history/PRs key on `exercises.id`
- * (`set_logs.exercise_id`), so distinct rows = distinct progress per variant.
- * The parenthetical form also clusters variants in the picker, which sorts by
- * `muscle_group, name`. Single-form staples stay bare (Push-up, Plank, …).
- *
- * `equipment` stays within the existing 5 values (Barbell, Dumbbell, Machine,
- * Cable, Bodyweight); the parenthetical name carries finer detail (Smith bench →
- * name `(Smith)`, equipment `Machine`; EZ-bar curl → name `(EZ-Bar)`, equipment
- * `Barbell`).
- *
- * Muscle tags are anatomically literal — a lateral raise tags `side_delts`, an
- * EZ-bar curl tags `brachialis`, a hanging leg raise tags `hip_flexors` — so the
- * anatomy diagram and a knowledgeable lifter both read them as true.
+ * Names follow `Base Movement (Discriminator)` so each variant gets its own row;
+ * set history/PRs key on `exercises.id`, so distinct rows = distinct progress per
+ * variant. `equipment` stays within the existing 5 values (the parenthetical name
+ * carries finer detail). Muscle tags are anatomically literal.
  */
 const CATALOG: readonly SeedExercise[] = [
   // Legs
@@ -1277,16 +1260,10 @@ const CATALOG: readonly SeedExercise[] = [
 ];
 
 /**
- * One-time normalization of the original (pre-convention) seed names to their
- * canonical `CATALOG` names. Applied in place so the row keeps its `id` — and
- * thus its logged sets and routine references. Only non-custom rows are touched,
- * and only when the canonical name isn't already present, which keeps re-runs
- * no-ops and never clobbers a user-created exercise.
- *
- * Chains are safe: a device on the oldest name (`Bicep Curl`) jumps straight to
- * the newest canonical, while a device already on an intermediate name
- * (`Bicep Curl (Dumbbell)`) is caught by its own entry. The `present.has(to)`
- * guard stops any double-apply.
+ * Normalizes legacy seed names to canonical `CATALOG` names, in place so the row
+ * keeps its `id` (and its logged sets / routine refs). Non-custom rows only, and
+ * only when `to` isn't already present — keeps re-runs no-ops, never clobbers a
+ * user-created exercise. Chains are safe; the `present.has(to)` guard stops double-apply.
  */
 const RENAMES: readonly { from: string; to: string }[] = [
   { from: 'Barbell Back Squat', to: 'Back Squat (Barbell)' },
@@ -1306,10 +1283,9 @@ const RENAMES: readonly { from: string; to: string }[] = [
 ];
 
 /**
- * Reconciles the default exercise catalog. Idempotent: renames legacy seed rows
- * to the canonical convention, then inserts any canonical exercise still
- * missing. Runs on every launch (see `runModuleSeeds`), so catalog additions
- * reach already-seeded devices without a reset and re-runs are no-ops.
+ * Reconciles the default exercise catalog. Idempotent, runs on every launch (see
+ * `runModuleSeeds`): renames legacy rows, inserts missing canonicals, backfills
+ * detail fields onto seeded rows — so catalog additions reach seeded devices without a reset.
  */
 export function seedGym(db: AppDatabase): void {
   const canonicalByName = new Map(CATALOG.map((entry) => [entry.name, entry]));
@@ -1320,9 +1296,7 @@ export function seedGym(db: AppDatabase): void {
       .from(exercises)
       .all();
     const present = new Set(rows.map((row) => row.name));
-    // Only seeded (non-custom) rows are eligible for renaming, so a user's own
-    // exercise that happens to share a legacy name is never touched — and never
-    // suppresses the canonical insert.
+    // Only non-custom rows are renameable — a user exercise sharing a legacy name is never touched.
     const legacySeeded = new Set(
       rows.filter((row) => !row.isCustom).map((row) => row.name),
     );
@@ -1369,11 +1343,8 @@ export function seedGym(db: AppDatabase): void {
         .run();
     }
 
-    // 3) Reconcile catalog content onto already-seeded rows — measurementKind and
-    // the later-added detail fields (description, cues, mechanic, forceType,
-    // commonMistakes, muscles) all backfill here so existing devices get them
-    // without a reset. `isFavorite` is user state and is deliberately never
-    // written, so favourites survive a reseed.
+    // 3) Backfill catalog content onto already-seeded rows. `isFavorite` is user
+    // state and deliberately never written, so favourites survive a reseed.
     for (const entry of CATALOG) {
       tx.update(exercises)
         .set({
@@ -1397,11 +1368,9 @@ export function seedGym(db: AppDatabase): void {
 }
 
 /**
- * Seeds the per-muscle volume landmarks. Insert-or-IGNORE (not upsert): users
- * can now edit their own bands in the landmark editor, so re-seeding on every
- * launch must NOT clobber those edits — it only fills in muscles that have no
- * row yet. "Reset to defaults" (`resetMuscleLandmarks`) is the explicit way to
- * re-apply `DEFAULT_MUSCLE_LANDMARKS`. Runs on every launch (see `seedGymModule`).
+ * Seeds the per-muscle volume landmarks. Insert-or-IGNORE (not upsert): re-seed
+ * on every launch must NOT clobber user edits — only fills muscles with no row.
+ * `resetMuscleLandmarks` is the explicit way to re-apply the defaults.
  */
 export function seedMuscleLandmarks(db: AppDatabase): void {
   db.transaction((tx) => {

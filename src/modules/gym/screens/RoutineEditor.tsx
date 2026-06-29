@@ -34,8 +34,7 @@ export function RoutineEditor() {
 
   const badges = useMemo(() => supersetBadges(exercises), [exercises]);
 
-  // Read the latest rows from a ref so the link/unlink handlers stay stable
-  // (preserving the memoized rows) while still acting on current data.
+  // Ref keeps link/unlink handlers stable (preserving memoized rows) on current data.
   const exercisesRef = useRef(exercises);
   useEffect(() => {
     exercisesRef.current = exercises;

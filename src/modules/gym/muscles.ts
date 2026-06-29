@@ -1,12 +1,7 @@
-// Fine-grained muscle taxonomy — the vocabulary an exercise tags as the muscles
-// it works (primary vs secondary), and the regions the anatomy diagram
-// (`MuscleMap`) lights up. This is INTENTIONALLY separate from the coarse
-// `exercises.muscle_group` (Chest/Back/Legs/…) that drives volume landmarks: the
-// group is one bucket for picker sorting + weekly-set bands, whereas these fine
-// muscles answer "what does this movement actually train, and where on the body".
-// Each fine muscle rolls up to exactly one coarse group via `MUSCLES[*].group`,
-// so the two systems stay consistent (and a future per-muscle volume view can
-// fold fine → coarse for free). DB/native-free so it unit-tests directly.
+// Fine-grained muscle taxonomy — what an exercise tags as worked + the regions
+// the anatomy diagram lights up. INTENTIONALLY separate from coarse
+// `exercises.muscle_group` (which drives volume landmarks); each fine muscle rolls
+// up to exactly one coarse group via `MUSCLES[*].group`, keeping the two consistent.
 
 /** The coarse buckets stored in `exercises.muscle_group`. */
 export type MuscleGroup =
@@ -22,18 +17,11 @@ export type MuscleGroup =
 export type MuscleView = 'front' | 'back';
 
 /**
- * Every fine muscle the catalog can tag. Keys are stable snake_case ids stored
- * in `exercises.primary_muscles` / `secondary_muscles` (JSON) — do not rename a
- * key without a data migration. The deltoid is split into three heads
- * (`front_delts` / `side_delts` / `rear_delts`) because that's how pressing,
- * raising, and rowing emphasise it and how a knowledgeable lifter expects it
- * tagged — a lateral raise is a SIDE-delt movement, not a front-delt one.
- * `brachialis` is the elbow flexor under the biceps that hammer/neutral-grip
- * curls bias; `forearms` stays the brachioradialis/grip bucket. `hip_flexors`
- * (iliopsoas) is the prime mover of straight-leg raises; `glute_med` is the
- * abductor the hip-abduction machine actually trains. Some of these share a
- * diagram region with a neighbour (the vendored silhouette has no distinct path
- * for them) — see `muscle-slugs.ts`; the label/legend still names them precisely.
+ * Every fine muscle the catalog can tag. Keys are stable snake_case ids stored in
+ * `exercises.primary_muscles`/`secondary_muscles` (JSON) — do NOT rename without a
+ * data migration. Deltoid is split into three heads (front/side/rear) to match how
+ * lifts emphasise it. Some share a diagram region with a neighbour (the vendored
+ * silhouette has no distinct path) — see `muscle-slugs.ts`; labels still name them.
  */
 export type Muscle =
   | 'chest'

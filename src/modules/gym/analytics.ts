@@ -1,7 +1,5 @@
-// Pure progress-analytics helpers: turn completed set logs into weekly trend
-// series for the Progress screen. Kept free of DB/native imports (the type-only
-// imports below are erased) so it unit-tests directly, like `progression-engine`
-// and `streak`. Weights stay canonical kg — the screen converts at render.
+// Pure progress-analytics: completed set logs → weekly trend series for the
+// Progress screen. Weights stay canonical kg; the screen converts at render.
 
 import { gatedOneRepMax } from './progression';
 import type { MeasurementKind, SetType } from './queries';
@@ -46,11 +44,8 @@ function isHardSet(set: VolumeSet): boolean {
   return set.setType !== 'warmup';
 }
 
-/**
- * Bucket sets into one point per calendar week, from the first in-range week
- * with data through the current week — zero-filling empty weeks so the x-axis
- * stays proportional to time. `contribution` maps each set to its weekly value.
- */
+// One point per calendar week, first in-range week with data → now, zero-filling
+// empties so the x-axis stays proportional to time.
 function weeklySeries(
   sets: VolumeSet[],
   fromMs: number,
@@ -103,12 +98,7 @@ export function weeklySetCount(
   return weeklySeries(sets, fromMs, nowMs, (set) => (isHardSet(set) ? 1 : 0));
 }
 
-/**
- * Weekly hard-set count for a single muscle group (matching volume-landmark
- * units, sets/week), zero-filled across that group's training history. Sets are
- * attributed to the exercise's coarse `muscleGroup`, consistent with the
- * profile's per-muscle bars and the landmark thresholds.
- */
+/** Weekly hard-set count for one muscle group (landmark units, sets/week). */
 export function weeklySetsByGroup(
   sets: VolumeSet[],
   group: string,
@@ -141,9 +131,8 @@ export function groupsByVolume(
 }
 
 /**
- * Best reliable estimated 1RM per session (kg), oldest → newest, filtered to
- * `fromMs`. Sessions whose sets are all high-rep (no reliable estimate — see
- * `gatedOneRepMax`) are dropped rather than plotted as a spurious zero.
+ * Best reliable est. 1RM per session (kg), oldest → newest, from `fromMs`.
+ * All-high-rep sessions (no reliable estimate) are dropped, not plotted as zero.
  */
 export function e1rmTrend(rows: StrengthSet[], fromMs = 0): number[] {
   const best = new Map<number, { e1rm: number; finishedAt: number }>();

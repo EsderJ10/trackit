@@ -1,5 +1,4 @@
-// Pure date/streak helpers for the profile stats. Kept free of DB/native
-// imports so they can be unit-tested directly (like `progression-engine`).
+// Pure date/streak helpers for the profile stats.
 
 /** Local-midnight day key (`YYYY-M-D`) — groups sessions into calendar days. */
 export function dayKey(d: Date): string {
@@ -29,12 +28,9 @@ export function nextWeek(weekStart: Date): Date {
 }
 
 /**
- * Consecutive calendar weeks with a logged session, counting back from the
- * current week. An empty current week stays alive (doesn't break the streak),
- * so the streak only resets after a fully missed week.
- *
- * @param loggedWeekStarts `startOfWeek(...).getTime()` for every logged session.
- * @param currentWeekStart `startOfWeek` of today.
+ * Consecutive calendar weeks with a logged session, counting back from now. An
+ * empty current week stays alive (grace) — resets only after a fully missed week.
+ * `loggedWeekStarts` holds `startOfWeek(...).getTime()` per logged session.
  */
 export function computeStreakWeeks(
   loggedWeekStarts: Set<number>,
@@ -51,10 +47,8 @@ export function computeStreakWeeks(
 }
 
 /**
- * The longest run of consecutive logged weeks, all time. Unlike the live streak
- * there is no current-week grace — this is a pure personal best over history.
- * Walks forward only from each run's first week (no logged week before it), so
- * each run is measured once.
+ * Longest run of consecutive logged weeks, all time (no current-week grace).
+ * Walks forward only from each run's first week, so each run is measured once.
  */
 export function computeLongestStreak(loggedWeekStarts: Set<number>): number {
   let longest = 0;
