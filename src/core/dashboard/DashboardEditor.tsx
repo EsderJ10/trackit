@@ -103,13 +103,17 @@ export function DashboardEditor() {
                     icon={ChevronUp}
                     label={`Move ${name} up`}
                     disabled={index === 0}
-                    onPress={() => setDashboardLayout(moveEntry(layout, index, -1))}
+                    onPress={() =>
+                      setDashboardLayout(moveEntry(layout, index, -1))
+                    }
                   />
                   <IconButton
                     icon={ChevronDown}
                     label={`Move ${name} down`}
                     disabled={index === layout.length - 1}
-                    onPress={() => setDashboardLayout(moveEntry(layout, index, 1))}
+                    onPress={() =>
+                      setDashboardLayout(moveEntry(layout, index, 1))
+                    }
                   />
                   <IconButton
                     icon={entry.hidden ? EyeOff : Eye}

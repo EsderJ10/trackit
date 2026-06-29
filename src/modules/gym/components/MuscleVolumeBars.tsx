@@ -47,7 +47,9 @@ export function MuscleVolumeBars({
         <Text variant="muted">No sets logged in the last 7 days.</Text>
       ) : (
         <>
-          <Text variant="caption">Weekly sets vs your MEV · MAV · MRV bands</Text>
+          <Text variant="caption">
+            Weekly sets vs your MEV · MAV · MRV bands
+          </Text>
           {breakdown.map((m) => (
             <MuscleVolumeRow
               key={m.muscleGroup}

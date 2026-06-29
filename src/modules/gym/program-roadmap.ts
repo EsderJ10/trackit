@@ -15,7 +15,10 @@ export interface RoadmapCursor {
 }
 
 /** Where a week sits relative to the cursor — drives the week-timeline pills. */
-export function weekStatus(weekIndex: number, currentWeek: number): CursorStatus {
+export function weekStatus(
+  weekIndex: number,
+  currentWeek: number,
+): CursorStatus {
   if (weekIndex < currentWeek) return 'done';
   if (weekIndex === currentWeek) return 'current';
   return 'upcoming';

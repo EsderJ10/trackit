@@ -88,7 +88,12 @@ describe('setBand', () => {
       mav: 5,
       mrv: 24,
     });
-    expect(setBand(chest, 'mv', 0)).toEqual({ mv: 0, mev: 6, mav: 16, mrv: 24 });
+    expect(setBand(chest, 'mv', 0)).toEqual({
+      mv: 0,
+      mev: 6,
+      mav: 16,
+      mrv: 24,
+    });
   });
 
   it('floors at 0 and rounds', () => {

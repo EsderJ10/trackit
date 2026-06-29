@@ -144,8 +144,8 @@ export function LandmarkEditor() {
       >
         <Text variant="muted">
           Weekly working sets per muscle. These are research-backed starting
-          points — tune them to your own recovery. Bands always stay ordered
-          MV ≤ MEV ≤ MAV ≤ MRV.
+          points — tune them to your own recovery. Bands always stay ordered MV
+          ≤ MEV ≤ MAV ≤ MRV.
         </Text>
 
         {muscles.map((muscle) => {

@@ -160,7 +160,9 @@ export function ExerciseDetail() {
               <Chip label={exercise.muscleGroup} />
             ) : null}
             {exercise?.equipment ? <Chip label={exercise.equipment} /> : null}
-            {exercise?.mechanic ? <Chip label={titleCase(exercise.mechanic)} /> : null}
+            {exercise?.mechanic ? (
+              <Chip label={titleCase(exercise.mechanic)} />
+            ) : null}
             {exercise?.forceType ? (
               <Chip label={titleCase(exercise.forceType)} />
             ) : null}

@@ -40,7 +40,8 @@ export function warmupSets(
   if (workWeightKg <= barKg) return [];
   const out: WarmupSet[] = [];
   for (const rung of scheme) {
-    const raw = rung.pct === 0 ? barKg : roundKg(workWeightKg * rung.pct, stepKg);
+    const raw =
+      rung.pct === 0 ? barKg : roundKg(workWeightKg * rung.pct, stepKg);
     const weightKg = Math.max(barKg, raw);
     if (weightKg >= workWeightKg) continue; // never warm up at/over the work set
     out.push({ reps: rung.reps, weightKg });

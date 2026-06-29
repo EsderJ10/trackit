@@ -83,7 +83,10 @@ export function PlateCalculatorModal({
                     key={plate}
                     className="rounded-xl border border-primary bg-surface-hi px-4 py-3"
                   >
-                    <Text variant="heading" style={{ color: colors.primaryBright }}>
+                    <Text
+                      variant="heading"
+                      style={{ color: colors.primaryBright }}
+                    >
                       {count} × {plate}
                     </Text>
                     <Text variant="caption">{unit} / side</Text>

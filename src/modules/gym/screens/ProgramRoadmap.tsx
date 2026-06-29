@@ -16,11 +16,7 @@ import {
   tint,
 } from '@/ui';
 
-import {
-  cellStatus,
-  type CursorStatus,
-  weekStatus,
-} from '../program-roadmap';
+import { cellStatus, type CursorStatus, weekStatus } from '../program-roadmap';
 import {
   startProgramWorkout,
   useProgram,
@@ -237,7 +233,9 @@ function DayCard({
               style={{ backgroundColor: colors.gym }}
             />
           ) : null}
-          {isDone ? <Icon icon={Check} size={14} color={colors.fgMuted} /> : null}
+          {isDone ? (
+            <Icon icon={Check} size={14} color={colors.fgMuted} />
+          ) : null}
           <Text variant="heading" className="flex-1">
             {name}
           </Text>

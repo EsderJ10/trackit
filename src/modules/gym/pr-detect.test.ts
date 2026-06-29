@@ -18,7 +18,12 @@ const bests: ExerciseBests = {
 describe('detectPRs', () => {
   it('fires nothing on the very first set (no prior history)', () => {
     const kinds = detectPRs(
-      { reps: 5, weightKg: 100, durationSec: null, measurementKind: 'weight_reps' },
+      {
+        reps: 5,
+        weightKg: 100,
+        durationSec: null,
+        measurementKind: 'weight_reps',
+      },
       EMPTY_BESTS,
     );
     expect(kinds).toEqual([]);
@@ -26,7 +31,12 @@ describe('detectPRs', () => {
 
   it('detects a heaviest-set and 1RM PR', () => {
     const kinds = detectPRs(
-      { reps: 3, weightKg: 95, durationSec: null, measurementKind: 'weight_reps' },
+      {
+        reps: 3,
+        weightKg: 95,
+        durationSec: null,
+        measurementKind: 'weight_reps',
+      },
       bests,
     );
     expect(kinds).toContain('weight'); // 95 > 90
@@ -35,7 +45,12 @@ describe('detectPRs', () => {
 
   it('detects a best-volume PR', () => {
     const kinds = detectPRs(
-      { reps: 10, weightKg: 50, durationSec: null, measurementKind: 'weight_reps' },
+      {
+        reps: 10,
+        weightKg: 50,
+        durationSec: null,
+        measurementKind: 'weight_reps',
+      },
       bests,
     );
     expect(kinds).toContain('volume'); // 500 > 400
@@ -43,7 +58,12 @@ describe('detectPRs', () => {
 
   it('ties do not fire (re-logging the same numbers)', () => {
     const kinds = detectPRs(
-      { reps: 1, weightKg: 90, durationSec: null, measurementKind: 'weight_reps' },
+      {
+        reps: 1,
+        weightKg: 90,
+        durationSec: null,
+        measurementKind: 'weight_reps',
+      },
       bests,
     );
     expect(kinds).not.toContain('weight'); // 90 is not > 90

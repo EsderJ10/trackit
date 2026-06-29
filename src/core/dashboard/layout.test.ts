@@ -19,7 +19,9 @@ describe('parseDashboardLayout', () => {
 
   it('keeps well-formed entries and coerces hidden to boolean', () => {
     expect(
-      parseDashboardLayout('[{"moduleId":"gym","hidden":true},{"moduleId":"x"}]'),
+      parseDashboardLayout(
+        '[{"moduleId":"gym","hidden":true},{"moduleId":"x"}]',
+      ),
     ).toEqual([
       { moduleId: 'gym', hidden: true },
       { moduleId: 'x', hidden: false },
@@ -28,7 +30,9 @@ describe('parseDashboardLayout', () => {
 
   it('skips items without a string moduleId', () => {
     expect(
-      parseDashboardLayout('[{"hidden":true},{"moduleId":42},{"moduleId":"ok"}]'),
+      parseDashboardLayout(
+        '[{"hidden":true},{"moduleId":42},{"moduleId":"ok"}]',
+      ),
     ).toEqual([{ moduleId: 'ok', hidden: false }]);
   });
 });
