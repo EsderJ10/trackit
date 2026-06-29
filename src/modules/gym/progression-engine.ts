@@ -421,6 +421,103 @@ function advanceDp(
 }
 
 // ---------------------------------------------------------------------------
+// Slot advance — fold one program-exercise's logged session into its state
+// ---------------------------------------------------------------------------
+
+/**
+ * The progression rule for one program-exercise slot, as the DB row carries it.
+ * `percent` schemes don't fold per session (their training max bumps on the
+ * cycle wrap), so they never reach `advanceSlot`.
+ */
+export interface SlotProgressionConfig {
+  schemeType: 'lp' | 'dp' | 'rpe';
+  incrementKg: number;
+  minReps: number | null;
+  maxReps: number | null;
+  failThreshold: number;
+  deloadPct: number;
+  targetSets: number;
+  /** Target RPE for the autoregulated scheme (defaults to 8 when unset). */
+  targetRpe: number | null;
+}
+
+/** A completed working set, with the RPE it was logged at (null = pre-filled). */
+export interface LoggedWorkingSet {
+  setNumber: number;
+  reps: number;
+  weightKg: number;
+  rpe: number | null;
+}
+
+/**
+ * The state mutation a folded session implies. `rpe` schemes re-anchor the
+ * estimated 1RM; `lp`/`dp` schemes advance the working-weight progression state.
+ * The DB wrapper (`advanceProgram`) maps the variant onto the right columns.
+ */
+export type SlotAdvance =
+  | { kind: 'e1rm'; e1rmKg: number; reason: string }
+  | { kind: 'state'; state: ProgressionState; reason: string };
+
+/**
+ * Fold one slot's completed working sets into its next state — the pure decision
+ * behind `advanceProgram`, lifted out of the data layer so it is unit-testable.
+ * Callers pass only slots with at least one logged working set.
+ *
+ * For `rpe`, re-anchor the estimated 1RM from the best logged set via the exact
+ * inverse of the render path, so a hit-the-prescription session holds the anchor
+ * flat. Pre-filled sets log no RPE, so each set re-anchors against the RPE it was
+ * *rendered* at (`prescribedRpeBySet`), falling back to the slot's target — using
+ * the target on a week whose prescribed RPE differs would drift the anchor.
+ */
+export function advanceSlot(
+  config: SlotProgressionConfig,
+  state: ProgressionState,
+  logged: LoggedWorkingSet[],
+  prescribedRpeBySet: ReadonlyMap<number, number>,
+): SlotAdvance {
+  if (config.schemeType === 'rpe') {
+    const targetRpe = config.targetRpe ?? 8;
+    const best = Math.max(
+      ...logged.map((s) =>
+        e1rmFromLoggedSet(
+          s.weightKg,
+          s.reps,
+          s.rpe ?? prescribedRpeBySet.get(s.setNumber) ?? targetRpe,
+        ),
+      ),
+    );
+    return {
+      kind: 'e1rm',
+      e1rmKg: best,
+      reason: `Est. 1RM ${Math.round(best)} kg — autoregulated`,
+    };
+  }
+
+  const scheme: ProgressionScheme =
+    config.schemeType === 'dp'
+      ? {
+          type: 'dp',
+          incrementKg: config.incrementKg,
+          minReps: config.minReps ?? 1,
+          maxReps: config.maxReps ?? config.minReps ?? 1,
+        }
+      : {
+          type: 'lp',
+          incrementKg: config.incrementKg,
+          failThreshold: config.failThreshold,
+          deloadPct: config.deloadPct,
+        };
+
+  const { state: next, reason } = advance(
+    scheme,
+    state,
+    logged.map((s) => ({ reps: s.reps, weightKg: s.weightKg })),
+    config.targetSets,
+  );
+  return { kind: 'state', state: next, reason };
+}
+
+// ---------------------------------------------------------------------------
 // Mesocycle wave — generate a periodized week × set prescription grid
 // ---------------------------------------------------------------------------
 
@@ -481,7 +578,10 @@ export function generateWave(rules: WaveRules): WaveSet[] {
 
   for (let w = 1; w <= weeks; w++) {
     const t = (w - 1) / span;
-    const sets = Math.max(1, Math.round(lerp(rules.setsStart, rules.setsEnd, t)));
+    const sets = Math.max(
+      1,
+      Math.round(lerp(rules.setsStart, rules.setsEnd, t)),
+    );
     const rir = lerp(rules.rirStart, rules.rirEnd, t);
     const rpe = Math.min(10, Math.max(1, 10 - rir));
     for (let s = 1; s <= sets; s++) {

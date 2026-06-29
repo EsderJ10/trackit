@@ -1,4 +1,13 @@
-import { and, desc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  sql,
+} from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
@@ -10,9 +19,8 @@ import {
   rankExercisePRs,
 } from './profile-stats';
 import {
-  advance,
   advanceCursor,
-  e1rmFromLoggedSet,
+  advanceSlot,
   generateWave,
   type ProgressionScheme,
   renderPrescribedSet,
@@ -2004,15 +2012,11 @@ function advanceProgram(
         .all()[0];
       if (stateRow == null) continue;
 
-      // RPE autoregulates: re-anchor the estimated 1RM from the best logged set
-      // via the exact inverse of the render path, so a hit-the-prescription
-      // session holds the anchor flat (and beating it raises it). Pre-filled sets
-      // log no RPE, so re-anchor against the RPE each set was *rendered* at — its
-      // per-week prescription — not the slot's single target. Using the target on
-      // a week whose prescribed RPE differs would drift (spiral) the anchor.
+      // The rpe re-anchor needs each set's *prescribed* RPE (pre-filled sets log
+      // none), so load this week's rpe prescriptions keyed by set number. The
+      // decision itself — re-anchor vs lp/dp advance — lives in `advanceSlot`.
+      const prescribedRpe = new Map<number, number>();
       if (slot.schemeType === 'rpe') {
-        const targetRpe = slot.targetRpe ?? 8;
-        const prescribedRpe = new Map<number, number>();
         for (const p of db
           .select({
             setNumber: programSets.setNumber,
@@ -2029,60 +2033,46 @@ function advanceProgram(
           .all()) {
           prescribedRpe.set(p.setNumber, p.intensityValue);
         }
-        const best = Math.max(
-          ...logged.map((s) =>
-            e1rmFromLoggedSet(
-              s.weight,
-              s.reps,
-              s.rpe ?? prescribedRpe.get(s.setNumber) ?? targetRpe,
-            ),
-          ),
-        );
-        db.update(exerciseTrainingState)
-          .set({
-            e1rmKg: best,
-            lastReason: `Est. 1RM ${Math.round(best)} kg — autoregulated`,
-          })
-          .where(eq(exerciseTrainingState.id, stateRow.id))
-          .run();
-        continue;
       }
 
-      const scheme: ProgressionScheme =
-        slot.schemeType === 'dp'
-          ? {
-              type: 'dp',
-              incrementKg: slot.incrementKg,
-              minReps: slot.minReps ?? 1,
-              maxReps: slot.maxReps ?? slot.minReps ?? 1,
-            }
-          : {
-              type: 'lp',
-              incrementKg: slot.incrementKg,
-              failThreshold: slot.failThreshold,
-              deloadPct: slot.deloadPct,
-            };
-
-      const { state, reason } = advance(
-        scheme,
+      const result = advanceSlot(
+        {
+          schemeType: slot.schemeType,
+          incrementKg: slot.incrementKg,
+          minReps: slot.minReps,
+          maxReps: slot.maxReps,
+          failThreshold: slot.failThreshold,
+          deloadPct: slot.deloadPct,
+          targetSets: slot.targetSets,
+          targetRpe: slot.targetRpe,
+        },
         {
           currentWeightKg: stateRow.currentWeightKg,
           currentReps: stateRow.currentReps,
           successStreak: stateRow.successStreak,
           failStreak: stateRow.failStreak,
         },
-        logged.map((s) => ({ reps: s.reps, weightKg: s.weight })),
-        slot.targetSets,
+        logged.map((s) => ({
+          setNumber: s.setNumber,
+          reps: s.reps,
+          weightKg: s.weight,
+          rpe: s.rpe,
+        })),
+        prescribedRpe,
       );
 
       db.update(exerciseTrainingState)
-        .set({
-          currentWeightKg: state.currentWeightKg,
-          currentReps: state.currentReps,
-          successStreak: state.successStreak,
-          failStreak: state.failStreak,
-          lastReason: reason,
-        })
+        .set(
+          result.kind === 'e1rm'
+            ? { e1rmKg: result.e1rmKg, lastReason: result.reason }
+            : {
+                currentWeightKg: result.state.currentWeightKg,
+                currentReps: result.state.currentReps,
+                successStreak: result.state.successStreak,
+                failStreak: result.state.failStreak,
+                lastReason: result.reason,
+              },
+        )
         .where(eq(exerciseTrainingState.id, stateRow.id))
         .run();
     }
