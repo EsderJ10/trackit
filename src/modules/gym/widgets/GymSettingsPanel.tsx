@@ -203,7 +203,9 @@ export function GymSettingsPanel() {
       <StepperRow
         title="Default rest timer"
         subtitle={
-          rest === 0 ? 'Off — no timer after sets' : 'Auto-starts after each set'
+          rest === 0
+            ? 'Off — no timer after sets'
+            : 'Auto-starts after each set'
         }
         value={rest === 0 ? 'Off' : formatRestSeconds(rest)}
         onDec={() => setDefaultRestSec(Math.max(MIN_REST, rest - REST_STEP))}

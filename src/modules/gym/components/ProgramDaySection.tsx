@@ -37,7 +37,10 @@ export interface ProgramDaySectionProps {
   onRemoveExercise: (programExerciseId: number) => void;
   onEditWave: (programExerciseId: number, name: string) => void;
   /** Switch a slot's progression scheme. */
-  onChangeScheme: (programExerciseId: number, scheme: ProgramSchemeChoice) => void;
+  onChangeScheme: (
+    programExerciseId: number,
+    scheme: ProgramSchemeChoice,
+  ) => void;
   /** Persist a new exercise order for this day (program_exercises row ids). */
   onReorderExercises: (orderedIds: number[]) => void;
   /** Persist superset group changes for this day's exercises. */

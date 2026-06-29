@@ -33,7 +33,10 @@ export interface ProgramExerciseRowProps {
   /** Open the periodization (week × set wave) editor for this slot. */
   onEditWave: (programExerciseId: number, name: string) => void;
   /** Switch this slot's progression scheme. */
-  onChangeScheme: (programExerciseId: number, scheme: ProgramSchemeChoice) => void;
+  onChangeScheme: (
+    programExerciseId: number,
+    scheme: ProgramSchemeChoice,
+  ) => void;
   /** Link this row into a superset with the previous exercise in the day. */
   onLink: (programExerciseId: number) => void;
   /** Remove this row from its superset. */
@@ -155,7 +158,9 @@ function ProgramExerciseRowComponent({
             <Text
               variant="caption"
               className="mt-1"
-              style={{ color: editingScheme ? colors.primaryBright : undefined }}
+              style={{
+                color: editingScheme ? colors.primaryBright : undefined,
+              }}
             >
               {schemeSummary(row, unit)}
             </Text>
