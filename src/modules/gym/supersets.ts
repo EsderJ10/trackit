@@ -59,17 +59,12 @@ export function supersetBadges(
   return badges;
 }
 
-/** The next free group id for `rows` (max existing + 1, starting at 1). */
-function nextGroupId(rows: SupersetRow[]): number {
-  return (
-    rows.reduce((max, row) => Math.max(max, row.supersetGroup ?? 0), 0) + 1
-  );
-}
-
 /**
  * Link the row at `index` into a superset with the row above it. Joins the
- * previous row's group when it has one, otherwise creates a new group for both.
- * Returns the updates to persist (empty for `index <= 0`).
+ * previous row's group when it has one, otherwise creates a new group for both —
+ * keyed by the previous row's id, which is a globally unique row PK, so group
+ * ids never collide across days/programs. Returns the updates to persist (empty
+ * for `index <= 0`).
  */
 export function linkWithPrevious(
   rows: SupersetRow[],
@@ -81,10 +76,9 @@ export function linkWithPrevious(
   if (prev.supersetGroup != null) {
     return [{ id: current.id, supersetGroup: prev.supersetGroup }];
   }
-  const group = nextGroupId(rows);
   return [
-    { id: prev.id, supersetGroup: group },
-    { id: current.id, supersetGroup: group },
+    { id: prev.id, supersetGroup: prev.id },
+    { id: current.id, supersetGroup: prev.id },
   ];
 }
 

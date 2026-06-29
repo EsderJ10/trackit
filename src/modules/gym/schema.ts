@@ -195,6 +195,13 @@ export const programExercises = sqliteTable('program_exercises', {
   tmIncrementKg: real('tm_increment_kg').notNull().default(2.5),
   // Target RPE for the autoregulated (rpe) scheme.
   targetRpe: real('target_rpe'),
+  /**
+   * Superset grouping within a program day: exercises sharing a non-null
+   * `supersetGroup` are performed back-to-back (labeled A/B/… in order). Null =
+   * standalone. The value is an opaque group id (the anchor row's id), unique
+   * across the table so day groups never collide.
+   */
+  supersetGroup: integer('superset_group'),
 });
 
 /**

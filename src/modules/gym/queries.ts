@@ -1584,6 +1584,8 @@ export interface ProgramExerciseRow {
   e1rmKg: number | null;
   /** Why the suggestion is what it is; null before the first finished session. */
   lastReason: string | null;
+  /** Superset group id (anchor row's id) within the day; null = standalone. */
+  supersetGroup: number | null;
 }
 
 const programExerciseSelection = {
@@ -1606,6 +1608,7 @@ const programExerciseSelection = {
   trainingMaxKg: exerciseTrainingState.trainingMaxKg,
   e1rmKg: exerciseTrainingState.e1rmKg,
   lastReason: exerciseTrainingState.lastReason,
+  supersetGroup: programExercises.supersetGroup,
 };
 
 /** A program's exercises (all days) joined with their live state, for the editor. */
@@ -1773,6 +1776,24 @@ export function reorderProgramExercises(orderedIds: number[]): void {
         .where(eq(programExercises.id, id))
         .run();
     });
+  });
+}
+
+/**
+ * Apply superset group changes for a program day's exercises in one transaction
+ * (null clears a row's group). Grouping is decided by the pure `supersets`
+ * helpers; mirrors `updateRoutineSupersets` for the program side.
+ */
+export function updateProgramSupersets(
+  updates: { id: number; supersetGroup: number | null }[],
+): void {
+  db.transaction((tx) => {
+    for (const update of updates) {
+      tx.update(programExercises)
+        .set({ supersetGroup: update.supersetGroup })
+        .where(eq(programExercises.id, update.id))
+        .run();
+    }
   });
 }
 

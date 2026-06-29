@@ -55,12 +55,12 @@ describe('linkWithPrevious', () => {
     expect(updates).toEqual([{ id: 3, supersetGroup: 1 }]);
   });
 
-  it('picks a fresh group id above existing ones', () => {
-    // rows: g2, solo, solo → link row 3 to row 2 (ungrouped) → new id 3
+  it('keys a new group by the previous row’s id (collision-free)', () => {
+    // rows: g2, solo, solo → link row 3 to row 2 (ungrouped) → group keyed by id 2
     const updates = linkWithPrevious(rows(2, null, null), 2);
     expect(updates).toEqual([
-      { id: 2, supersetGroup: 3 },
-      { id: 3, supersetGroup: 3 },
+      { id: 2, supersetGroup: 2 },
+      { id: 3, supersetGroup: 2 },
     ]);
   });
 });

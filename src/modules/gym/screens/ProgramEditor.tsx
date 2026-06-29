@@ -32,6 +32,7 @@ import {
   renameProgram,
   renameProgramDay,
   renameProgramWeek,
+  updateProgramSupersets,
   setProgramExerciseE1rm,
   setProgramExerciseTrainingMax,
   setProgramExerciseWeight,
@@ -200,6 +201,7 @@ export function ProgramEditor() {
                 onRemoveExercise={removeProgramExercise}
                 onEditWave={openWaveEditor}
                 onReorderExercises={reorderProgramExercises}
+                onUpdateSupersets={updateProgramSupersets}
               />
             ))
           )}
