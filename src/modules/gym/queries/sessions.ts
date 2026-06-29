@@ -1,4 +1,13 @@
-import { and, desc, eq, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  getTableColumns,
+  isNotNull,
+  isNull,
+  ne,
+  sql,
+} from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { useMemo } from 'react';
 
@@ -142,6 +151,25 @@ export function getLastPerformance(
     )
     .orderBy(setLogs.setNumber)
     .all();
+}
+
+/**
+ * The catalog's most-recently-logged exercises (full rows), newest use first —
+ * the "Recent" shortcut atop the exercise picker. Reuses the
+ * `exercise + set type + completed` index.
+ */
+export function useRecentExercises(limit = 8) {
+  return useLiveQuery(
+    db
+      .select(getTableColumns(exercises))
+      .from(exercises)
+      .innerJoin(setLogs, eq(setLogs.exerciseId, exercises.id))
+      .where(isNotNull(setLogs.completedAt))
+      .groupBy(exercises.id)
+      .orderBy(desc(sql`max(${setLogs.completedAt})`))
+      .limit(limit),
+    [limit],
+  );
 }
 
 /**
