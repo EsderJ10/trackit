@@ -1,5 +1,9 @@
 import { useRouter } from 'expo-router';
-import { CalendarClock, ChevronRight } from 'lucide-react-native';
+import {
+  CalendarClock,
+  ChevronRight,
+  TrendingUp,
+} from 'lucide-react-native';
 import { memo, useCallback } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 
@@ -59,8 +63,17 @@ export function History() {
 
   return (
     <Screen edges={['top']}>
-      <View className="px-5 pt-5">
+      <View className="flex-row items-center justify-between px-5 pt-5">
         <Text variant="display">History</Text>
+        <Pressable
+          onPress={() => router.push('/modules/gym/progress')}
+          accessibilityRole="button"
+          accessibilityLabel="View progress trends"
+          hitSlop={8}
+          className="h-10 w-10 items-center justify-center rounded-xl bg-surface-hi active:opacity-70"
+        >
+          <Icon icon={TrendingUp} size={20} color={colors.gym} />
+        </Pressable>
       </View>
       {sessions.length === 0 ? (
         <EmptyState

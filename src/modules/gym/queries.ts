@@ -547,6 +547,33 @@ export function useExerciseSetHistory(exerciseId: number) {
   );
 }
 
+/**
+ * Every completed set across finished sessions, with its session finish time
+ * and the bits needed for weekly volume aggregation. Powers the Progress
+ * screen's trends; the pure bucketing lives in the unit-tested `analytics`.
+ */
+export function useVolumeHistory() {
+  return useLiveQuery(
+    db
+      .select({
+        finishedAt: workoutSessions.finishedAt,
+        reps: setLogs.reps,
+        weight: setLogs.weight,
+        setType: setLogs.setType,
+        measurementKind: exercises.measurementKind,
+      })
+      .from(setLogs)
+      .innerJoin(exercises, eq(setLogs.exerciseId, exercises.id))
+      .innerJoin(workoutSessions, eq(setLogs.sessionId, workoutSessions.id))
+      .where(
+        and(
+          isNotNull(setLogs.completedAt),
+          isNotNull(workoutSessions.finishedAt),
+        ),
+      ),
+  );
+}
+
 export function useSession(sessionId: number) {
   const { data } = useLiveQuery(
     db.select().from(workoutSessions).where(eq(workoutSessions.id, sessionId)),
