@@ -323,18 +323,6 @@ export function useExercise(exerciseId: number) {
   return data[0];
 }
 
-export function createExercise(
-  name: string,
-  muscleGroup: string,
-  equipment?: string,
-): number {
-  const result = db
-    .insert(exercises)
-    .values({ name, muscleGroup, equipment, isCustom: true })
-    .run();
-  return result.lastInsertRowId;
-}
-
 export function setExerciseFavorite(
   exerciseId: number,
   isFavorite: boolean,
@@ -820,10 +808,6 @@ export function finishWorkout(sessionId: number): void {
       sessionId,
     );
   }
-}
-
-export function deleteSession(sessionId: number): void {
-  db.delete(workoutSessions).where(eq(workoutSessions.id, sessionId)).run();
 }
 
 // ---------------------------------------------------------------------------
@@ -1828,44 +1812,6 @@ export function useProgramSets(programExerciseId: number) {
       .orderBy(programSets.weekIndex, programSets.setNumber),
     [programExerciseId],
   );
-}
-
-export interface UpsertProgramSetInput {
-  programExerciseId: number;
-  weekIndex: number;
-  setNumber: number;
-  reps: number;
-  intensityKind: 'abs' | 'pct' | 'rpe';
-  intensityValue: number;
-  amrap?: boolean;
-  restSec?: number | null;
-}
-
-/** Insert or replace the prescription for one (slot, week, set). */
-export function upsertProgramSet(input: UpsertProgramSetInput): void {
-  db.transaction((tx) => {
-    tx.delete(programSets)
-      .where(
-        and(
-          eq(programSets.programExerciseId, input.programExerciseId),
-          eq(programSets.weekIndex, input.weekIndex),
-          eq(programSets.setNumber, input.setNumber),
-        ),
-      )
-      .run();
-    tx.insert(programSets)
-      .values({
-        programExerciseId: input.programExerciseId,
-        weekIndex: input.weekIndex,
-        setNumber: input.setNumber,
-        reps: input.reps,
-        intensityKind: input.intensityKind,
-        intensityValue: input.intensityValue,
-        amrap: input.amrap ?? false,
-        restSec: input.restSec ?? null,
-      })
-      .run();
-  });
 }
 
 export function removeProgramSet(id: number): void {
