@@ -141,6 +141,13 @@
       "when": 1782817096228,
       "tag": "0019_worthless_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1782830903342,
+      "tag": "0020_natural_lifeguard",
+      "breakpoints": true
     }
   ]
 }

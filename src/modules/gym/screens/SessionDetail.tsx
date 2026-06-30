@@ -1,5 +1,11 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { CalendarClock, ChevronRight, Info, Plus } from 'lucide-react-native';
+import {
+  CalendarClock,
+  ChevronRight,
+  Info,
+  Plus,
+  Trash2,
+} from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
@@ -9,6 +15,7 @@ import { Button, Card, EmptyState, Icon, Screen, Text, colors } from '@/ui';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
 import { ExerciseSessionCard } from '../components/ExerciseSessionCard';
 import { SessionNotesField } from '../components/SessionNotesField';
+import { confirmDeleteSession } from '../delete-session';
 import { formatEffort } from '../effort';
 import { formatWeight } from '../format';
 import {
@@ -194,6 +201,18 @@ export function SessionDetail() {
                 onCommit={(notes) => updateSessionNotes(sessionId, notes)}
               />
             ) : null}
+            <Button
+              label="Delete workout"
+              variant="danger"
+              leftIcon={<Icon icon={Trash2} size={18} color={colors.bg} />}
+              onPress={() =>
+                confirmDeleteSession({
+                  sessionId,
+                  title: label.title,
+                  onDeleted: () => router.back(),
+                })
+              }
+            />
           </>
         ) : (
           <>

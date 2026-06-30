@@ -45,6 +45,7 @@ export {
   removeProgramSet,
   startProgramWorkout,
   startProgramWorkoutFor,
+  sessionProgressionRollbackInfo,
   type CurrentProgram,
   type NextProgramWorkout,
   type ProgramRoadmap,

@@ -19,6 +19,7 @@ import {
   gymSettings,
   programDays,
   programExercises,
+  type ProgressionSnapshot,
   programs,
   programSets,
   programWeeks,
@@ -1322,6 +1323,14 @@ export function advanceProgram(
   weekIndex: number,
   sessionId: number,
 ): void {
+  // Snapshot progression BEFORE touching it, so deleting this session can reverse
+  // exactly what it advanced (cursor + every training-state row, incl. a cycle-wrap
+  // training-max bump). Stored on the session; cleared automatically when it's gone.
+  db.update(workoutSessions)
+    .set({ progressionSnapshot: captureProgressionSnapshot(programId) })
+    .where(eq(workoutSessions.id, sessionId))
+    .run();
+
   const week = db
     .select({ isDeload: programWeeks.isDeload })
     .from(programWeeks)
@@ -1520,4 +1529,147 @@ function bumpTrainingMaxes(programId: number): void {
       .where(eq(exerciseTrainingState.programExerciseId, slot.id))
       .run();
   }
+}
+
+/** Current cursor + all training-state rows for a program — the pre-advance picture. */
+function captureProgressionSnapshot(programId: number): ProgressionSnapshot {
+  const program = db
+    .select({
+      currentWeek: programs.currentWeek,
+      currentDayIndex: programs.currentDayIndex,
+      currentCycle: programs.currentCycle,
+    })
+    .from(programs)
+    .where(eq(programs.id, programId))
+    .all()[0];
+
+  const states = db
+    .select({
+      id: exerciseTrainingState.id,
+      currentWeightKg: exerciseTrainingState.currentWeightKg,
+      currentReps: exerciseTrainingState.currentReps,
+      successStreak: exerciseTrainingState.successStreak,
+      failStreak: exerciseTrainingState.failStreak,
+      trainingMaxKg: exerciseTrainingState.trainingMaxKg,
+      e1rmKg: exerciseTrainingState.e1rmKg,
+      lastReason: exerciseTrainingState.lastReason,
+    })
+    .from(exerciseTrainingState)
+    .innerJoin(
+      programExercises,
+      eq(exerciseTrainingState.programExerciseId, programExercises.id),
+    )
+    .where(eq(programExercises.programId, programId))
+    .all();
+
+  return {
+    cursor: {
+      currentWeek: program?.currentWeek ?? 1,
+      currentDayIndex: program?.currentDayIndex ?? 0,
+      currentCycle: program?.currentCycle ?? 1,
+    },
+    states,
+  };
+}
+
+/**
+ * A snapshot can only be safely restored if it's the *most recently* finished
+ * advancing session for its program — its pre-advance state is the program's
+ * state minus only this session. An older session's snapshot is stale (later
+ * sessions built on top of it), so we don't roll those back.
+ */
+function isLatestSnapshottedSession(
+  programId: number,
+  sessionId: number,
+): boolean {
+  const latest = db
+    .select({ id: workoutSessions.id })
+    .from(workoutSessions)
+    .where(
+      and(
+        eq(workoutSessions.programId, programId),
+        isNotNull(workoutSessions.progressionSnapshot),
+      ),
+    )
+    .orderBy(desc(workoutSessions.finishedAt), desc(workoutSessions.id))
+    .limit(1)
+    .all()[0];
+  return latest?.id === sessionId;
+}
+
+/** Whether deleting this session is a program session and, if so, whether its
+ * progression advancement can be cleanly reversed (drives the confirm dialog). */
+export function sessionProgressionRollbackInfo(sessionId: number): {
+  isProgram: boolean;
+  willRollback: boolean;
+} {
+  const session = db
+    .select({
+      programId: workoutSessions.programId,
+      snapshot: workoutSessions.progressionSnapshot,
+    })
+    .from(workoutSessions)
+    .where(eq(workoutSessions.id, sessionId))
+    .all()[0];
+
+  if (session == null || session.programId == null) {
+    return { isProgram: false, willRollback: false };
+  }
+  const willRollback =
+    session.snapshot != null &&
+    isLatestSnapshottedSession(session.programId, sessionId);
+  return { isProgram: true, willRollback };
+}
+
+/**
+ * Reverse the progression a session advanced, restoring the cursor and every
+ * training-state row to the snapshot taken when it was finished. No-op (returns
+ * false) for sessions without a snapshot or that are no longer the latest
+ * advancing session. Caller must run this in the same transaction as the delete.
+ */
+export function rollbackSessionProgression(sessionId: number): boolean {
+  const session = db
+    .select({
+      programId: workoutSessions.programId,
+      snapshot: workoutSessions.progressionSnapshot,
+    })
+    .from(workoutSessions)
+    .where(eq(workoutSessions.id, sessionId))
+    .all()[0];
+
+  if (
+    session == null ||
+    session.programId == null ||
+    session.snapshot == null ||
+    !isLatestSnapshottedSession(session.programId, sessionId)
+  ) {
+    return false;
+  }
+
+  const snapshot = session.snapshot;
+  db.update(programs)
+    .set({
+      currentWeek: snapshot.cursor.currentWeek,
+      currentDayIndex: snapshot.cursor.currentDayIndex,
+      currentCycle: snapshot.cursor.currentCycle,
+    })
+    .where(eq(programs.id, session.programId))
+    .run();
+
+  for (const state of snapshot.states) {
+    db.update(exerciseTrainingState)
+      .set({
+        currentWeightKg: state.currentWeightKg,
+        currentReps: state.currentReps,
+        successStreak: state.successStreak,
+        failStreak: state.failStreak,
+        trainingMaxKg: state.trainingMaxKg,
+        e1rmKg: state.e1rmKg,
+        lastReason: state.lastReason,
+      })
+      .where(eq(exerciseTrainingState.id, state.id))
+      .run();
+  }
+
+  return true;
 }

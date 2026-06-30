@@ -21,6 +21,7 @@ import m0016 from './0016_dry_thing.sql';
 import m0017 from './0017_yielding_pete_wisdom.sql';
 import m0018 from './0018_flashy_ikaris.sql';
 import m0019 from './0019_worthless_warpath.sql';
+import m0020 from './0020_natural_lifeguard.sql';
 
   export default {
     journal,
@@ -44,7 +45,8 @@ m0015,
 m0016,
 m0017,
 m0018,
-m0019
+m0019,
+m0020
     }
   }
   

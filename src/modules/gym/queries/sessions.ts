@@ -32,7 +32,7 @@ import {
 } from '../schema';
 import type { MeasurementKind, SetType } from '../schema';
 
-import { advanceProgram } from './programs';
+import { advanceProgram, rollbackSessionProgression } from './programs';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -663,14 +663,20 @@ export function getActiveSession(): ActiveSession | undefined {
 }
 
 /**
- * Delete a session and its set logs — discards an abandoned/in-progress workout.
- * Explicit set-log delete (not just FK cascade) so it holds regardless of the
- * connection's `foreign_keys` pragma.
+ * Delete a session and its set logs — discards an abandoned/in-progress workout
+ * or removes a finished one from history. If the session advanced a program's
+ * progression (and is still the latest to have done so), that advancement is
+ * reversed first, in the same transaction. Explicit set-log delete (not just FK
+ * cascade) so it holds regardless of the connection's `foreign_keys` pragma.
+ *
+ * Returns whether progression was rolled back, so the UI can confirm what happened.
  */
-export function deleteSession(sessionId: number): void {
-  db.transaction(() => {
+export function deleteSession(sessionId: number): boolean {
+  return db.transaction(() => {
+    const rolledBack = rollbackSessionProgression(sessionId);
     db.delete(setLogs).where(eq(setLogs.sessionId, sessionId)).run();
     db.delete(workoutSessions).where(eq(workoutSessions.id, sessionId)).run();
+    return rolledBack;
   });
 }
 
