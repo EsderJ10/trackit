@@ -5,6 +5,7 @@ import { colors } from '@/ui';
 
 import { seedProgramTemplates } from './program-templates';
 import { seedGym, seedMuscleLandmarks } from './seed';
+import { ActiveWorkoutBar } from './widgets/ActiveWorkoutBar';
 import { GymDashboardWidget } from './widgets/GymDashboardWidget';
 import { GymProfileWidget } from './widgets/GymProfileWidget';
 import { GymSettingsPanel } from './widgets/GymSettingsPanel';
@@ -28,6 +29,9 @@ export const gymModule: TrackerModule = {
   DashboardWidget: GymDashboardWidget,
   // Reached at /modules/gym via its own nested stack (app/modules/gym/).
   ownsRouteStack: true,
+  // Pinned resume-workout bar above the tab bar, visible app-wide while a session
+  // is open (renders null otherwise).
+  GlobalBar: ActiveWorkoutBar,
   ProfileWidget: GymProfileWidget,
   SettingsPanel: GymSettingsPanel,
   primaryTabs: [

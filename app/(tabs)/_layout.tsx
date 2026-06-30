@@ -13,52 +13,59 @@ function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
     <View
       style={{ paddingBottom: insets.bottom }}
-      className="flex-row border-t border-border bg-surface px-2 pt-2"
+      className="border-t border-border bg-surface"
     >
-      {state.routes.map((route, index) => {
-        const descriptor = descriptors[route.key];
-        if (!descriptor) return null;
-        const { options } = descriptor;
-        const focused = state.index === index;
-        const color = focused ? colors.primaryBright : colors.fgFaint;
-        const label =
-          typeof options.title === 'string' ? options.title : route.name;
-
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-          if (!focused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
-        };
-
-        return (
-          <Pressable
-            key={route.key}
-            onPress={onPress}
-            accessibilityRole="button"
-            accessibilityState={{ selected: focused }}
-            accessibilityLabel={label}
-            className="flex-1 items-center gap-1"
-          >
-            <View
-              style={focused ? glow(colors.primaryGlow, 0.45) : undefined}
-              className={cn(
-                'items-center justify-center rounded-2xl px-5 py-1.5',
-                focused && 'bg-surface-hi',
-              )}
-            >
-              {options.tabBarIcon?.({ focused, color, size: 22 })}
-            </View>
-            <Text variant="caption" style={{ color }}>
-              {label}
-            </Text>
-          </Pressable>
-        );
+      {/* Modules contribute persistent bars (e.g. resume-workout) above the tabs. */}
+      {MODULES.flatMap((module) => {
+        const Bar = module.GlobalBar;
+        return Bar ? [<Bar key={module.meta.id} />] : [];
       })}
+      <View className="flex-row px-2 pt-2">
+        {state.routes.map((route, index) => {
+          const descriptor = descriptors[route.key];
+          if (!descriptor) return null;
+          const { options } = descriptor;
+          const focused = state.index === index;
+          const color = focused ? colors.primaryBright : colors.fgFaint;
+          const label =
+            typeof options.title === 'string' ? options.title : route.name;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+            if (!focused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          return (
+            <Pressable
+              key={route.key}
+              onPress={onPress}
+              accessibilityRole="button"
+              accessibilityState={{ selected: focused }}
+              accessibilityLabel={label}
+              className="flex-1 items-center gap-1"
+            >
+              <View
+                style={focused ? glow(colors.primaryGlow, 0.45) : undefined}
+                className={cn(
+                  'items-center justify-center rounded-2xl px-5 py-1.5',
+                  focused && 'bg-surface-hi',
+                )}
+              >
+                {options.tabBarIcon?.({ focused, color, size: 22 })}
+              </View>
+              <Text variant="caption" style={{ color }}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
