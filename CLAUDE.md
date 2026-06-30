@@ -77,9 +77,15 @@ src/modules/    # self-contained tracking modules (gym, …)
 
 ## Common Commands
 
-- `pnpm start` — start the Expo dev server
-- `pnpm drizzle-kit generate` — regenerate migrations after schema changes
-- `pnpm tsc --noEmit` — type-check (must pass with zero `any`)
+A `Makefile` wraps the common tasks (`make` with no target self-documents); each
+target is a thin alias over the underlying `pnpm` script, so either form works.
+
+- `make start` / `pnpm start` — start the Expo dev server
+- `make typecheck` / `pnpm tsc --noEmit` — type-check (must pass with zero `any`)
+- `make lint` / `make test` — type-aware ESLint / Vitest suites
+- `make check` — typecheck + lint + format + test in one shot
+- `make db-generate` / `pnpm drizzle-kit generate` — regenerate migrations after schema changes
+- `make apk` — build a signed offline APK in Docker → `./build-output/trackit.apk`
 
 ## Scope Discipline
 
