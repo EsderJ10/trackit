@@ -59,7 +59,7 @@ the dashboard, routing, and settings with no other change.
 
 ---
 
-## The signature decision: a module contract the core never imports
+## The module contract
 
 The whole architecture hangs on one interface, `TrackerModule`
 ([`src/core/types/module.ts`](src/core/types/module.ts)). A module is a single
@@ -116,7 +116,7 @@ overclaiming it.
 
 ---
 
-## Engineering challenges (and how I worked through them)
+## Challenges (and how I worked through them)
 
 The [`ROADMAP.md`](ROADMAP.md) is the full engineering log — each milestone records
 not just what shipped but the *trade-offs* and the "as built" reality. The
