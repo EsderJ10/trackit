@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
-import { ChevronRight, TrendingUp } from 'lucide-react-native';
+import { ChevronRight, Trash2, TrendingUp } from 'lucide-react-native';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, View } from 'react-native';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { Card, Icon, Screen, Text, colors } from '@/ui';
 
@@ -12,6 +13,7 @@ import {
   startOfMonth,
 } from '../calendar';
 import { WorkoutCalendar } from '../components/WorkoutCalendar';
+import { confirmDeleteSession } from '../delete-session';
 import { formatRelativeDate } from '../format';
 import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
 import {
@@ -31,27 +33,49 @@ const HistoryRow = memo(function HistoryRow({
 }) {
   const label = sessionLabel(session);
   return (
-    <Pressable
-      onPress={() => onPress(session.id)}
-      className="active:opacity-70"
+    <ReanimatedSwipeable
+      renderRightActions={() => (
+        <Pressable
+          onPress={() =>
+            confirmDeleteSession({
+              sessionId: session.id,
+              title: label.title,
+              isProgram: session.programName != null,
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${label.title} workout`}
+          className="ml-2 items-center justify-center rounded-2xl bg-danger px-5 active:opacity-80"
+        >
+          <Icon icon={Trash2} size={20} color={colors.bg} />
+        </Pressable>
+      )}
+      rightThreshold={32}
+      friction={2}
+      overshootRight={false}
     >
-      <Card className="flex-row items-center gap-3">
-        <View className="flex-1">
-          <Text variant="heading">{label.title}</Text>
-          <Text variant="caption" className="mt-0.5">
-            {[
-              label.subtitle,
-              session.finishedAt
-                ? formatRelativeDate(session.finishedAt)
-                : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </Text>
-        </View>
-        <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
-      </Card>
-    </Pressable>
+      <Pressable
+        onPress={() => onPress(session.id)}
+        className="active:opacity-70"
+      >
+        <Card className="flex-row items-center gap-3">
+          <View className="flex-1">
+            <Text variant="heading">{label.title}</Text>
+            <Text variant="caption" className="mt-0.5">
+              {[
+                label.subtitle,
+                session.finishedAt
+                  ? formatRelativeDate(session.finishedAt)
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          </View>
+          <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+        </Card>
+      </Pressable>
+    </ReanimatedSwipeable>
   );
 });
 
