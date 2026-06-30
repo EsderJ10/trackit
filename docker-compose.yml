@@ -3,10 +3,12 @@
 # ./build-output/trackit.apk.
 #
 # Usage:
-#   docker compose run --rm apk-builder       # build once, see live output
+#   make apk                                   # canonical: build image + run
+#   docker compose run --rm --build apk-builder  # equivalent raw invocation
 #   (first run compiles the image: JDK + Android SDK/NDK, several GB + minutes)
 #
-# Re-run any time after code changes to produce a fresh APK.
+# Re-run any time after code changes to produce a fresh APK; `make apk-clean`
+# removes the artifacts and the builder image.
 services:
   apk-builder:
     build:

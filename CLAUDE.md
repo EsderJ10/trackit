@@ -27,8 +27,8 @@ Guidance for AI agents and developers working in this repository.
 
 ## Architecture Rules
 
-- **Module contract**: every module exports a `TrackerModule` object (see `src/core/types/module.ts`) — `meta`, `schema`, `DashboardWidget`, `ModuleScreen`, optional `SettingsPanel` and `seed`. No `routes` field (Expo Router owns routing).
-- **Registry**: add a module by importing it into `MODULES` in `src/core/module-registry.ts`. The dashboard and `/modules/[moduleId]` are driven entirely by this array.
+- **Module contract**: every module exports a `TrackerModule` object (see `src/core/types/module.ts`) — required `meta` + `DashboardWidget`; optional `ModuleScreen` **or** `ownsRouteStack`, `SettingsPanel`, `primaryTabs`, `ProfileWidget`, `GlobalBar`, and `seed`. No `schema` field (tables are composed at build time, not registered here) and no `routes` field (Expo Router owns routing).
+- **Registry**: add a module by importing it into `MODULES` in `src/core/module-registry.ts`. The dashboard, `/modules/[moduleId]` route, settings sections, bottom tabs, profile widgets, and persistent global bars are all driven entirely by this array.
 - **Database is composed at BUILD time**: each module exports a Drizzle schema; `src/core/db/schema.ts` is a barrel that merges them for `drizzle-kit`. There is **no runtime DDL** — adding a module's tables requires `pnpm drizzle-kit generate` + a rebuild. Keep this boundary honest; don't imply runtime table creation.
 - **No DB data duplicated into stores**: read DB-derived data with Drizzle `useLiveQuery`; use Zustand for ephemeral/client state (e.g. active workout session) only.
 - **Core never imports from a specific module** (except the single registry barrel). Modules may import from `src/core` and `src/ui`, never from each other.

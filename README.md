@@ -224,7 +224,7 @@ src/modules/    # self-contained tracking modules (gym is the first)
    `TrackerModule` (meta + `DashboardWidget`, plus any optional capabilities).
 2. Add it to `MODULES` in `src/core/module-registry.ts` (one line).
 3. Add `export * from '../../modules/<id>/schema'` to `src/core/db/schema.ts` and
-   run `pnpm db:generate`.
+   run `make db-generate` (`pnpm db:generate`).
 4. (Optional) Add route files under `app/modules/<id>/` for richer navigation.
 
 See [`CLAUDE.md`](CLAUDE.md) for conventions and SDK-54 gotchas, and
