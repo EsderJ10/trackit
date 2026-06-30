@@ -1,28 +1,32 @@
 import { Alert } from 'react-native';
 
-import { deleteSession } from './queries';
+import { deleteSession, sessionProgressionRollbackInfo } from './queries';
 
 /**
  * Confirm, then permanently delete a finished workout (session + its set logs)
  * from history. Because PRs and all stats are live-derived from finished
  * sessions, removing the row also removes its influence on PRs/volume/analytics.
  *
- * Program-linked sessions get an extra warning: finishing one already advanced
- * the program's progression (next weights, streaks), and that advancement is
- * NOT rolled back here — mirroring the edit-mode "won't re-run progression"
- * caveat. `isProgram` is true when the session was logged against a program day.
+ * For a program session that advanced progression:
+ *  - if it's still the latest such session, deleting also reverses that
+ *    advancement (cursor + next weights/streaks) — the dialog says so;
+ *  - if a later session has since built on it, progression can't be safely
+ *    unwound, so the dialog warns it won't roll back (mirrors the edit-mode caveat).
  */
 export function confirmDeleteSession(params: {
   sessionId: number;
   title: string;
-  isProgram: boolean;
   onDeleted?: () => void;
 }): void {
-  const { sessionId, title, isProgram, onDeleted } = params;
+  const { sessionId, title, onDeleted } = params;
+  const { isProgram, willRollback } = sessionProgressionRollbackInfo(sessionId);
   const base = `This permanently removes "${title}" and all its sets from your history, PRs, and stats.`;
-  const message = isProgram
-    ? `${base}\n\nYour program's progression (next weights and streaks) won't be rolled back.`
-    : base;
+  let message = base;
+  if (isProgram && willRollback) {
+    message = `${base}\n\nYour program's progression (next weights and streaks) will be reverted to before this workout.`;
+  } else if (isProgram) {
+    message = `${base}\n\nYour program's progression (next weights and streaks) won't be rolled back — a later workout already built on it.`;
+  }
   Alert.alert('Delete workout', message, [
     { text: 'Cancel', style: 'cancel' },
     {

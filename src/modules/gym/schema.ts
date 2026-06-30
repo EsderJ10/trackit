@@ -251,6 +251,32 @@ export const exerciseTrainingState = sqliteTable(
   ],
 );
 
+/**
+ * Pre-advance progression state captured when a program session is finished and
+ * folds into progression. Lets deleting that session reverse the advancement it
+ * caused (cursor + each exercise's training state), instead of leaving the plan
+ * permanently stepped. Only the *latest* such session can be safely rolled back.
+ */
+export interface ProgressionSnapshot {
+  /** The program cursor before this session advanced it. */
+  cursor: {
+    currentWeek: number;
+    currentDayIndex: number;
+    currentCycle: number;
+  };
+  /** Every training-state row for the program, as it was before advancement. */
+  states: {
+    id: number;
+    currentWeightKg: number;
+    currentReps: number;
+    successStreak: number;
+    failStreak: number;
+    trainingMaxKg: number | null;
+    e1rmKg: number | null;
+    lastReason: string | null;
+  }[];
+}
+
 /** A logged workout instance (a session of actually doing the work). */
 export const workoutSessions = sqliteTable(
   'workout_sessions',
@@ -276,6 +302,11 @@ export const workoutSessions = sqliteTable(
       .default(now),
     finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
     notes: text('notes'),
+    // Set only when a program session advances progression (see ProgressionSnapshot);
+    // used to reverse that advancement if the session is deleted. Null otherwise.
+    progressionSnapshot: text('progression_snapshot', {
+      mode: 'json',
+    }).$type<ProgressionSnapshot>(),
   },
   (t) => [
     // Finished lists order by finishedAt; active-session lookup filters it NULL and orders by startedAt.

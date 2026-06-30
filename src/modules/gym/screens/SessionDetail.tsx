@@ -209,7 +209,6 @@ export function SessionDetail() {
                 confirmDeleteSession({
                   sessionId,
                   title: label.title,
-                  isProgram: programId != null,
                   onDeleted: () => router.back(),
                 })
               }

@@ -40,7 +40,6 @@ const HistoryRow = memo(function HistoryRow({
             confirmDeleteSession({
               sessionId: session.id,
               title: label.title,
-              isProgram: session.programName != null,
             })
           }
           accessibilityRole="button"
