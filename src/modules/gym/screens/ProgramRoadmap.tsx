@@ -1,5 +1,11 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Check, Pencil, Play } from 'lucide-react-native';
+import {
+  CalendarPlus,
+  Check,
+  Pencil,
+  Play,
+  TriangleAlert,
+} from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
@@ -16,12 +22,20 @@ import {
   tint,
 } from '@/ui';
 
-import { cellStatus, type CursorStatus, weekStatus } from '../program-roadmap';
+import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
+import {
+  cellKey,
+  cellStatus,
+  type CursorStatus,
+  weekStatus,
+} from '../program-roadmap';
 import {
   startProgramWorkout,
+  startProgramWorkoutFor,
   useProgram,
   useProgramDays,
   useProgramExercises,
+  useProgramRoadmap,
   useProgramWeeks,
 } from '../queries';
 
@@ -37,6 +51,8 @@ export function ProgramRoadmap() {
   const { data: days } = useProgramDays(programId);
   const { data: weeks } = useProgramWeeks(programId);
   const { data: exercises } = useProgramExercises(programId);
+  const roadmap = useProgramRoadmap(programId);
+  const { launch } = useWorkoutLauncher();
 
   const previewByDay = useMemo(() => {
     const map = new Map<number, string[]>();
@@ -55,6 +71,30 @@ export function ProgramRoadmap() {
     return map;
   }, [weeks]);
 
+  // Cells with a logged session this cycle — drives done-vs-skipped status.
+  const loggedSet = useMemo(
+    () => new Set(roadmap.logged.keys()),
+    [roadmap.logged],
+  );
+  const cursor = {
+    currentWeek: roadmap.currentWeek,
+    currentDayIndex: roadmap.currentDayIndex,
+  };
+
+  // Skipped days in EARLIER weeks (the cursor passed them, never logged). The
+  // current week's gaps surface inline in the split below, so skip them here.
+  const missed = useMemo(() => {
+    const out: { weekIndex: number; dayIndex: number; name: string }[] = [];
+    for (let week = 1; week < roadmap.currentWeek; week += 1) {
+      for (const day of days) {
+        if (!loggedSet.has(cellKey(week, day.dayIndex))) {
+          out.push({ weekIndex: week, dayIndex: day.dayIndex, name: day.name });
+        }
+      }
+    }
+    return out;
+  }, [days, loggedSet, roadmap.currentWeek]);
+
   function openEdit() {
     router.push({
       pathname: '/modules/gym/program-edit',
@@ -62,10 +102,20 @@ export function ProgramRoadmap() {
     });
   }
 
-  function start() {
+  // The cursor's own workout (advances the program on finish).
+  function startCursor() {
+    launch(() => startProgramWorkout(programId));
+  }
+
+  // Back-fill a passed/skipped day — recorded without moving the cursor.
+  function logDay(weekIndex: number, dayIndex: number) {
+    launch(() => startProgramWorkoutFor(programId, weekIndex, dayIndex));
+  }
+
+  function viewSession(sessionId: number) {
     router.push({
-      pathname: '/modules/gym/workout',
-      params: { sessionId: String(startProgramWorkout(programId)) },
+      pathname: '/modules/gym/session',
+      params: { sessionId: String(sessionId) },
     });
   }
 
@@ -93,8 +143,8 @@ export function ProgramRoadmap() {
     );
   }
 
-  const { currentWeek, currentDayIndex, lengthWeeks } = program;
-  const cursor = { currentWeek, currentDayIndex };
+  const { lengthWeeks } = program;
+  const { currentWeek } = roadmap;
   const weekNumbers = Array.from({ length: lengthWeeks }, (_, i) => i + 1);
 
   return (
@@ -128,8 +178,49 @@ export function ProgramRoadmap() {
           </ScrollView>
         </View>
 
+        {missed.length > 0 ? (
+          <View className="gap-2">
+            <SectionHeader>Missed workouts</SectionHeader>
+            <View
+              className="gap-3 rounded-2xl border p-4"
+              style={{ borderColor: colors.warning }}
+            >
+              <View className="flex-row items-center gap-2">
+                <Icon icon={TriangleAlert} size={18} color={colors.warning} />
+                <Text variant="muted" className="flex-1">
+                  {missed.length} scheduled{' '}
+                  {missed.length === 1 ? 'day was' : 'days were'} never logged.
+                  Log them to keep your progress accurate.
+                </Text>
+              </View>
+              {missed.map((m) => (
+                <View
+                  key={cellKey(m.weekIndex, m.dayIndex)}
+                  className="flex-row items-center gap-3"
+                >
+                  <View className="flex-1">
+                    <Text variant="body">{m.name}</Text>
+                    <Text variant="caption" style={{ color: colors.fgFaint }}>
+                      Week {m.weekIndex} · Day {m.dayIndex + 1}
+                    </Text>
+                  </View>
+                  <Button
+                    label="Log it"
+                    size="md"
+                    variant="secondary"
+                    leftIcon={
+                      <Icon icon={CalendarPlus} size={16} color={colors.fg} />
+                    }
+                    onPress={() => logDay(m.weekIndex, m.dayIndex)}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         <View className="gap-3">
-          <SectionHeader>The split</SectionHeader>
+          <SectionHeader>This week</SectionHeader>
           {days.length === 0 ? (
             <Pressable onPress={openEdit} className="active:opacity-90">
               <EmptyState
@@ -138,17 +229,32 @@ export function ProgramRoadmap() {
               />
             </Pressable>
           ) : (
-            days.map((day) => (
-              <DayCard
-                key={day.id}
-                name={day.name}
-                dayIndex={day.dayIndex}
-                exerciseNames={previewByDay.get(day.id) ?? []}
-                status={cellStatus(currentWeek, day.dayIndex, cursor)}
-                onStart={start}
-                onSetup={openEdit}
-              />
-            ))
+            days.map((day) => {
+              const status = cellStatus(
+                currentWeek,
+                day.dayIndex,
+                cursor,
+                loggedSet,
+              );
+              const sessionId = roadmap.logged.get(
+                cellKey(currentWeek, day.dayIndex),
+              );
+              return (
+                <DayCard
+                  key={day.id}
+                  name={day.name}
+                  dayIndex={day.dayIndex}
+                  exerciseNames={previewByDay.get(day.id) ?? []}
+                  status={status}
+                  onStart={startCursor}
+                  onSetup={openEdit}
+                  onLog={() => logDay(currentWeek, day.dayIndex)}
+                  onView={
+                    sessionId != null ? () => viewSession(sessionId) : undefined
+                  }
+                />
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -201,6 +307,8 @@ function DayCard({
   status,
   onStart,
   onSetup,
+  onLog,
+  onView,
 }: {
   name: string;
   dayIndex: number;
@@ -208,70 +316,118 @@ function DayCard({
   status: CursorStatus;
   onStart: () => void;
   onSetup: () => void;
+  onLog: () => void;
+  onView?: () => void;
 }) {
   const isCurrent = status === 'current';
   const isDone = status === 'done';
+  const isSkipped = status === 'skipped';
   const ready = exerciseNames.length > 0;
   const preview = exerciseNames.slice(0, 4);
   const extra = exerciseNames.length - preview.length;
 
-  return (
-    <View style={isCurrent ? glow(colors.gym, 0.45) : undefined}>
-      <Card
-        className={isCurrent ? 'gap-3 bg-surface-hi' : 'gap-3'}
-        style={isCurrent ? { borderColor: colors.gym } : undefined}
-      >
-        <View className="flex-row items-center gap-2">
-          {isCurrent ? (
-            <View
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: colors.gym }}
-            />
-          ) : null}
-          {isDone ? (
-            <Icon icon={Check} size={14} color={colors.fgMuted} />
-          ) : null}
-          <Text variant="heading" className="flex-1">
-            {name}
-          </Text>
-          <Text variant="caption" style={{ color: colors.fgFaint }}>
-            Day {dayIndex + 1}
-          </Text>
-        </View>
+  const borderColor = isCurrent
+    ? colors.gym
+    : isSkipped
+      ? colors.warning
+      : undefined;
 
+  const body = (
+    <Card
+      className={isCurrent ? 'gap-3 bg-surface-hi' : 'gap-3'}
+      style={borderColor ? { borderColor } : undefined}
+    >
+      <View className="flex-row items-center gap-2">
         {isCurrent ? (
-          <Text variant="label" style={{ color: colors.gym }}>
-            You are here
-          </Text>
-        ) : null}
-
-        {preview.length > 0 ? (
-          <Text variant="caption">
-            {preview.join(' · ')}
-            {extra > 0 ? ` +${extra} more` : ''}
-          </Text>
-        ) : (
-          <Text variant="caption" style={{ color: colors.fgFaint }}>
-            No exercises yet
-          </Text>
-        )}
-
-        {isCurrent && ready ? (
-          <Button
-            label="Start workout"
-            size="md"
-            leftIcon={<Icon icon={Play} size={16} color={colors.fg} />}
-            onPress={onStart}
-          />
-        ) : isCurrent ? (
-          <Button
-            label="Finish setup"
-            variant="secondary"
-            size="md"
-            onPress={onSetup}
+          <View
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: colors.gym }}
           />
         ) : null}
-      </Card>
-    </View>
+        {isDone ? <Icon icon={Check} size={14} color={colors.success} /> : null}
+        {isSkipped ? (
+          <Icon icon={TriangleAlert} size={14} color={colors.warning} />
+        ) : null}
+        <Text variant="heading" className="flex-1">
+          {name}
+        </Text>
+        <Text variant="caption" style={{ color: colors.fgFaint }}>
+          Day {dayIndex + 1}
+        </Text>
+      </View>
+
+      {isCurrent ? (
+        <Text variant="label" style={{ color: colors.gym }}>
+          You are here
+        </Text>
+      ) : isDone ? (
+        <Text variant="label" style={{ color: colors.success }}>
+          Logged · tap to view
+        </Text>
+      ) : isSkipped ? (
+        <Text variant="label" style={{ color: colors.warning }}>
+          Skipped — never logged
+        </Text>
+      ) : null}
+
+      {preview.length > 0 ? (
+        <Text variant="caption">
+          {preview.join(' · ')}
+          {extra > 0 ? ` +${extra} more` : ''}
+        </Text>
+      ) : (
+        <Text variant="caption" style={{ color: colors.fgFaint }}>
+          No exercises yet
+        </Text>
+      )}
+
+      {isCurrent && ready ? (
+        <Button
+          label="Start workout"
+          size="md"
+          leftIcon={<Icon icon={Play} size={16} color={colors.fg} />}
+          onPress={onStart}
+        />
+      ) : isCurrent ? (
+        <Button
+          label="Finish setup"
+          variant="secondary"
+          size="md"
+          onPress={onSetup}
+        />
+      ) : isSkipped && ready ? (
+        <Button
+          label="Log this day"
+          variant="secondary"
+          size="md"
+          leftIcon={<Icon icon={CalendarPlus} size={16} color={colors.fg} />}
+          onPress={onLog}
+        />
+      ) : isSkipped ? (
+        <Button
+          label="Finish setup"
+          variant="secondary"
+          size="md"
+          onPress={onSetup}
+        />
+      ) : null}
+    </Card>
+  );
+
+  // A logged day taps through to its session detail; the cursor day glows.
+  if (isDone && onView) {
+    return (
+      <Pressable
+        onPress={onView}
+        accessibilityRole="button"
+        accessibilityLabel={`View logged ${name}`}
+        className="active:opacity-80"
+      >
+        {body}
+      </Pressable>
+    );
+  }
+  return (
+    <View style={isCurrent ? glow(colors.gym, 0.45) : undefined}>{body}</View>
   );
 }

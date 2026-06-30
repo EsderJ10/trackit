@@ -266,6 +266,9 @@ export const workoutSessions = sqliteTable(
     }),
     programWeekIndex: integer('program_week_index'),
     programDayIndex: integer('program_day_index'),
+    // Which pass through the program (programs.current_cycle at start time). Lets
+    // the roadmap scope "done/skipped" to the current cycle; null = pre-migration.
+    programCycle: integer('program_cycle'),
     // No enforced FK: added via ALTER, where SQLite drops the ON DELETE clause.
     programDayId: integer('program_day_id'),
     startedAt: integer('started_at', { mode: 'timestamp_ms' })

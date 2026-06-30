@@ -501,6 +501,8 @@ export function finishWorkout(sessionId: number): void {
       programId: workoutSessions.programId,
       programDayId: workoutSessions.programDayId,
       weekIndex: workoutSessions.programWeekIndex,
+      dayIndex: workoutSessions.programDayIndex,
+      cycle: workoutSessions.programCycle,
     })
     .from(workoutSessions)
     .where(eq(workoutSessions.id, sessionId))
@@ -521,6 +523,28 @@ export function finishWorkout(sessionId: number): void {
   const finishedAt =
     session.startedAt.getTime() < startOfToday ? session.startedAt : now;
 
+  // A program session advances the cursor + folds progression ONLY when it is the
+  // cursor's own workout. A back-filled past/skipped day (the cursor already moved
+  // past it) is just recorded — re-advancing would double-step the plan and fold
+  // its sets into progression out of order. (Legacy null cycle ⇒ match on wk/day.)
+  let advancesCursor = false;
+  if (session.programId != null && session.programDayId != null) {
+    const program = db
+      .select({
+        currentWeek: programs.currentWeek,
+        currentDayIndex: programs.currentDayIndex,
+        currentCycle: programs.currentCycle,
+      })
+      .from(programs)
+      .where(eq(programs.id, session.programId))
+      .all()[0];
+    advancesCursor =
+      program != null &&
+      session.weekIndex === program.currentWeek &&
+      session.dayIndex === program.currentDayIndex &&
+      (session.cycle == null || session.cycle === program.currentCycle);
+  }
+
   // Atomic: stamping finishedAt and advancing progression + the program cursor
   // must commit together, or a crash leaves progression half-applied.
   db.transaction(() => {
@@ -529,7 +553,11 @@ export function finishWorkout(sessionId: number): void {
       .where(eq(workoutSessions.id, sessionId))
       .run();
 
-    if (session.programId != null && session.programDayId != null) {
+    if (
+      advancesCursor &&
+      session.programId != null &&
+      session.programDayId != null
+    ) {
       advanceProgram(
         session.programId,
         session.programDayId,
