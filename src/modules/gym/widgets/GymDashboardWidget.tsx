@@ -8,6 +8,7 @@ import type { DashboardWidgetProps } from '@/core/types/module';
 import { Button, Icon, Stat, Text, colors, glow, tint } from '@/ui';
 
 import { formatWeight } from '../format';
+import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
 import {
   type ActiveSession,
   type NextProgramWorkout,
@@ -24,13 +25,7 @@ export function GymDashboardWidget(_props: DashboardWidgetProps) {
   const active = useActiveSession();
   const next = useNextProgramWorkout();
   const { weightUnit } = useSettings();
-
-  function openWorkout(sessionId: number) {
-    router.push({
-      pathname: '/modules/gym/workout',
-      params: { sessionId: String(sessionId) },
-    });
-  }
+  const { open: openWorkout, launch } = useWorkoutLauncher();
 
   function openProgram(programId: number) {
     router.push({
@@ -51,7 +46,7 @@ export function GymDashboardWidget(_props: DashboardWidgetProps) {
       ) : next?.ready ? (
         <ReadyProgramHero
           next={next}
-          onStart={() => openWorkout(startProgramWorkout(next.programId))}
+          onStart={() => launch(() => startProgramWorkout(next.programId))}
           onOpenProgram={() => openProgram(next.programId)}
         />
       ) : next ? (

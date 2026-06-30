@@ -19,6 +19,7 @@ import {
   useRoutine,
   useRoutineExercises,
 } from '../queries';
+import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
 import { linkWithPrevious, supersetBadges, unlink } from '../supersets';
 
 export function RoutineEditor() {
@@ -27,6 +28,7 @@ export function RoutineEditor() {
   }>();
   const routineId = Number(routineParam);
   const router = useRouter();
+  const { launch } = useWorkoutLauncher();
   const routine = useRoutine(routineId);
   const { data: exercises } = useRoutineExercises(routineId);
   const { weightUnit } = useSettings();
@@ -57,11 +59,7 @@ export function RoutineEditor() {
   }
 
   function start() {
-    const sessionId = startWorkout(routineId);
-    router.replace({
-      pathname: '/modules/gym/workout',
-      params: { sessionId: String(sessionId) },
-    });
+    launch(() => startWorkout(routineId));
   }
 
   return (

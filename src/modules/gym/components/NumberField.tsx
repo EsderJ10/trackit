@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { TextInput, View, type TextInputProps } from 'react-native';
 
 import { Text, cn, colors } from '@/ui';
@@ -19,47 +20,61 @@ export interface NumberFieldProps {
   invalid?: boolean;
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: TextInputProps['onSubmitEditing'];
+  /** Keep focus after submit so a chained next-field focus isn't fought by blur. */
+  blurOnSubmit?: TextInputProps['blurOnSubmit'];
 }
 
-/** Compact numeric input used across the gym module; label is optional. */
-export function NumberField({
-  label,
-  value,
-  placeholder,
-  onChangeText,
-  onEndEditing,
-  className,
-  accessibilityLabel,
-  invalid = false,
-  returnKeyType,
-  onSubmitEditing,
-}: NumberFieldProps) {
-  return (
-    <View className={cn('gap-1', className)}>
-      {label ? (
-        <Text variant="caption" className="uppercase tracking-wider">
-          {label}
-        </Text>
-      ) : null}
-      <TextInput
-        value={value}
-        placeholder={placeholder}
-        onChangeText={onChangeText}
-        onEndEditing={onEndEditing}
-        keyboardType="numeric"
-        selectTextOnFocus
-        returnKeyType={returnKeyType}
-        onSubmitEditing={onSubmitEditing}
-        accessibilityLabel={accessibilityLabel ?? label}
-        placeholderTextColor={colors.fgFaint}
-        // Tabular numerals so digits keep a fixed width and don't jitter as the
-        // value changes (the logger's core readability requirement).
-        style={{ fontVariant: ['tabular-nums'] }}
-        className={cn(
-          'rounded-xl border bg-surface-hi px-3 py-3 text-center text-base text-fg',
-          invalid ? 'border-danger' : 'border-border',
-        )}
-      />
-    </View>
-  );
-}
+/**
+ * Compact numeric input used across the gym module; label is optional. Forwards
+ * its ref to the underlying `TextInput` so callers can chain focus between fields
+ * (reps → weight → RPE) via `returnKeyType="next"`.
+ */
+export const NumberField = forwardRef<TextInput, NumberFieldProps>(
+  function NumberField(
+    {
+      label,
+      value,
+      placeholder,
+      onChangeText,
+      onEndEditing,
+      className,
+      accessibilityLabel,
+      invalid = false,
+      returnKeyType,
+      onSubmitEditing,
+      blurOnSubmit,
+    },
+    ref,
+  ) {
+    return (
+      <View className={cn('gap-1', className)}>
+        {label ? (
+          <Text variant="caption" className="uppercase tracking-wider">
+            {label}
+          </Text>
+        ) : null}
+        <TextInput
+          ref={ref}
+          value={value}
+          placeholder={placeholder}
+          onChangeText={onChangeText}
+          onEndEditing={onEndEditing}
+          keyboardType="numeric"
+          selectTextOnFocus
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          blurOnSubmit={blurOnSubmit}
+          accessibilityLabel={accessibilityLabel ?? label}
+          placeholderTextColor={colors.fgFaint}
+          // Tabular numerals so digits keep a fixed width and don't jitter as the
+          // value changes (the logger's core readability requirement).
+          style={{ fontVariant: ['tabular-nums'] }}
+          className={cn(
+            'rounded-xl border bg-surface-hi px-3 py-3 text-center text-base text-fg',
+            invalid ? 'border-danger' : 'border-border',
+          )}
+        />
+      </View>
+    );
+  },
+);

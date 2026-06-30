@@ -266,6 +266,9 @@ export const workoutSessions = sqliteTable(
     }),
     programWeekIndex: integer('program_week_index'),
     programDayIndex: integer('program_day_index'),
+    // Which pass through the program (programs.current_cycle at start time). Lets
+    // the roadmap scope "done/skipped" to the current cycle; null = pre-migration.
+    programCycle: integer('program_cycle'),
     // No enforced FK: added via ALTER, where SQLite drops the ON DELETE clause.
     programDayId: integer('program_day_id'),
     startedAt: integer('started_at', { mode: 'timestamp_ms' })
@@ -326,7 +329,7 @@ export const setLogs = sqliteTable(
 /** Gym-module preferences. Single-row table (id pinned to 1); module prefs live here, not in core. */
 export const gymSettings = sqliteTable('gym_settings', {
   id: integer('id').primaryKey().default(1),
-  /** Default between-sets rest, in seconds. The ±30s timer controls write here. */
+  /** Default between-sets rest, in seconds (0 = disabled). The ±15s timer controls write here. */
   defaultRestSec: integer('default_rest_sec').notNull().default(120),
   /** Target finished workouts per week — drives the profile's weekly-goal ring. */
   weeklyWorkoutGoal: integer('weekly_workout_goal').notNull().default(3),

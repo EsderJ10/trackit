@@ -17,6 +17,9 @@ interface UseExerciseReorderArgs {
   session:
     | { routineId: number | null; programDayId: number | null }
     | undefined;
+  /** Exercise ids dropped from the session (removed or swapped out) — excluded
+      from the plan so they neither trip the "save order?" prompt nor persist. */
+  removedIds?: readonly number[];
 }
 
 /**
@@ -30,6 +33,7 @@ export function useExerciseReorder({
   plan,
   programPlan,
   session,
+  removedIds,
 }: UseExerciseReorderArgs) {
   const [orderOverride, setOrderOverride] = useState<number[] | null>(null);
 
@@ -40,14 +44,14 @@ export function useExerciseReorder({
 
   // The plan's exercises (routine or program) as {row id, exerciseId} in saved
   // order; ad-hoc extras aren't part of the plan, so they never appear here.
-  const planSlots = useMemo<PlanSlot[]>(
-    () =>
-      (plan.length > 0 ? plan : programPlan).map((row) => ({
-        id: row.id,
-        exerciseId: row.exerciseId,
-      })),
-    [plan, programPlan],
-  );
+  // Exercises dropped from the session are excluded so a removal/swap doesn't
+  // read as a reorder of the surviving plan.
+  const planSlots = useMemo<PlanSlot[]>(() => {
+    const removed = new Set(removedIds);
+    return (plan.length > 0 ? plan : programPlan)
+      .filter((row) => !removed.has(row.exerciseId))
+      .map((row) => ({ id: row.id, exerciseId: row.exerciseId }));
+  }, [plan, programPlan, removedIds]);
 
   const planSlotsInDisplayOrder = (): PlanSlot[] => {
     if (orderOverride == null) return planSlots;

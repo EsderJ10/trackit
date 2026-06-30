@@ -1,4 +1,10 @@
-import { Plus, Trash2 } from 'lucide-react-native';
+import {
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Plus,
+  Trash2,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import {
@@ -10,7 +16,10 @@ import {
 import type { WeightUnit } from '@/core/settings/schema';
 import { Button, Icon, Text, colors } from '@/ui';
 
-import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
+import type {
+  ProgramExerciseRow as ProgramExerciseRowData,
+  ProgramSchemeChoice,
+} from '../queries';
 import {
   type SupersetUpdate,
   linkWithPrevious,
@@ -24,6 +33,7 @@ export interface ProgramDaySectionProps {
   exercises: ProgramExerciseRowData[];
   unit: WeightUnit;
   onRenameDay: (name: string) => void;
+  onDuplicateDay: () => void;
   onRemoveDay: () => void;
   onAddExercise: () => void;
   onSetWeight: (programExerciseId: number, weightKg: number) => void;
@@ -31,10 +41,18 @@ export interface ProgramDaySectionProps {
   onSetE1rm: (programExerciseId: number, weightKg: number) => void;
   onRemoveExercise: (programExerciseId: number) => void;
   onEditWave: (programExerciseId: number, name: string) => void;
+  /** Switch a slot's progression scheme. */
+  onChangeScheme: (
+    programExerciseId: number,
+    scheme: ProgramSchemeChoice,
+  ) => void;
   /** Persist a new exercise order for this day (program_exercises row ids). */
   onReorderExercises: (orderedIds: number[]) => void;
   /** Persist superset group changes for this day's exercises. */
   onUpdateSupersets: (updates: SupersetUpdate[]) => void;
+  /** Move this day one slot earlier / later in the split (null hides the arrow). */
+  onMoveUp: (() => void) | null;
+  onMoveDown: (() => void) | null;
 }
 
 /** One day of a program: an editable name plus its exercises and an add button. */
@@ -43,6 +61,7 @@ export function ProgramDaySection({
   exercises,
   unit,
   onRenameDay,
+  onDuplicateDay,
   onRemoveDay,
   onAddExercise,
   onSetWeight,
@@ -50,8 +69,11 @@ export function ProgramDaySection({
   onSetE1rm,
   onRemoveExercise,
   onEditWave,
+  onChangeScheme,
   onReorderExercises,
   onUpdateSupersets,
+  onMoveUp,
+  onMoveDown,
 }: ProgramDaySectionProps) {
   const badges = useMemo(() => supersetBadges(exercises), [exercises]);
   const indexById = useMemo(
@@ -82,6 +104,30 @@ export function ProgramDaySection({
   return (
     <View className="gap-3 rounded-2xl border border-border-soft bg-surface-alt/40 p-3">
       <View className="flex-row items-center justify-between gap-2">
+        <View className="flex-row items-center">
+          <Pressable
+            onPress={() => onMoveUp?.()}
+            disabled={onMoveUp == null}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Move day up"
+            className="active:opacity-60"
+            style={onMoveUp == null ? { opacity: 0.25 } : undefined}
+          >
+            <Icon icon={ChevronUp} size={18} color={colors.fgFaint} />
+          </Pressable>
+          <Pressable
+            onPress={() => onMoveDown?.()}
+            disabled={onMoveDown == null}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Move day down"
+            className="active:opacity-60"
+            style={onMoveDown == null ? { opacity: 0.25 } : undefined}
+          >
+            <Icon icon={ChevronDown} size={18} color={colors.fgFaint} />
+          </Pressable>
+        </View>
         <TextInput
           defaultValue={day.name}
           placeholder="Day name"
@@ -89,6 +135,15 @@ export function ProgramDaySection({
           onEndEditing={(event) => onRenameDay(event.nativeEvent.text)}
           className="flex-1 text-base font-semibold text-fg"
         />
+        <Pressable
+          onPress={onDuplicateDay}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Duplicate day"
+          className="active:opacity-60"
+        >
+          <Icon icon={Copy} size={18} color={colors.fgFaint} />
+        </Pressable>
         <Pressable
           onPress={onRemoveDay}
           hitSlop={8}
@@ -129,6 +184,7 @@ export function ProgramDaySection({
                 onSetE1rm={onSetE1rm}
                 onRemove={onRemoveExercise}
                 onEditWave={onEditWave}
+                onChangeScheme={onChangeScheme}
                 onLink={onLink}
                 onUnlink={onUnlink}
               />

@@ -1,8 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import ReorderableList, {
   type ReorderableListReorderEvent,
   reorderItems,
@@ -29,6 +29,7 @@ import {
   addSet,
   addWarmupSets,
   deleteExerciseSets,
+  deleteSession,
   deleteSetLog,
   finishWorkout,
   getDefaultRestSec,
@@ -90,8 +91,10 @@ export function ActiveWorkout() {
   const [removedIds, setRemovedIds] = useState<number[]>([]);
   // Drag order overrides plan order session-local; persisted only on confirm.
   const { orderOverride, applyReorder, planOrderChanged, persistPlanOrder } =
-    useExerciseReorder({ plan, programPlan, session });
+    useExerciseReorder({ plan, programPlan, session, removedIds });
   const [pickerOpen, setPickerOpen] = useState(false);
+  // The exercise being swapped out (picker open in swap mode); null = add mode.
+  const [swapFor, setSwapFor] = useState<number | null>(null);
   const { prMsg, celebrate } = usePRCelebration();
   // Plate calculator target, in the display unit (null = closed).
   const [plateTarget, setPlateTarget] = useState<number | null>(null);
@@ -281,6 +284,20 @@ export function ActiveWorkout() {
     }
   }
 
+  // Replace one exercise with another session-local (the saved plan is untouched),
+  // keeping the swapped-in exercise in the outgoing one's slot.
+  function swapExercise(fromId: number, toId: number) {
+    if (toId === fromId) return;
+    const order = displayExercises.map((ex) => ex.exerciseId);
+    removeExercise(fromId);
+    addExercise(toId);
+    // Slot the new exercise where the old one sat (extras otherwise append last).
+    const placed = order
+      .map((id) => (id === fromId ? toId : id))
+      .filter((id, i, arr) => arr.indexOf(id) === i);
+    applyReorder(placed);
+  }
+
   function handleReorder({ from, to }: ReorderableListReorderEvent) {
     applyReorder(
       reorderItems(displayExercises, from, to).map((ex) => ex.exerciseId),
@@ -293,6 +310,27 @@ export function ActiveWorkout() {
     finishWorkout(sessionId);
     // Cross-navigator hop: `navigate` pops back to the History tab; replace/push mis-stack.
     router.navigate('/history');
+  }
+
+  // Discard is the non-finishing exit: without it, leaving the screen abandons an
+  // unfinished session that lingers forever in the resume bar.
+  function discard() {
+    Alert.alert(
+      'Discard workout?',
+      'This deletes this workout and any sets logged in it. This cannot be undone.',
+      [
+        { text: 'Keep workout', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            stopRest();
+            deleteSession(sessionId);
+            router.navigate('/train');
+          },
+        },
+      ],
+    );
   }
 
   function finishWithOrderPrompt() {
@@ -366,7 +404,22 @@ export function ActiveWorkout() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Workout' }} />
+      <Stack.Screen
+        options={{
+          title: 'Workout',
+          headerRight: () => (
+            <Pressable
+              onPress={discard}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Discard workout"
+              className="active:opacity-70"
+            >
+              <Icon icon={Trash2} size={20} color={colors.danger} />
+            </Pressable>
+          ),
+        }}
+      />
       <ReorderableList
         data={displayExercises}
         keyExtractor={(exercise) => String(exercise.exerciseId)}
@@ -392,6 +445,7 @@ export function ActiveWorkout() {
               onToggleSet={toggleSet}
               onDeleteSet={deleteSetLog}
               onRemove={() => removeExercise(exercise.exerciseId)}
+              onSwap={() => setSwapFor(exercise.exerciseId)}
               onOpenProgression={() => openProgression(exercise.exerciseId)}
               onAddWarmup={() => addWarmup(exercise.exerciseId)}
               onShowPlates={() =>
@@ -437,9 +491,16 @@ export function ActiveWorkout() {
       />
 
       <ExercisePickerModal
-        visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(exercise) => addExercise(exercise.id)}
+        visible={pickerOpen || swapFor != null}
+        onClose={() => {
+          setPickerOpen(false);
+          setSwapFor(null);
+        }}
+        onSelect={(exercise) =>
+          swapFor != null
+            ? swapExercise(swapFor, exercise.id)
+            : addExercise(exercise.id)
+        }
       />
     </Screen>
   );

@@ -1,4 +1,4 @@
-import { Calculator, Flame, Plus, Trash2 } from 'lucide-react-native';
+import { Calculator, Flame, Plus, Repeat2, Trash2 } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 
@@ -34,6 +34,8 @@ export interface ExerciseSessionCardProps {
   onToggleSet: (id: number, completed: boolean) => void;
   onDeleteSet: (id: number) => void;
   onRemove: () => void;
+  /** Swap this exercise for another (opens the picker); session-local. */
+  onSwap?: () => void;
   /** Tap the exercise name to open its progression view. */
   onOpenProgression?: () => void;
   /** Generate ramp-up warm-up sets (barbell lifts only). */
@@ -59,6 +61,7 @@ export function ExerciseSessionCard({
   onToggleSet,
   onDeleteSet,
   onRemove,
+  onSwap,
   onOpenProgression,
   onAddWarmup,
   onShowPlates,
@@ -122,15 +125,28 @@ export function ExerciseSessionCard({
             </Text>
           ) : null}
         </View>
-        <Pressable
-          onPress={confirmRemove}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${name}`}
-          hitSlop={8}
-          className="active:opacity-60"
-        >
-          <Icon icon={Trash2} size={18} color={colors.fgFaint} />
-        </Pressable>
+        <View className="flex-row items-center gap-3">
+          {onSwap ? (
+            <Pressable
+              onPress={onSwap}
+              accessibilityRole="button"
+              accessibilityLabel={`Swap ${name} for another exercise`}
+              hitSlop={8}
+              className="active:opacity-60"
+            >
+              <Icon icon={Repeat2} size={18} color={colors.fgFaint} />
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={confirmRemove}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${name}`}
+            hitSlop={8}
+            className="active:opacity-60"
+          >
+            <Icon icon={Trash2} size={18} color={colors.fgFaint} />
+          </Pressable>
+        </View>
       </View>
 
       {sets.length > 0 ? (

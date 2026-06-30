@@ -7,7 +7,11 @@ import { fromDisplayWeight, toDisplayWeight } from '@/core/settings/units';
 import { Button, Card, Icon, Text, colors, shallowEqual, tint } from '@/ui';
 
 import { formatWeight } from '../format';
-import type { ProgramExerciseRow as ProgramExerciseRowData } from '../queries';
+import { SCHEME_PRESETS } from '../program-schemes';
+import type {
+  ProgramExerciseRow as ProgramExerciseRowData,
+  ProgramSchemeChoice,
+} from '../queries';
 import type { SupersetBadge } from '../supersets';
 import { DragHandle } from './DragHandle';
 import { NumberField } from './NumberField';
@@ -28,6 +32,11 @@ export interface ProgramExerciseRowProps {
   onRemove: (programExerciseId: number) => void;
   /** Open the periodization (week × set wave) editor for this slot. */
   onEditWave: (programExerciseId: number, name: string) => void;
+  /** Switch this slot's progression scheme. */
+  onChangeScheme: (
+    programExerciseId: number,
+    scheme: ProgramSchemeChoice,
+  ) => void;
   /** Link this row into a superset with the previous exercise in the day. */
   onLink: (programExerciseId: number) => void;
   /** Remove this row from its superset. */
@@ -86,10 +95,12 @@ function ProgramExerciseRowComponent({
   onSetE1rm,
   onRemove,
   onEditWave,
+  onChangeScheme,
   onLink,
   onUnlink,
   reorderable,
 }: ProgramExerciseRowProps) {
+  const [editingScheme, setEditingScheme] = useState(false);
   const anchor = anchorFor(row);
   // Edits happen in the display unit; the weight is stored canonical kg.
   const [weight, setWeight] = useState(
@@ -137,9 +148,23 @@ function ProgramExerciseRowComponent({
             ) : null}
             <Text variant="heading">{row.exerciseName}</Text>
           </View>
-          <Text variant="caption" className="mt-1">
-            {schemeSummary(row, unit)}
-          </Text>
+          <Pressable
+            onPress={() => setEditingScheme((open) => !open)}
+            accessibilityRole="button"
+            accessibilityLabel={`Change progression for ${row.exerciseName}`}
+            hitSlop={6}
+            className="active:opacity-70"
+          >
+            <Text
+              variant="caption"
+              className="mt-1"
+              style={{
+                color: editingScheme ? colors.primaryBright : undefined,
+              }}
+            >
+              {schemeSummary(row, unit)}
+            </Text>
+          </Pressable>
         </View>
         <View className="flex-row items-center gap-3">
           {supersetBadge ? (
@@ -174,6 +199,32 @@ function ProgramExerciseRowComponent({
           </Pressable>
         </View>
       </View>
+
+      {editingScheme ? (
+        <View className="gap-2 rounded-xl border border-border-soft bg-surface-alt/40 p-2">
+          <Text variant="caption" className="uppercase tracking-wider">
+            Progression
+          </Text>
+          {SCHEME_PRESETS.map((preset) => (
+            <Button
+              key={preset.label}
+              label={preset.label}
+              variant="secondary"
+              size="md"
+              onPress={() => {
+                onChangeScheme(row.id, preset.scheme);
+                setEditingScheme(false);
+              }}
+            />
+          ))}
+          <Button
+            label="Cancel"
+            variant="ghost"
+            size="md"
+            onPress={() => setEditingScheme(false)}
+          />
+        </View>
+      ) : null}
 
       <View className="flex-row items-end gap-3">
         <NumberField
@@ -232,6 +283,7 @@ function propsEqual(
     prev.onSetE1rm === next.onSetE1rm &&
     prev.onRemove === next.onRemove &&
     prev.onEditWave === next.onEditWave &&
+    prev.onChangeScheme === next.onChangeScheme &&
     prev.onLink === next.onLink &&
     prev.onUnlink === next.onUnlink &&
     badgeEqual &&

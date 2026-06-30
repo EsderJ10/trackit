@@ -70,6 +70,12 @@ export interface TrackerModule {
   /** Optional read-only section on the core Profile screen (module stats/streaks). */
   ProfileWidget?: ComponentType<DashboardWidgetProps>;
   /**
+   * Optional persistent bar pinned above the bottom tab bar on every tab screen
+   * (e.g. gym's "resume workout" banner). Core renders each module's bar straight
+   * from the registry — no core edit per module. MUST render null when idle.
+   */
+  GlobalBar?: ComponentType;
+  /**
    * Optional data seed, run after migrations on EVERY launch. MUST be idempotent
    * (insert-missing/rename-once, never blind-insert) so it can grow over time and
    * reach already-seeded devices. The runner does not guard re-runs.

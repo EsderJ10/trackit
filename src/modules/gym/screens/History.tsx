@@ -13,6 +13,7 @@ import {
 } from '../calendar';
 import { WorkoutCalendar } from '../components/WorkoutCalendar';
 import { formatRelativeDate } from '../format';
+import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
 import {
   startWorkout,
   useFinishedSessions,
@@ -57,6 +58,7 @@ const HistoryRow = memo(function HistoryRow({
 export function History() {
   const router = useRouter();
   const { data: sessions } = useFinishedSessions();
+  const { launch } = useWorkoutLauncher();
   const [monthOffset, setMonthOffset] = useState(0);
 
   const openSession = useCallback(
@@ -106,17 +108,13 @@ export function History() {
                 date.getDate(),
                 12,
               ).getTime();
-              const sessionId = startWorkout(undefined, noon);
-              router.push({
-                pathname: '/modules/gym/workout',
-                params: { sessionId: String(sessionId) },
-              });
+              launch(() => startWorkout(undefined, noon));
             },
           },
         ],
       );
     },
-    [openSession, router],
+    [openSession, launch],
   );
 
   const header = (

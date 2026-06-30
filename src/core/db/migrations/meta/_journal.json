@@ -134,6 +134,13 @@
       "when": 1782753153550,
       "tag": "0018_flashy_ikaris",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1782817096228,
+      "tag": "0019_worthless_warpath",
+      "breakpoints": true
     }
   ]
 }

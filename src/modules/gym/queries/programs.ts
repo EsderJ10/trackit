@@ -178,6 +178,65 @@ export function useNextProgramWorkout(): NextProgramWorkout | undefined {
   }, [current, days, currentDay, exRows, weekRows]);
 }
 
+export interface ProgramRoadmap {
+  /** 1-based week the cursor sits in. */
+  currentWeek: number;
+  /** 0-based day the cursor sits in. */
+  currentDayIndex: number;
+  /** Which pass through the program the cursor is on. */
+  currentCycle: number;
+  /**
+   * Finished sessions of THIS cycle, keyed `${weekIndex}:${dayIndex}` → sessionId.
+   * Drives history-aware cell status (a passed cell with no entry is a skip).
+   */
+  logged: Map<string, number>;
+}
+
+/**
+ * Cursor + this-cycle session history for the roadmap. "Done" reflects an actual
+ * logged session (not just a cursor that walked past), so skipped days surface as
+ * recoverable gaps. Legacy rows (null `programCycle`) are treated as cycle 1.
+ */
+export function useProgramRoadmap(programId: number): ProgramRoadmap {
+  const program = useProgram(programId);
+  const currentCycle = program?.currentCycle ?? 1;
+
+  const { data: rows } = useLiveQuery(
+    db
+      .select({
+        id: workoutSessions.id,
+        weekIndex: workoutSessions.programWeekIndex,
+        dayIndex: workoutSessions.programDayIndex,
+        cycle: workoutSessions.programCycle,
+      })
+      .from(workoutSessions)
+      .where(
+        and(
+          eq(workoutSessions.programId, programId),
+          isNotNull(workoutSessions.finishedAt),
+        ),
+      )
+      .orderBy(workoutSessions.finishedAt),
+    [programId],
+  );
+
+  return useMemo(() => {
+    const logged = new Map<string, number>();
+    for (const r of rows) {
+      if (r.weekIndex == null || r.dayIndex == null) continue;
+      if ((r.cycle ?? 1) !== currentCycle) continue;
+      // Ordered by finishedAt asc, so the latest session for a cell wins.
+      logged.set(`${r.weekIndex}:${r.dayIndex}`, r.id);
+    }
+    return {
+      currentWeek: program?.currentWeek ?? 1,
+      currentDayIndex: program?.currentDayIndex ?? 0,
+      currentCycle,
+      logged,
+    };
+  }, [rows, program, currentCycle]);
+}
+
 /** Every program's days (id, index, name) — for rendering each program's cursor. */
 export function useAllProgramDays() {
   return useLiveQuery(
@@ -251,6 +310,116 @@ export function removeProgramDay(programId: number, dayId: number): void {
         .where(eq(programDays.id, row.id))
         .run();
     });
+  });
+}
+
+/**
+ * Deep-copy a day (its exercises, each one's 1:1 training state, and any
+ * prescriptions) to the end of the program. Returns the new day id.
+ */
+export function duplicateProgramDay(programId: number, dayId: number): number {
+  return db.transaction((tx) => {
+    const source = tx
+      .select()
+      .from(programDays)
+      .where(eq(programDays.id, dayId))
+      .all()[0];
+    if (source == null) throw new Error(`Program day ${dayId} not found`);
+
+    const dayIndex = tx
+      .select({ id: programDays.id })
+      .from(programDays)
+      .where(eq(programDays.programId, programId))
+      .all().length;
+    const newDayId = tx
+      .insert(programDays)
+      .values({ programId, dayIndex, name: `${source.name} (copy)` })
+      .run().lastInsertRowId;
+
+    const slots = tx
+      .select()
+      .from(programExercises)
+      .where(eq(programExercises.programDayId, dayId))
+      .orderBy(programExercises.position)
+      .all();
+
+    // Old slot id → new slot id, so superset groups (keyed by the anchor row's
+    // id) re-point within the copied day instead of back at the original.
+    const idMap = new Map<number, number>();
+    for (const slot of slots) {
+      const newSlotId = tx
+        .insert(programExercises)
+        .values({
+          programId,
+          programDayId: newDayId,
+          exerciseId: slot.exerciseId,
+          position: slot.position,
+          schemeType: slot.schemeType,
+          targetSets: slot.targetSets,
+          incrementKg: slot.incrementKg,
+          minReps: slot.minReps,
+          maxReps: slot.maxReps,
+          failThreshold: slot.failThreshold,
+          deloadPct: slot.deloadPct,
+          tmIncrementKg: slot.tmIncrementKg,
+          targetRpe: slot.targetRpe,
+          // Remapped in a second pass, once every new id is known.
+          supersetGroup: null,
+        })
+        .run().lastInsertRowId;
+      idMap.set(slot.id, newSlotId);
+
+      const state = tx
+        .select()
+        .from(exerciseTrainingState)
+        .where(eq(exerciseTrainingState.programExerciseId, slot.id))
+        .all()[0];
+      if (state != null) {
+        tx.insert(exerciseTrainingState)
+          .values({
+            programExerciseId: newSlotId,
+            currentWeightKg: state.currentWeightKg,
+            currentReps: state.currentReps,
+            successStreak: state.successStreak,
+            failStreak: state.failStreak,
+            trainingMaxKg: state.trainingMaxKg,
+            e1rmKg: state.e1rmKg,
+            lastReason: state.lastReason,
+          })
+          .run();
+      }
+
+      for (const s of tx
+        .select()
+        .from(programSets)
+        .where(eq(programSets.programExerciseId, slot.id))
+        .all()) {
+        tx.insert(programSets)
+          .values({
+            programExerciseId: newSlotId,
+            weekIndex: s.weekIndex,
+            setNumber: s.setNumber,
+            reps: s.reps,
+            intensityKind: s.intensityKind,
+            intensityValue: s.intensityValue,
+            amrap: s.amrap,
+            restSec: s.restSec,
+          })
+          .run();
+      }
+    }
+
+    for (const slot of slots) {
+      if (slot.supersetGroup == null) continue;
+      const newSlotId = idMap.get(slot.id);
+      if (newSlotId == null) continue;
+      tx.update(programExercises)
+        .set({ supersetGroup: idMap.get(slot.supersetGroup) ?? null })
+        .where(eq(programExercises.id, newSlotId))
+        .run();
+    }
+
+    return newDayId;
   });
 }
 
@@ -377,6 +546,81 @@ export function removeProgramWeek(programId: number, weekId: number): void {
       .set({ lengthWeeks: Math.max(1, remaining.length) })
       .where(eq(programs.id, programId))
       .run();
+  });
+}
+
+/**
+ * Append a copy of a week at the end: clones `isDeload` and replicates that
+ * week's prescriptions (`program_sets`, keyed by integer `weekIndex`) for every
+ * slot, so the user tweaks a copy instead of re-authoring. Returns the new week id.
+ */
+export function duplicateProgramWeek(
+  programId: number,
+  weekId: number,
+): number {
+  return db.transaction((tx) => {
+    const source = tx
+      .select()
+      .from(programWeeks)
+      .where(eq(programWeeks.id, weekId))
+      .all()[0];
+    if (source == null) throw new Error(`Program week ${weekId} not found`);
+
+    const weekIndex =
+      tx
+        .select({ id: programWeeks.id })
+        .from(programWeeks)
+        .where(eq(programWeeks.programId, programId))
+        .all().length + 1;
+    const baseName = source.name ?? `Week ${source.weekIndex}`;
+    const newWeekId = tx
+      .insert(programWeeks)
+      .values({
+        programId,
+        weekIndex,
+        name: `${baseName} (copy)`,
+        isDeload: source.isDeload,
+      })
+      .run().lastInsertRowId;
+
+    const slotIds = tx
+      .select({ id: programExercises.id })
+      .from(programExercises)
+      .where(eq(programExercises.programId, programId))
+      .all()
+      .map((r) => r.id);
+    if (slotIds.length > 0) {
+      for (const s of tx
+        .select()
+        .from(programSets)
+        .where(
+          and(
+            inArray(programSets.programExerciseId, slotIds),
+            eq(programSets.weekIndex, source.weekIndex),
+          ),
+        )
+        .all()) {
+        tx.insert(programSets)
+          .values({
+            programExerciseId: s.programExerciseId,
+            weekIndex,
+            setNumber: s.setNumber,
+            reps: s.reps,
+            intensityKind: s.intensityKind,
+            intensityValue: s.intensityValue,
+            amrap: s.amrap,
+            restSec: s.restSec,
+          })
+          .run();
+      }
+    }
+
+    tx.update(programs)
+      .set({ lengthWeeks: weekIndex })
+      .where(eq(programs.id, programId))
+      .run();
+
+    return newWeekId;
   });
 }
 
@@ -680,6 +924,56 @@ export function setProgramExerciseE1rm(
     .run();
 }
 
+/**
+ * Switch an existing slot's progression rule (same field-mapping as
+ * `addProgramExercise`). The old scheme's wave prescriptions no longer apply, so
+ * they're wiped; training state is nudged so the new scheme renders sanely
+ * (seed the rpe e1RM anchor, align dp's rep target).
+ */
+export function updateProgramExerciseScheme(
+  programExerciseId: number,
+  scheme: ProgramSchemeChoice,
+  targetSets?: number,
+): void {
+  db.transaction((tx) => {
+    tx.update(programExercises)
+      .set({
+        schemeType: scheme.type,
+        incrementKg: scheme.type === 'rpe' ? 2.5 : scheme.incrementKg,
+        minReps: scheme.type === 'dp' ? scheme.minReps : null,
+        maxReps: scheme.type === 'dp' ? scheme.maxReps : null,
+        failThreshold: scheme.type === 'lp' ? scheme.failThreshold : 3,
+        deloadPct: scheme.type === 'lp' ? scheme.deloadPct : 0.1,
+        targetRpe: scheme.type === 'rpe' ? scheme.targetRpe : null,
+        ...(targetSets != null ? { targetSets } : {}),
+      })
+      .where(eq(programExercises.id, programExerciseId))
+      .run();
+
+    tx.delete(programSets)
+      .where(eq(programSets.programExerciseId, programExerciseId))
+      .run();
+
+    const state = tx
+      .select()
+      .from(exerciseTrainingState)
+      .where(eq(exerciseTrainingState.programExerciseId, programExerciseId))
+      .all()[0];
+    if (state == null) return;
+
+    const patch: { lastReason: string; e1rmKg?: number; currentReps?: number } =
+      { lastReason: 'Scheme changed' };
+    if (scheme.type === 'rpe' && state.e1rmKg == null) {
+      patch.e1rmKg = state.currentWeightKg;
+    }
+    if (scheme.type === 'dp') patch.currentReps = scheme.minReps;
+    tx.update(exerciseTrainingState)
+      .set(patch)
+      .where(eq(exerciseTrainingState.programExerciseId, programExerciseId))
+      .run();
+  });
+}
+
 /** Remove a program-exercise slot (its state + prescriptions cascade). */
 export function removeProgramExercise(programExerciseId: number): void {
   db.delete(programExercises)
@@ -696,6 +990,89 @@ export function reorderProgramExercises(orderedIds: number[]): void {
         .where(eq(programExercises.id, id))
         .run();
     });
+  });
+}
+
+/** Rewrite each day's `dayIndex` to its position in `orderedDayIds`, in one transaction. */
+export function reorderProgramDays(orderedDayIds: number[]): void {
+  db.transaction((tx) => {
+    orderedDayIds.forEach((id, index) => {
+      tx.update(programDays)
+        .set({ dayIndex: index })
+        .where(eq(programDays.id, id))
+        .run();
+    });
+  });
+}
+
+// Disjoint range to park `program_sets.weekIndex` mid-reorder, so an arbitrary
+// permutation can't collide on a value another week is moving into.
+const WEEK_REORDER_OFFSET = 100_000;
+
+/**
+ * Reassign `weekIndex` to 1..n by position in `orderedWeekIds`, moving each
+ * week's `program_sets` (joined by integer `weekIndex`, no FK) in lockstep so
+ * prescriptions stay attached to their week.
+ */
+export function reorderProgramWeeks(
+  programId: number,
+  orderedWeekIds: number[],
+): void {
+  db.transaction((tx) => {
+    const currentById = new Map(
+      tx
+        .select({ id: programWeeks.id, weekIndex: programWeeks.weekIndex })
+        .from(programWeeks)
+        .where(eq(programWeeks.programId, programId))
+        .all()
+        .map((w) => [w.id, w.weekIndex]),
+    );
+    const slotIds = tx
+      .select({ id: programExercises.id })
+      .from(programExercises)
+      .where(eq(programExercises.programId, programId))
+      .all()
+      .map((r) => r.id);
+
+    // old weekIndex → new weekIndex (1-based by position).
+    const remap = new Map<number, number>();
+    orderedWeekIds.forEach((id, index) => {
+      const old = currentById.get(id);
+      if (old != null) remap.set(old, index + 1);
+    });
+
+    // Week rows reindex by id, so they never collide among themselves.
+    orderedWeekIds.forEach((id, index) => {
+      tx.update(programWeeks)
+        .set({ weekIndex: index + 1 })
+        .where(eq(programWeeks.id, id))
+        .run();
+    });
+
+    if (slotIds.length === 0 || remap.size === 0) return;
+    // Park every prescription in the offset range, then map down to its target.
+    for (const old of remap.keys()) {
+      tx.update(programSets)
+        .set({ weekIndex: old + WEEK_REORDER_OFFSET })
+        .where(
+          and(
+            inArray(programSets.programExerciseId, slotIds),
+            eq(programSets.weekIndex, old),
+          ),
+        )
+        .run();
+    }
+    for (const [old, next] of remap) {
+      tx.update(programSets)
+        .set({ weekIndex: next })
+        .where(
+          and(
+            inArray(programSets.programExerciseId, slotIds),
+            eq(programSets.weekIndex, old + WEEK_REORDER_OFFSET),
+          ),
+        )
+        .run();
+    }
   });
 }
 
@@ -749,14 +1126,98 @@ export function removeProgramSet(id: number): void {
 }
 
 /**
+ * Pre-fill one program day's prescribed sets into a session (caller is inside the
+ * insert transaction). This week's prescriptions win (percent/rpe waves); lp/dp
+ * fall back to rendering identical sets from the working-weight state.
+ */
+function seedProgramDaySets(
+  sessionId: number,
+  dayId: number,
+  weekIndex: number,
+  roundingStepKg: number,
+): void {
+  const plan = db
+    .select({
+      programExerciseId: programExercises.id,
+      exerciseId: programExercises.exerciseId,
+      targetSets: programExercises.targetSets,
+      currentWeightKg: exerciseTrainingState.currentWeightKg,
+      currentReps: exerciseTrainingState.currentReps,
+      successStreak: exerciseTrainingState.successStreak,
+      failStreak: exerciseTrainingState.failStreak,
+      trainingMaxKg: exerciseTrainingState.trainingMaxKg,
+      e1rmKg: exerciseTrainingState.e1rmKg,
+    })
+    .from(programExercises)
+    .innerJoin(
+      exerciseTrainingState,
+      eq(exerciseTrainingState.programExerciseId, programExercises.id),
+    )
+    .where(eq(programExercises.programDayId, dayId))
+    .orderBy(programExercises.position)
+    .all();
+
+  for (const slot of plan) {
+    const prescribed = db
+      .select({
+        reps: programSets.reps,
+        intensityKind: programSets.intensityKind,
+        intensityValue: programSets.intensityValue,
+        amrap: programSets.amrap,
+      })
+      .from(programSets)
+      .where(
+        and(
+          eq(programSets.programExerciseId, slot.programExerciseId),
+          eq(programSets.weekIndex, weekIndex),
+        ),
+      )
+      .orderBy(programSets.setNumber)
+      .all();
+
+    const sets: { reps: number; weightKg: number }[] =
+      prescribed.length > 0
+        ? prescribed.map((p) =>
+            renderPrescribedSet(p, {
+              currentWeightKg: slot.currentWeightKg,
+              trainingMaxKg: slot.trainingMaxKg,
+              e1rmKg: slot.e1rmKg,
+              stepKg: roundingStepKg,
+            }),
+          )
+        : suggestNext(
+            {
+              currentWeightKg: slot.currentWeightKg,
+              currentReps: slot.currentReps,
+              successStreak: slot.successStreak,
+              failStreak: slot.failStreak,
+            },
+            slot.targetSets,
+          );
+
+    sets.forEach((set, index) => {
+      addSet({
+        sessionId,
+        exerciseId: slot.exerciseId,
+        setNumber: index + 1,
+        reps: set.reps,
+        weight: set.weightKg,
+      });
+    });
+  }
+}
+
+/**
  * Start a session from a program's cursor: the current week + day decide which
- * exercises and prescriptions to pre-fill. Returns the new session id.
+ * exercises and prescriptions to pre-fill. Stamps the cycle so the roadmap can
+ * scope done/skipped to this pass. Returns the new session id.
  */
 export function startProgramWorkout(programId: number): number {
   const program = db
     .select({
       currentWeek: programs.currentWeek,
       currentDayIndex: programs.currentDayIndex,
+      currentCycle: programs.currentCycle,
       roundingStepKg: programs.roundingStepKg,
     })
     .from(programs)
@@ -784,84 +1245,67 @@ export function startProgramWorkout(programId: number): number {
         programId,
         programWeekIndex: weekIndex,
         programDayIndex: program.currentDayIndex,
+        programCycle: program.currentCycle,
         programDayId: day?.id ?? null,
       })
       .run();
     const sessionId = result.lastInsertRowId;
     if (day == null) return sessionId;
 
-    const plan = db
-      .select({
-        programExerciseId: programExercises.id,
-        exerciseId: programExercises.exerciseId,
-        targetSets: programExercises.targetSets,
-        currentWeightKg: exerciseTrainingState.currentWeightKg,
-        currentReps: exerciseTrainingState.currentReps,
-        successStreak: exerciseTrainingState.successStreak,
-        failStreak: exerciseTrainingState.failStreak,
-        trainingMaxKg: exerciseTrainingState.trainingMaxKg,
-        e1rmKg: exerciseTrainingState.e1rmKg,
+    seedProgramDaySets(sessionId, day.id, weekIndex, program.roundingStepKg);
+    return sessionId;
+  });
+}
+
+/**
+ * Back-fill a specific past/skipped program day (current cycle) — pinned to the
+ * given week + day rather than the cursor, so it records the missed workout
+ * WITHOUT advancing the cursor (`finishWorkout` only advances the cursor's own
+ * day). `startedAt` (ms) backdates it onto its calendar date.
+ */
+export function startProgramWorkoutFor(
+  programId: number,
+  weekIndex: number,
+  dayIndex: number,
+  startedAt?: number,
+): number {
+  const program = db
+    .select({
+      currentCycle: programs.currentCycle,
+      roundingStepKg: programs.roundingStepKg,
+    })
+    .from(programs)
+    .where(eq(programs.id, programId))
+    .all()[0];
+  if (program == null) throw new Error(`Program ${programId} not found`);
+
+  const day = db
+    .select({ id: programDays.id })
+    .from(programDays)
+    .where(
+      and(
+        eq(programDays.programId, programId),
+        eq(programDays.dayIndex, dayIndex),
+      ),
+    )
+    .all()[0];
+
+  return db.transaction(() => {
+    const result = db
+      .insert(workoutSessions)
+      .values({
+        programId,
+        programWeekIndex: weekIndex,
+        programDayIndex: dayIndex,
+        programCycle: program.currentCycle,
+        programDayId: day?.id ?? null,
+        ...(startedAt != null ? { startedAt: new Date(startedAt) } : {}),
       })
-      .from(programExercises)
-      .innerJoin(
-        exerciseTrainingState,
-        eq(exerciseTrainingState.programExerciseId, programExercises.id),
-      )
-      .where(eq(programExercises.programDayId, day.id))
-      .orderBy(programExercises.position)
-      .all();
+      .run();
+    const sessionId = result.lastInsertRowId;
+    if (day == null) return sessionId;
 
-    for (const slot of plan) {
-      // Prescriptions for this week win (percent/rpe waves); lp/dp fall back to
-      // rendering identical sets from the working-weight state.
-      const prescribed = db
-        .select({
-          reps: programSets.reps,
-          intensityKind: programSets.intensityKind,
-          intensityValue: programSets.intensityValue,
-          amrap: programSets.amrap,
-        })
-        .from(programSets)
-        .where(
-          and(
-            eq(programSets.programExerciseId, slot.programExerciseId),
-            eq(programSets.weekIndex, weekIndex),
-          ),
-        )
-        .orderBy(programSets.setNumber)
-        .all();
-
-      const sets: { reps: number; weightKg: number }[] =
-        prescribed.length > 0
-          ? prescribed.map((p) =>
-              renderPrescribedSet(p, {
-                currentWeightKg: slot.currentWeightKg,
-                trainingMaxKg: slot.trainingMaxKg,
-                e1rmKg: slot.e1rmKg,
-                stepKg: program.roundingStepKg,
-              }),
-            )
-          : suggestNext(
-              {
-                currentWeightKg: slot.currentWeightKg,
-                currentReps: slot.currentReps,
-                successStreak: slot.successStreak,
-                failStreak: slot.failStreak,
-              },
-              slot.targetSets,
-            );
-
-      sets.forEach((set, index) => {
-        addSet({
-          sessionId,
-          exerciseId: slot.exerciseId,
-          setNumber: index + 1,
-          reps: set.reps,
-          weight: set.weightKg,
-        });
-      });
-    }
-
+    seedProgramDaySets(sessionId, day.id, weekIndex, program.roundingStepKg);
     return sessionId;
   });
 }

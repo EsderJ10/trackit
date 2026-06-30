@@ -16,6 +16,7 @@ import {
   colors,
 } from '@/ui';
 
+import { SCHEME_PRESETS, type SchemePreset } from '../program-schemes';
 import { ExercisePickerModal } from '../components/ExercisePickerModal';
 import { ProgramDaySection } from '../components/ProgramDaySection';
 import { ProgramWaveEditor } from '../components/ProgramWaveEditor';
@@ -25,13 +26,18 @@ import {
   addProgramExercise,
   addProgramWeek,
   deleteProgram,
+  duplicateProgramDay,
+  duplicateProgramWeek,
   removeProgramDay,
   removeProgramExercise,
   removeProgramWeek,
+  reorderProgramDays,
   reorderProgramExercises,
+  reorderProgramWeeks,
   renameProgram,
   renameProgramDay,
   renameProgramWeek,
+  updateProgramExerciseScheme,
   updateProgramSupersets,
   setProgramExerciseE1rm,
   setProgramExerciseTrainingMax,
@@ -43,34 +49,11 @@ import {
   useProgramExercises,
   useProgramWeeks,
   type ProgramExerciseRow,
-  type ProgramSchemeChoice,
 } from '../queries';
+import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
 
 // Default starting weight (canonical kg); adjusted per exercise.
 const DEFAULT_START_KG = 20;
-
-const SCHEMES: { label: string; scheme: ProgramSchemeChoice; reps?: number }[] =
-  [
-    {
-      label: 'Linear · 3 × 5',
-      scheme: {
-        type: 'lp',
-        incrementKg: 2.5,
-        failThreshold: 3,
-        deloadPct: 0.1,
-      },
-      reps: 5,
-    },
-    {
-      label: 'Double · 3 × 8–12',
-      scheme: { type: 'dp', incrementKg: 2.5, minReps: 8, maxReps: 12 },
-    },
-    {
-      label: 'Autoregulated · RPE wave',
-      scheme: { type: 'rpe', targetRpe: 8 },
-      reps: 8,
-    },
-  ];
 
 interface Pending {
   dayId: number;
@@ -89,6 +72,7 @@ export function ProgramEditor() {
   }>();
   const programId = Number(programParam);
   const router = useRouter();
+  const { launch } = useWorkoutLauncher();
   const program = useProgram(programId);
   const { data: days } = useProgramDays(programId);
   const { data: weeks } = useProgramWeeks(programId);
@@ -117,7 +101,18 @@ export function ProgramEditor() {
     [],
   );
 
-  function chooseScheme(option: (typeof SCHEMES)[number]) {
+  // Days reorder via up/down buttons (not drag): each day card already hosts a
+  // reorderable exercise list, and the library can't nest one inside another.
+  function moveDay(from: number, to: number) {
+    if (to < 0 || to >= days.length) return;
+    const ids = days.map((day) => day.id);
+    const [moved] = ids.splice(from, 1);
+    if (moved == null) return;
+    ids.splice(to, 0, moved);
+    reorderProgramDays(ids);
+  }
+
+  function chooseScheme(option: SchemePreset) {
     if (pending == null) return;
     addProgramExercise({
       programId,
@@ -138,11 +133,7 @@ export function ProgramEditor() {
   }
 
   function start() {
-    const sessionId = startProgramWorkout(programId);
-    router.replace({
-      pathname: '/modules/gym/workout',
-      params: { sessionId: String(sessionId) },
-    });
+    launch(() => startProgramWorkout(programId));
   }
 
   return (
@@ -172,7 +163,13 @@ export function ProgramEditor() {
             onAddWeek={() => addProgramWeek(programId)}
             onRenameWeek={renameProgramWeek}
             onToggleDeload={setProgramWeekDeload}
+            onDuplicateWeek={(weekId) =>
+              duplicateProgramWeek(programId, weekId)
+            }
             onRemoveWeek={(weekId) => removeProgramWeek(programId, weekId)}
+            onReorderWeeks={(orderedIds) =>
+              reorderProgramWeeks(programId, orderedIds)
+            }
           />
 
           {days.length === 0 ? (
@@ -181,13 +178,14 @@ export function ProgramEditor() {
               description="Add a training day, then fill it with lifts and how each progresses."
             />
           ) : (
-            days.map((day) => (
+            days.map((day, index) => (
               <ProgramDaySection
                 key={day.id}
                 day={day}
                 exercises={exercisesByDay.get(day.id) ?? []}
                 unit={weightUnit}
                 onRenameDay={(name) => renameProgramDay(day.id, name)}
+                onDuplicateDay={() => duplicateProgramDay(programId, day.id)}
                 onRemoveDay={() => removeProgramDay(programId, day.id)}
                 onAddExercise={() => setPickerDayId(day.id)}
                 onSetWeight={setProgramExerciseWeight}
@@ -195,8 +193,15 @@ export function ProgramEditor() {
                 onSetE1rm={setProgramExerciseE1rm}
                 onRemoveExercise={removeProgramExercise}
                 onEditWave={openWaveEditor}
+                onChangeScheme={updateProgramExerciseScheme}
                 onReorderExercises={reorderProgramExercises}
                 onUpdateSupersets={updateProgramSupersets}
+                onMoveUp={index > 0 ? () => moveDay(index, index - 1) : null}
+                onMoveDown={
+                  index < days.length - 1
+                    ? () => moveDay(index, index + 1)
+                    : null
+                }
               />
             ))
           )}
@@ -204,7 +209,7 @@ export function ProgramEditor() {
           {pending ? (
             <Card className="gap-3">
               <Text variant="heading">How should {pending.name} progress?</Text>
-              {SCHEMES.map((option) => (
+              {SCHEME_PRESETS.map((option) => (
                 <Button
                   key={option.label}
                   label={option.label}

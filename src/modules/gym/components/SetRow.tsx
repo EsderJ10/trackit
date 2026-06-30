@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, Check, Trash2 } from 'lucide-react-native';
-import { memo, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { forwardRef, memo, useRef, useState } from 'react';
+import { Alert, Pressable, type TextInput, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import type { WeightUnit } from '@/core/settings/schema';
@@ -82,6 +82,9 @@ function SetRowComponent({
   onToggle,
   onDelete,
 }: SetRowProps) {
+  // Chain focus reps → weight → RPE so Enter walks the row without re-tapping.
+  const weightRef = useRef<TextInput>(null);
+  const rpeRef = useRef<TextInput>(null);
   const [reps, setReps] = useState(String(set.reps));
   // The field edits in the display unit; storage stays canonical kg.
   const [weight, setWeight] = useState(
@@ -183,11 +186,15 @@ function SetRowComponent({
                 value={reps}
                 onChangeText={setReps}
                 onEndEditing={() => commitReps(toInt(reps, set.reps))}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => weightRef.current?.focus()}
                 accessibilityLabel="Reps"
                 className="flex-1"
               />
               <Text variant="muted">{kind === 'bodyweight' ? '＋' : '×'}</Text>
               <NumberField
+                ref={weightRef}
                 value={weight}
                 onChangeText={setWeight}
                 onEndEditing={() =>
@@ -195,6 +202,9 @@ function SetRowComponent({
                     toFloat(weight, toDisplayWeight(set.weight, unit)),
                   )
                 }
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => rpeRef.current?.focus()}
                 accessibilityLabel={`Weight in ${unit}`}
                 className="flex-1"
               />
@@ -202,6 +212,7 @@ function SetRowComponent({
                 {unit}
               </Text>
               <RpeField
+                ref={rpeRef}
                 rpe={rpe}
                 setRpe={setRpe}
                 scale={effortScale}
@@ -346,20 +357,18 @@ export const SetRow = memo(SetRowComponent, setRowPropsEqual);
 
 /** The optional effort field (RPE or RIR); sits inline on the number row, kept
     narrow since the scale is single-digit so reps/weight keep the width. The
-    field edits in the chosen scale; `onUpdate` always receives canonical RPE. */
-function RpeField({
-  rpe,
-  setRpe,
-  scale,
-  onUpdate,
-  setId,
-}: {
-  rpe: string;
-  setRpe: (text: string) => void;
-  scale: EffortScale;
-  onUpdate: (id: number, patch: SetPatch) => void;
-  setId: number;
-}) {
+    field edits in the chosen scale; `onUpdate` always receives canonical RPE.
+    Forwards its ref so the reps → weight → RPE Enter chain can land here. */
+const RpeField = forwardRef<
+  TextInput,
+  {
+    rpe: string;
+    setRpe: (text: string) => void;
+    scale: EffortScale;
+    onUpdate: (id: number, patch: SetPatch) => void;
+    setId: number;
+  }
+>(function RpeField({ rpe, setRpe, scale, onUpdate, setId }, ref) {
   const parsed = Number.parseFloat(rpe);
   // Flag anything outside the scale's range so the user sees it before it's
   // silently clamped on blur (RPE 1–10, RIR 0–9).
@@ -377,10 +386,12 @@ function RpeField({
 
   return (
     <NumberField
+      ref={ref}
       value={rpe}
       placeholder={effortLabel(scale)}
       onChangeText={setRpe}
       onEndEditing={commit}
+      returnKeyType="done"
       invalid={invalid}
       accessibilityLabel={
         scale === 'rir'
@@ -390,4 +401,4 @@ function RpeField({
       className="w-14"
     />
   );
-}
+});
