@@ -50,6 +50,7 @@ import {
   useProgramWeeks,
   type ProgramExerciseRow,
 } from '../queries';
+import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
 
 // Default starting weight (canonical kg); adjusted per exercise.
 const DEFAULT_START_KG = 20;
@@ -71,6 +72,7 @@ export function ProgramEditor() {
   }>();
   const programId = Number(programParam);
   const router = useRouter();
+  const { launch } = useWorkoutLauncher();
   const program = useProgram(programId);
   const { data: days } = useProgramDays(programId);
   const { data: weeks } = useProgramWeeks(programId);
@@ -131,11 +133,7 @@ export function ProgramEditor() {
   }
 
   function start() {
-    const sessionId = startProgramWorkout(programId);
-    router.replace({
-      pathname: '/modules/gym/workout',
-      params: { sessionId: String(sessionId) },
-    });
+    launch(() => startProgramWorkout(programId));
   }
 
   return (

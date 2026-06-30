@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
-import { ChevronRight, Play } from 'lucide-react-native';
-import { Pressable, View } from 'react-native';
+import { Play, X } from 'lucide-react-native';
+import { Alert, Pressable, View } from 'react-native';
 
 import { Icon, Text, colors, glow, tint } from '@/ui';
 
-import { useActiveSession } from '../queries';
+import { deleteSession, useActiveSession } from '../queries';
 import { sessionLabelLine } from '../session-label';
 
 /**
@@ -16,6 +16,20 @@ export function ActiveWorkoutBar() {
   const router = useRouter();
   const active = useActiveSession();
   if (active == null) return null;
+
+  const discard = () =>
+    Alert.alert(
+      'Discard workout?',
+      `Discard "${sessionLabelLine(active)}" and any sets logged in it? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => deleteSession(active.id),
+        },
+      ],
+    );
 
   return (
     <Pressable
@@ -50,7 +64,15 @@ export function ActiveWorkoutBar() {
           {sessionLabelLine(active)} · tap to resume
         </Text>
       </View>
-      <Icon icon={ChevronRight} size={18} color={colors.fgFaint} />
+      <Pressable
+        onPress={discard}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Discard workout in progress"
+        className="h-8 w-8 items-center justify-center rounded-full active:opacity-60"
+      >
+        <Icon icon={X} size={18} color={colors.fgMuted} />
+      </Pressable>
     </Pressable>
   );
 }

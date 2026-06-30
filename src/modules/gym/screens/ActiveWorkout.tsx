@@ -1,8 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import ReorderableList, {
   type ReorderableListReorderEvent,
   reorderItems,
@@ -29,6 +29,7 @@ import {
   addSet,
   addWarmupSets,
   deleteExerciseSets,
+  deleteSession,
   deleteSetLog,
   finishWorkout,
   getDefaultRestSec,
@@ -295,6 +296,27 @@ export function ActiveWorkout() {
     router.navigate('/history');
   }
 
+  // Discard is the non-finishing exit: without it, leaving the screen abandons an
+  // unfinished session that lingers forever in the resume bar.
+  function discard() {
+    Alert.alert(
+      'Discard workout?',
+      'This deletes this workout and any sets logged in it. This cannot be undone.',
+      [
+        { text: 'Keep workout', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            stopRest();
+            deleteSession(sessionId);
+            router.navigate('/train');
+          },
+        },
+      ],
+    );
+  }
+
   function finishWithOrderPrompt() {
     if (!planOrderChanged()) {
       commitFinish();
@@ -366,7 +388,22 @@ export function ActiveWorkout() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Workout' }} />
+      <Stack.Screen
+        options={{
+          title: 'Workout',
+          headerRight: () => (
+            <Pressable
+              onPress={discard}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Discard workout"
+              className="active:opacity-70"
+            >
+              <Icon icon={Trash2} size={20} color={colors.danger} />
+            </Pressable>
+          ),
+        }}
+      />
       <ReorderableList
         data={displayExercises}
         keyExtractor={(exercise) => String(exercise.exerciseId)}

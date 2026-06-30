@@ -22,9 +22,11 @@ import {
   useAllProgramDays,
   useCurrentProgram,
 } from '../queries';
+import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
 
 export function ProgramList() {
   const router = useRouter();
+  const { launch } = useWorkoutLauncher();
   const { data: programs } = useActivePrograms();
   const { data: days } = useAllProgramDays();
   const current = useCurrentProgram();
@@ -52,13 +54,6 @@ export function ProgramList() {
     router.push({
       pathname: '/modules/gym/program-edit',
       params: { programId: String(programId) },
-    });
-  }
-
-  function openWorkout(sessionId: number) {
-    router.push({
-      pathname: '/modules/gym/workout',
-      params: { sessionId: String(sessionId) },
     });
   }
 
@@ -127,7 +122,9 @@ export function ProgramList() {
                     label="Start workout"
                     size="md"
                     leftIcon={<Icon icon={Play} size={16} color={colors.fg} />}
-                    onPress={() => openWorkout(startProgramWorkout(program.id))}
+                    onPress={() =>
+                      launch(() => startProgramWorkout(program.id))
+                    }
                   />
                 ) : (
                   <Button
