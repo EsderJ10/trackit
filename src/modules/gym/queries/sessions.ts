@@ -609,6 +609,43 @@ export function useActiveSession(): ActiveSession | undefined {
   return data[0];
 }
 
+/**
+ * Sync one-shot of the open session — for start guards in event handlers, where a
+ * hook can't run. Mirrors `useActiveSession`'s filter; `undefined` if none open.
+ */
+export function getActiveSession(): ActiveSession | undefined {
+  return db
+    .select({
+      id: workoutSessions.id,
+      routineName: routines.name,
+      programName: programs.name,
+      programDayName: programDays.name,
+      programWeekIndex: workoutSessions.programWeekIndex,
+      programLengthWeeks: programs.lengthWeeks,
+      startedAt: workoutSessions.startedAt,
+    })
+    .from(workoutSessions)
+    .leftJoin(routines, eq(workoutSessions.routineId, routines.id))
+    .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+    .leftJoin(programDays, eq(workoutSessions.programDayId, programDays.id))
+    .where(isNull(workoutSessions.finishedAt))
+    .orderBy(desc(workoutSessions.startedAt))
+    .limit(1)
+    .all()[0];
+}
+
+/**
+ * Delete a session and its set logs — discards an abandoned/in-progress workout.
+ * Explicit set-log delete (not just FK cascade) so it holds regardless of the
+ * connection's `foreign_keys` pragma.
+ */
+export function deleteSession(sessionId: number): void {
+  db.transaction(() => {
+    db.delete(setLogs).where(eq(setLogs.sessionId, sessionId)).run();
+    db.delete(workoutSessions).where(eq(workoutSessions.id, sessionId)).run();
+  });
+}
+
 /** One finished (or in-progress) session with its program/routine label, for detail. */
 export function useSessionSummary(sessionId: number) {
   const { data } = useLiveQuery(

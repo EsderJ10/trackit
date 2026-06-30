@@ -25,6 +25,7 @@ import {
 
 import { MuscleVolumeBars } from '../components/MuscleVolumeBars';
 import { formatRelativeDate } from '../format';
+import { useWorkoutLauncher } from '../hooks/use-workout-launcher';
 import {
   type ActiveSession,
   type NextProgramWorkout,
@@ -45,6 +46,7 @@ export function RoutineList() {
   const active = useActiveSession();
   const next = useNextProgramWorkout();
   const { muscleBreakdown } = useGymProfileStats();
+  const { open: openWorkout, launch } = useWorkoutLauncher();
 
   function openRoutine(routineId: number) {
     router.push({
@@ -57,13 +59,6 @@ export function RoutineList() {
     router.push({
       pathname: '/modules/gym/program',
       params: { programId: String(programId) },
-    });
-  }
-
-  function openWorkout(sessionId: number) {
-    router.push({
-      pathname: '/modules/gym/workout',
-      params: { sessionId: String(sessionId) },
     });
   }
 
@@ -103,7 +98,7 @@ export function RoutineList() {
         ) : next?.ready ? (
           <NextWorkoutHero
             next={next}
-            onStart={() => openWorkout(startProgramWorkout(next.programId))}
+            onStart={() => launch(() => startProgramWorkout(next.programId))}
             onOpenProgram={() => openProgram(next.programId)}
           />
         ) : next ? (
@@ -126,7 +121,7 @@ export function RoutineList() {
 
         <SectionHeader className="mt-2">Other ways to train</SectionHeader>
 
-        <EmptyWorkoutCard onPress={() => openWorkout(startWorkout())} />
+        <EmptyWorkoutCard onPress={() => launch(() => startWorkout())} />
 
         <SectionHeader
           right={
@@ -160,7 +155,7 @@ export function RoutineList() {
               name={routine.name}
               createdAt={routine.createdAt}
               onOpen={() => openRoutine(routine.id)}
-              onStart={() => openWorkout(startWorkout(routine.id))}
+              onStart={() => launch(() => startWorkout(routine.id))}
             />
           ))
         )}
