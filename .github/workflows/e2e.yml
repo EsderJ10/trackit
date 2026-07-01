@@ -1,0 +1,101 @@
+name: E2E (Maestro)
+
+# Device-level smoke suite on an Android emulator — the native/routed blind spot
+# (Expo SQLite on a real engine, migrations, Expo Router, file export/share).
+# Heavier and slower than `ci`, so it runs on its own cadence rather than every
+# PR: weekly, on push to main touching app/UI/flows, and on demand.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1' # weekly, Mondays at 04:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - '.maestro/**'
+      - 'app/**'
+      - 'src/**'
+      - '.github/workflows/e2e.yml'
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  maestro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Match the Docker builder's toolchain (docker/Dockerfile): NDK 27.1 +
+      # SDK 35 are needed by reanimated/worklets' native compile. Resolve
+      # sdkmanager explicitly — it isn't always on PATH on the runner.
+      - name: Install Android build tools
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.1.12297006" >/dev/null
+
+      - name: Generate native Android project
+        run: pnpm exec expo prebuild --platform android --no-install
+
+      # Release build bundles the JS (self-contained, runs without Metro) and is
+      # signed with the template's debug keystore — same as `make apk`. Single
+      # x86_64 ABI to match the emulator and keep the compile short.
+      - name: Assemble release APK
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot emulator + run Maestro
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/release/app-release.apk
+            maestro test .maestro/ --format junit --output maestro-report.xml
+
+      - name: Upload Maestro report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report
+          path: |
+            maestro-report.xml
+            ~/.maestro/tests/**
+          if-no-files-found: ignore
