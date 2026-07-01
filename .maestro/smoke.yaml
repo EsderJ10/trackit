@@ -1,0 +1,64 @@
+appId: ${APP_ID}
+env:
+  # Expo derives this from the slug when `android.package` isn't set in app.json
+  # (see .maestro/README.md). Override with:  maestro test -e APP_ID=<pkg> …
+  APP_ID: com.anonymous.trackit
+tags:
+  - smoke
+---
+# End-to-end smoke: fresh install → onboard → log a freestyle workout → confirm
+# it lands in History. Exercises the routed UI, Expo SQLite writes, and the
+# migration-seeded exercise library on a real device/emulator — the blind spot
+# the Vitest suites can't reach. Selectors target existing accessibilityLabels
+# and visible text (the app ships no testIDs); if the UI copy changes, update
+# these strings.
+- launchApp:
+    clearState: true
+
+# --- First-run onboarding: create the local, on-device account ---
+- assertVisible: 'Create account'
+- tapOn: 'Username'
+- inputText: 'e2euser'
+- tapOn:
+    text: '^Password$' # anchored so it doesn't match "Confirm password"
+- inputText: 'e2e-pass-1234'
+- tapOn: 'Confirm password'
+- inputText: 'e2e-pass-1234'
+- hideKeyboard
+- tapOn:
+    text: 'Create account'
+    index: 1 # 0 = screen title, 1 = the submit button
+
+# --- Land on the dashboard ---
+- assertVisible:
+    text: 'Good (morning|afternoon|evening)'
+
+# --- Start a freestyle workout ---
+- tapOn: 'Train'
+- assertVisible: 'Start an empty workout'
+- tapOn: 'Start an empty workout'
+
+# --- Add a seeded exercise and log a completed set ---
+- tapOn: 'Add exercise'
+- tapOn: 'Search exercises'
+- inputText: 'Deadlift'
+- tapOn:
+    text: '^Deadlift$' # exact — the library also has "Romanian Deadlift"
+- hideKeyboard
+- tapOn: 'Complete set'
+
+# --- Finish; confirm the "unfinished sets" alert only if it appears ---
+- scrollUntilVisible:
+    element: 'Finish workout'
+    direction: DOWN
+- tapOn: 'Finish workout'
+- runFlow:
+    when:
+      visible: 'Finish workout?'
+    commands:
+      - tapOn: 'Finish'
+
+# --- The finished session is now in History (not the empty state) ---
+- tapOn: 'History'
+- assertVisible: 'History'
+- assertNotVisible: 'No workouts logged yet'

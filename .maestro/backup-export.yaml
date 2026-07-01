@@ -1,0 +1,39 @@
+appId: ${APP_ID}
+env:
+  APP_ID: com.anonymous.trackit
+tags:
+  - smoke
+  - backup
+---
+# Exercises the backup path: Settings → Export backup. This serialises the DB,
+# writes a JSON file via expo-file-system, and hands it to the OS share sheet
+# via expo-sharing — native surfaces the Vitest suites can't touch. The share
+# sheet itself is OEM-specific system UI, so we only assert the export doesn't
+# crash and the app stays responsive; verifying the share sheet contents / an
+# actual round-trip import is left to manual device testing before a release.
+- launchApp:
+    clearState: true
+
+# Onboard (fresh state), then open Settings from the dashboard header.
+- assertVisible: 'Create account'
+- tapOn: 'Username'
+- inputText: 'e2euser'
+- tapOn:
+    text: '^Password$'
+- inputText: 'e2e-pass-1234'
+- tapOn: 'Confirm password'
+- inputText: 'e2e-pass-1234'
+- hideKeyboard
+- tapOn:
+    text: 'Create account'
+    index: 1
+
+- tapOn: 'Settings'
+- scrollUntilVisible:
+    element: 'Export backup'
+    direction: DOWN
+- tapOn: 'Export backup'
+
+# Dismiss the system share sheet and confirm we return to a responsive app.
+- pressKey: Back
+- assertVisible: 'Export backup'
