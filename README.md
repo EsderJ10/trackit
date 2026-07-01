@@ -22,7 +22,7 @@ That goal forced two harder constraints that shaped every decision:
 
 - **Offline-first.** A tracking app is worthless if it stalls without signal. All
   state lives in on-device SQLite; there is no server in the loop. That makes
-  *device loss = data loss*, which in turn made data export, schema migrations,
+  _device loss = data loss_, which in turn made data export, schema migrations,
   and idempotent seeds first-class concerns rather than afterthoughts.
 - **Genuinely extensible, not "extensible in a slide."** The easy version of
   modularity is a folder convention nobody enforces. The real test is whether the
@@ -47,10 +47,10 @@ A lifter can:
   math, and warm-up suggestions.
 - Get **reasoned next-session suggestions** from a progression engine that
   supports four schemes (linear, double-progression, percentage/training-max, and
-  RPE autoregulation) — always *suggest-and-confirm*, never silent auto-apply.
+  RPE autoregulation) — always _suggest-and-confirm_, never silent auto-apply.
 - Review **history and analytics**: estimated-1RM and volume trends, per-muscle
   weekly volume against MEV/MAV/MRV landmarks, PR detection, a logging calendar.
-- **Own their data**: a local PIN/biometric gate, kg/lb that *converts* (not just
+- **Own their data**: a local PIN/biometric gate, kg/lb that _converts_ (not just
   relabels), and full JSON + CSV export/restore.
 
 The core shell around it — auth, settings, a dynamic dashboard, a profile screen
@@ -63,24 +63,24 @@ the dashboard, routing, and settings with no other change.
 
 The whole architecture hangs on one interface, `TrackerModule`
 ([`src/core/types/module.ts`](src/core/types/module.ts)). A module is a single
-object that *offers* capabilities; the core renders whatever a module provides and
+object that _offers_ capabilities; the core renders whatever a module provides and
 ignores what it doesn't:
 
 ```ts
 interface TrackerModule {
-  meta: ModuleMeta;                    // id, name, icon, accent color, version
-  DashboardWidget: ComponentType;      // compact summary on the home dashboard
-  ModuleScreen?: ComponentType;        // generic route, OR…
-  ownsRouteStack?: boolean;            // …a module brings its own nested nav
-  SettingsPanel?: ComponentType;       // slotted into core Settings
-  primaryTabs?: ModulePrimaryTab[];    // bottom tabs (gym → Train, History)
-  ProfileWidget?: ComponentType;       // a section on the core Profile screen
-  GlobalBar?: ComponentType;           // persistent bar (gym's "resume workout")
-  seed?: (db) => Promise<void>;        // idempotent data seed, run every launch
+  meta: ModuleMeta; // id, name, icon, accent color, version
+  DashboardWidget: ComponentType; // compact summary on the home dashboard
+  ModuleScreen?: ComponentType; // generic route, OR…
+  ownsRouteStack?: boolean; // …a module brings its own nested nav
+  SettingsPanel?: ComponentType; // slotted into core Settings
+  primaryTabs?: ModulePrimaryTab[]; // bottom tabs (gym → Train, History)
+  ProfileWidget?: ComponentType; // a section on the core Profile screen
+  GlobalBar?: ComponentType; // persistent bar (gym's "resume workout")
+  seed?: (db) => Promise<void>; // idempotent data seed, run every launch
 }
 ```
 
-The registry is the *only* place core code names a concrete module:
+The registry is the _only_ place core code names a concrete module:
 
 ```ts
 // src/core/module-registry.ts
@@ -93,36 +93,38 @@ settings sections, the persistent action bars — is a `.map()` over that array.
 from core and the shared UI kit, never from each other. That single rule is what
 keeps the platform from rotting into a ball of mud as modules multiply.
 
-One caveat is that the database is **composed at build time**, not runtime. 
-A module's Drizzle tables are merged via a schema barrel and require `pnpm db:generate` 
-+ a rebuild — there is no runtime DDL. So "add a module in one line" is really *two* steps 
-(registry array + schema barrel). The [roadmap](ROADMAP.md) tracks closing that DX gap instead of
-overclaiming it.
+One caveat is that the database is **composed at build time**, not runtime.
+A module's Drizzle tables are merged via a schema barrel and require `pnpm db:generate`
+
+- a rebuild — there is no runtime DDL. So "add a module in one line" is really _two_ steps
+  (registry array + schema barrel). The [roadmap](ROADMAP.md) tracks closing that DX gap instead of
+  overclaiming it.
 
 ---
 
 ## The Tools
 
-| Tool | Role | Why |
-| --- | --- | --- |
-| **Expo (SDK 54) + Expo Router** | App runtime + file-based routing | Managed workflow and OTA-friendly; file routing keeps route files thin (they only import module screens). Pinned to SDK 54 to match Expo Go. |
-| **TypeScript (strict, no `any`)** | Whole codebase | A modular contract is only safe if it's typed end-to-end. ESLint is type-aware to *enforce* no-`any` / no-floating-promises. |
-| **Expo SQLite + Drizzle ORM** | Offline-first persistence | Real relational storage on-device with typed queries and versioned `.sql` migrations. Reactive reads via `useLiveQuery` keep the UI in sync without a cache layer. |
-| **Zustand** | Ephemeral client state | Lightweight, no boilerplate. Used *only* for transient state (active workout session, rest timer) — DB-derived data is never duplicated into a store. |
-| **NativeWind v4 (Tailwind)** | Styling + design tokens | Utility-first styling with a single source-of-truth palette shared by Tailwind and typed color APIs. |
-| **Vitest** | Logic unit tests | Fast, runs the load-bearing pure logic (unit conversion, progression engine, PR math, backup serialization) in a CI-able form without a native harness. |
-| **pnpm** | Package management | Strict, fast installs (`nodeLinker: hoisted` so Metro/Expo get a flat tree). |
-| **Docker** | Reproducible APK builds | A dockerized offline builder produces an installable Android APK without the cloud build tier. |
+| Tool                              | Role                             | Why                                                                                                                                                                |
+| --------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Expo (SDK 54) + Expo Router**   | App runtime + file-based routing | Managed workflow and OTA-friendly; file routing keeps route files thin (they only import module screens). Pinned to SDK 54 to match Expo Go.                       |
+| **TypeScript (strict, no `any`)** | Whole codebase                   | A modular contract is only safe if it's typed end-to-end. ESLint is type-aware to _enforce_ no-`any` / no-floating-promises.                                       |
+| **Expo SQLite + Drizzle ORM**     | Offline-first persistence        | Real relational storage on-device with typed queries and versioned `.sql` migrations. Reactive reads via `useLiveQuery` keep the UI in sync without a cache layer. |
+| **Zustand**                       | Ephemeral client state           | Lightweight, no boilerplate. Used _only_ for transient state (active workout session, rest timer) — DB-derived data is never duplicated into a store.              |
+| **NativeWind v4 (Tailwind)**      | Styling + design tokens          | Utility-first styling with a single source-of-truth palette shared by Tailwind and typed color APIs.                                                               |
+| **Vitest**                        | Logic unit tests                 | Fast, runs the load-bearing pure logic (unit conversion, progression engine, PR math, backup serialization) in a CI-able form without a native harness.            |
+| **pnpm**                          | Package management               | Strict, fast installs (`nodeLinker: hoisted` so Metro/Expo get a flat tree).                                                                                       |
+| **Docker**                        | Reproducible APK builds          | A dockerized offline builder produces an installable Android APK without the cloud build tier.                                                                     |
 
 ---
 
 ## Challenges (and how I worked through them)
 
 The [`ROADMAP.md`](ROADMAP.md) is the full engineering log — each milestone records
-not just what shipped but the *trade-offs* and the "as built" reality. The
+not just what shipped but the _trade-offs_ and the "as built" reality. The
 highlights:
 
 ### 1. Units that convert, not just relabel
+
 The first version stored a weight and a unit label per row — so switching kg→lb
 silently mislabeled a 100 kg lift as "100 lb." The fix was an architectural rule:
 **store canonical kilograms in the DB, convert at the input/render boundary only.**
@@ -131,6 +133,7 @@ moment. The conversion helpers are unit-tested, and the discipline ("canonical k
 convert at render") became a constraint every later feature had to honor.
 
 ### 2. A progression engine that's correct under mutable state
+
 The hardest domain problem. Strength progression isn't one formula — it's ~five
 schemes of increasing sophistication (linear, double-progression, reps-sum,
 percentage/training-max, RPE autoregulation). I researched how the leading apps
@@ -141,10 +144,10 @@ as invariants rather than patched later:
 - **Program-scoped history** — a freestyle set must never corrupt a program's
   success streak.
 - **Loadable rounding** — every suggested weight rounds to an achievable plate/
-  dumbbell increment; never `62.5237`. The *success* path is exact by construction
+  dumbbell increment; never `62.5237`. The _success_ path is exact by construction
   (`start + n×increment`); only deloads round.
 - **Idempotent advance** — mutable training state means "advance on finish" must
-  fire *only* on the null→finished transition, skip sessions with zero completed
+  fire _only_ on the null→finished transition, skip sessions with zero completed
   sets (a skip isn't a failed attempt), and refuse a duplicate lift that would
   double-advance one state row.
 
@@ -152,6 +155,7 @@ The pure engine is covered by dedicated tests; the DB glue around it is kept
 deliberately mechanical so the correctness lives in the tested layer.
 
 ### 3. Programs as a Days × Weeks roadmap — and a redesign
+
 The first program implementation was a flat, single-day structure
 indistinguishable from a routine. Rather than ship something hollow, I redesigned
 it (migration `0006`) into a real periodized roadmap — Program → Weeks → Days →
@@ -161,6 +165,7 @@ text DSL**, to stay inside the offline-first model with no parser. A polymorphic
 express every scheme and arbitrary periodization waves.
 
 ### 4. Offline-first means owning the failure modes
+
 No server means device loss is total data loss, so the project treats it as a
 real engineering surface: JSON backup/restore plus CSV export, idempotent seeds
 that can grow and reach already-seeded devices, and 20 versioned migrations.
@@ -169,6 +174,7 @@ the safe failure is the intentional one, and it's documented as a known limitati
 rather than papered over.
 
 ### 5. Platform-specific friction, recorded so the next person doesn't pay twice
+
 Pinning to Expo Go SDK 54 (Reanimated 4 needs `react-native-worklets`; Drizzle
 `.sql` migrations need `babel-plugin-inline-import`; DB schema files must use
 relative imports because drizzle-kit bundles with esbuild and ignores tsconfig
@@ -243,14 +249,14 @@ See [`CLAUDE.md`](CLAUDE.md) for conventions and SDK-54 gotchas, and
   exhaustively tested. The DB glue stays dull on purpose.
 - **Decide the invariants from the domain, not from the bug reports.** Scoping
   history to a program, idempotent advancement, loadable rounding, and
-  canonical-unit storage were all designed *up front* from researching how the
+  canonical-unit storage were all designed _up front_ from researching how the
   domain actually works — each would have been a painful retrofit.
 - **Offline-first is a feature with a tax.** It buys instant, private, always-on
   UX, and it bills you for migrations, export, and seed idempotency. Naming that
   tax early made it manageable.
 - **Document the gap between claim and reality.** The most valuable lines in the
   roadmap are the "as built" and "unverified at runtime" notes. Writing down where
-  the work *isn't* finished is what makes the parts that are finished trustworthy.
+  the work _isn't_ finished is what makes the parts that are finished trustworthy.
 
 ---
 
