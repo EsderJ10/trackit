@@ -5,6 +5,9 @@ nodeLinker: hoisted
 # esbuild is drizzle-kit's Node-side bundler (dev tooling only, never shipped
 # in the app bundle); allow its install script so the CLI works.
 allowBuilds:
+  # native SQLite engine for the Node-side DB/migration integration tests
+  # (Vitest, tests/integration/) — dev tooling only, never shipped in the app.
+  better-sqlite3: true
   esbuild: true
   # napi resolver used by the ESLint import plugin (lint tooling only); ships
   # prebuilt binaries, so its postinstall just links the right one — no compile.
