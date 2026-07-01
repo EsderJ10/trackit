@@ -1,0 +1,48 @@
+name: CI
+
+# Fast, headless gate on every push + PR: type-check, lint, format, and the full
+# Vitest suite (unit + the DB/migration integration project). No device needed —
+# the integration tests run the real migrations against an in-memory SQLite
+# engine (see tests/integration/). Device-level flows live in the separate,
+# heavier `e2e` workflow so a slow emulator never blocks this signal.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # `allowBuilds: better-sqlite3` in pnpm-workspace.yaml lets its native
+      # binding compile — required by the integration tests.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check (strict, no `any`)
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format
+
+      - name: Test (unit + integration)
+        run: pnpm test
